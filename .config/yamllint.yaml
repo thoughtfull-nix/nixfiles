@@ -1,0 +1,6 @@
+---
+extends: default
+rules:
+  indentation: enable
+  line-length:
+    max: 100
