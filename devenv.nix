@@ -64,9 +64,9 @@
     typos = {
       enable = true;
       excludes = [
-        "bin/gename"
         "\.config/.*"
       ];
+      files = ".(md|org|txt)$";
       settings.configPath = ".config/typos.toml";
     };
     vale = {
