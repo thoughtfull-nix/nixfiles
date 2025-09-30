@@ -1,4 +1,6 @@
 .devenv*
 .direnv
 .pre-commit-config.yaml
+/mehida*
+/result
 devenv.local.nix
