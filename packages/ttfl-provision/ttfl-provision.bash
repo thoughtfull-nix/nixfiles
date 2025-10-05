@@ -187,7 +187,7 @@ install_nixos() {
   ## ensure latest revision of nixfiles
   ${run} nix flake prefetch --refresh "${nixfiles_url}"
   ## install nixos
-  ${run} nixos-install --refresh --flake "${nixfiles_url}#${hostname}" --no-root-password
+  ${run} nixos-install --flake "${nixfiles_url}#${hostname}" --no-root-password
   log "Finished"
 }
 
