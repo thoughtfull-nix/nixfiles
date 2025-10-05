@@ -50,8 +50,19 @@
       settings.width = 100;
     };
     ripsecrets.enable = true;
-    shellcheck.enable = true;
-    shfmt.enable = true; # uses editorconfig
+    shellcheck = {
+      enable = true;
+      args = lib.cli.toGNUCommandLine { } {
+        e = "SC2239";
+      };
+    };
+    # uses editorconfig
+    shfmt = {
+      args = lib.cli.toGNUCommandLine { } {
+        i = 2; # refuses to use editorconfig
+      };
+      enable = true;
+    };
     sort-file-contents = {
       enable = true;
       files = "(\.config/vale/config/ignore/.*)|\.gitignore";

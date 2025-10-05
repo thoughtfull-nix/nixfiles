@@ -1,7 +1,14 @@
-_self: {
+{ inputs, ... }:
+{
   default =
     { ... }:
     {
+      imports = [
+        ./impermanence.nix
+        ./users.nix
+        inputs.disko.nixosModules.default
+        inputs.impermanence.nixosModules.impermanence
+      ];
       nix.extraOptions = ''
         experimental-features = nix-command flakes
       '';
@@ -9,5 +16,4 @@ _self: {
     };
   dvorak = import ./dvorak.nix;
   fonts = import ./fonts.nix;
-  technosophist = import ./technosophist.nix;
 }

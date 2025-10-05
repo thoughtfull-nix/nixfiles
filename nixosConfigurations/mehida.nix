@@ -7,16 +7,12 @@
 }:
 {
   environment = {
-    shells = [
-      pkgs.zsh
-    ];
     systemPackages = with pkgs; [
       emacs-nox
       git
       jq
       tmux
       usbutils
-      zsh
     ];
   };
   imports = with thoughtfull.nixosModules; [
@@ -26,7 +22,6 @@
     "${nixpkgs}/nixos/modules/profiles/base.nix"
     dvorak
     fonts
-    technosophist
   ];
   isoImage = {
     compressImage = false;
