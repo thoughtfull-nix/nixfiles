@@ -1,6 +1,7 @@
 {
   description = "Thoughtfull Systems nixfiles";
   inputs = {
+    flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
   };
   outputs =
@@ -9,7 +10,7 @@
       lib = import ./lib self;
       nixosConfigurations = import ./nixosConfigurations self;
       nixosModules = import ./nixosModules self;
-      packages = self.lib.forAllSystems (
+      packages = self.lib.forEachSystem (
         system:
         let
           pkgs = import nixpkgs {
