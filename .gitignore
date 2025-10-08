@@ -1,6 +1,7 @@
 .devenv*
 .direnv
 .pre-commit-config.yaml
-/mehida*
+/*-efi-vars.fd
+/*.qcow2
 /result
 devenv.local.nix

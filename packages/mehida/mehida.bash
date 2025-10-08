@@ -2,26 +2,42 @@
 set -eou pipefail
 
 # @meta version ∞
-# @option --size=100M virtual machine disk size
-# @option --port=8022 local port to forward to virtual machine port 22
+# @option --name=nixos  name of the virtual machine
+# @option --directory=. working directory in which to create the virtual machine disk
+# @option --size=100M   virtual machine disk size
+# @option --port=8022   local port to forward to virtual machine port 22
 main() {
+  disk="${argc_directory}/${argc_name}.qcow2"
+  efi_vars="${argc_directory}/${argc_name}-efi-vars.fd"
+  echo "name=${argc_name}"
+  echo "directory=${argc_directory}"
+  echo "disk=${disk}"
+  echo "efi_vars=${efi_vars}"
   echo "size=${argc_size}"
   echo "port=${argc_port}"
 
-  disk=$(mktemp)
-  @qemu-img@ create -f qcow2 "${disk}" "${argc_size}"
+  cp @ovmf-variables@ "${efi_vars}"
+  chmod 0644 "${efi_vars}"
+  if [[ -e ${disk} ]]; then
+    echo "VM disk already exists."
+  else
+    echo "Creating VM disk."
+    @qemu-img@ create -f qcow2 "${disk}" "${argc_size}"
+  fi
   @qemu@ \
-    -boot d \
+    -boot cdn \
     -machine accel=kvm:tcg \
     -cpu max \
-    -name mehida \
-    -m 2048 \
-    -smp 1 \
+    -name "${argc_name}" \
+    -m 8192 \
+    -smp 4 \
     -net nic,netdev=user.0,model=virtio \
     -netdev user,id=user.0,hostfwd=tcp::"${argc_port}"-:22 \
     -hda "${disk}" \
     -cdrom @iso@ \
     -device virtio-keyboard \
     -usb \
-    -device usb-tablet,bus=usb-bus.0
+    -device usb-tablet,bus=usb-bus.0 \
+    -drive if=pflash,format=raw,unit=1,readonly=off,file="${efi_vars}" \
+    -drive if=pflash,format=raw,unit=0,readonly=on,file=@ovmf-firmware@
 }
