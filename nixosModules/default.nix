@@ -1,16 +1,12 @@
-{ ... }:
-{
-  default =
-    { ... }:
-    {
-      imports = [
-        ./users.nix
-      ];
-      nix.extraOptions = ''
-        experimental-features = nix-command flakes
-      '';
-      nixpkgs.config.allowUnfree = true;
-    };
+_: {
+  default = _: {
+    imports = [
+      ./users.nix
+    ];
+    nix.extraOptions = ''
+      experimental-features = nix-command flakes
+    '';
+  };
   dvorak = import ./dvorak.nix;
   fonts = import ./fonts.nix;
 }

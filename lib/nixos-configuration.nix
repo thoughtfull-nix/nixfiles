@@ -16,10 +16,10 @@ args@{
   // {
     modules = modules ++ [ nixosModules.default ];
     specialArgs = specialArgs // {
-      inherit (inputs) nixpkgs;
       thoughtfull = {
-        inherit lib nixosModules;
-        packages = packages.${system};
+        inherit nixosModules;
+        lib = lib // lib.${system};
+        pkgs = packages.${system};
       };
     };
   }

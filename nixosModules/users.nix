@@ -4,10 +4,9 @@
   thoughtfull,
   ...
 }:
-with builtins;
+with config.users.users;
 with lib;
 with thoughtfull.lib;
-with config.users.users;
 {
   users = {
     mutableUsers = mkDefault false;
@@ -21,7 +20,7 @@ with config.users.users;
           sha256 = "18kzyik9mv77iis76pbn40pms5mdmzj4y4mpxgsvx17mbllbj1ia";
           username = "technosophist";
         });
-        uid = mkIf enable (mkDefault 8000);
+        uid = mkIf enable (mkDefault 1000);
       };
     };
   };

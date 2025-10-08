@@ -1,6 +1,6 @@
 {
   lib,
-  nixpkgs,
+  modulesPath,
   pkgs,
   thoughtfull,
   ...
@@ -16,10 +16,10 @@
     ];
   };
   imports = with thoughtfull.nixosModules; [
-    "${nixpkgs}/nixos/modules/installer/cd-dvd/channel.nix"
-    "${nixpkgs}/nixos/modules/installer/cd-dvd/iso-image.nix"
-    "${nixpkgs}/nixos/modules/profiles/all-hardware.nix"
-    "${nixpkgs}/nixos/modules/profiles/base.nix"
+    "${modulesPath}/installer/cd-dvd/channel.nix"
+    "${modulesPath}/installer/cd-dvd/iso-image.nix"
+    "${modulesPath}/profiles/all-hardware.nix"
+    "${modulesPath}/profiles/base.nix"
     dvorak
     fonts
   ];

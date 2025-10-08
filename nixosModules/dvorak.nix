@@ -1,9 +1,10 @@
 { lib, ... }:
+with lib;
 {
-  console.useXkbConfig = lib.mkDefault true;
+  console.useXkbConfig = mkDefault true;
   services.xserver.xkb = {
-    layout = lib.mkDefault "us";
-    options = lib.mkDefault "grp:shifts_toggle,ctrl:nocaps,compose:rctrl";
-    variant = lib.mkDefault "dvorak";
+    layout = mkDefault "us";
+    options = mkDefault "grp:shifts_toggle,ctrl:nocaps,compose:rctrl";
+    variant = mkDefault "dvorak";
   };
 }

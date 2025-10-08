@@ -1,7 +1,5 @@
-self:
-let
-  inherit (self.lib) nixosConfiguration;
-in
+{ lib, ... }:
+with lib;
 {
   mehida = nixosConfiguration {
     modules = [ (import ./mehida.nix) ];

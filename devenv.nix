@@ -50,8 +50,26 @@
       settings.width = 100;
     };
     ripsecrets.enable = true;
-    shellcheck.enable = true;
-    shfmt.enable = true; # uses editorconfig
+    shellcheck = {
+      args = lib.cli.toGNUCommandLine { } {
+        e = [
+          # using replaceVars with bash makes these unhappy
+          "SC1008" # This shebang was unrecognized.
+          "SC2239" # Ensure the shebang uses an absolute path to the interpreter.
+
+          # argc tends to trip this, and I use 'set -u' anyway
+          "SC2154" # Var is referenced but not assigned.
+        ];
+      };
+      enable = true;
+    };
+    # uses editorconfig
+    shfmt = {
+      args = lib.cli.toGNUCommandLine { } {
+        i = 2; # refuses to use editorconfig
+      };
+      enable = true;
+    };
     sort-file-contents = {
       enable = true;
       files = "(\.config/vale/config/ignore/.*)|\.gitignore";

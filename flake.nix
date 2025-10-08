@@ -5,20 +5,23 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
   };
   outputs =
-    { self, nixpkgs, ... }:
-    {
+    { nixpkgs, self, ... }:
+    rec {
       lib = import ./lib self;
       nixosConfigurations = import ./nixosConfigurations self;
       nixosModules = import ./nixosModules self;
-      packages = self.lib.forEachSystem (
+      packages = lib.forEachSystem (
         system:
-        let
-          pkgs = import nixpkgs {
-            allowUnfree = true;
-            inherit system;
-          };
-        in
-        import ./packages (self // { inherit pkgs; })
+        import ./packages (
+          self
+          // {
+            pkgs = import nixpkgs {
+              allowUnfree = true;
+              inherit system;
+            };
+            lib = lib // lib.${system};
+          }
+        )
       );
     };
 }

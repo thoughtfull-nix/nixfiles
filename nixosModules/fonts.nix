@@ -1,8 +1,9 @@
 { lib, pkgs, ... }:
+with lib;
 {
   console = {
-    earlySetup = lib.mkDefault true;
-    font = lib.mkDefault "ter-116n";
+    earlySetup = mkDefault true;
+    font = mkDefault "ter-116n";
     packages = [ pkgs.terminus_font ];
   };
 }

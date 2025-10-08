@@ -1,3 +1,3 @@
 self: {
-  mehida = import ./mehida.nix self;
+  mehida = import ./mehida self;
 }
