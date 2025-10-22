@@ -9,7 +9,7 @@
     rec {
       lib = import ./lib self;
       nixosConfigurations = import ./nixosConfigurations self;
-      nixosModules = import ./nixosModules self;
+      nixosModules = import ./nixosModules;
       packages = lib.forEachSystem (
         system:
         import ./packages (

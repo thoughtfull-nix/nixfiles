@@ -1,4 +1,4 @@
-_: {
+{
   default = _: {
     imports = [
       ./users.nix

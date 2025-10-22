@@ -1,8 +1,11 @@
 * Nixfiles for NixOS
-** mehida
-An installation/rescue ISO file based on the NixOS installation ISO file, but preconfigured with my user accounts and modules.
+** nixos
+An installation/rescue ISO file based on the NixOS installation ISO file, but preconfigured with my
+user accounts and modules.
 
-I can provision a new machine, reprovision an existing machine, or rescue an existing machine by mounting its disks and running commands.
+It has all the tools I need to provision a new machine, reprovision, or rescue an existing machine.
+
+The ~ttfl-nixos-vm~ script will boot the ISO on a qemu VM.
 ** LICENSE
 #+BEGIN_EXAMPLE
 © 2025 technosophist

@@ -32,7 +32,7 @@ main() {
     -m 8192 \
     -smp 4 \
     -net nic,netdev=user.0,model=virtio \
-    -netdev user,id=user.0,hostfwd=tcp::"${argc_port}"-:22 \
+    -netdev user,id=user.0,hostfwd=tcp::"${argc_port}"-:22,hostname="${argc_name}",domainname=thoughtfull.systems \
     -hda "${disk}" \
     -cdrom @iso@ \
     -device virtio-keyboard \

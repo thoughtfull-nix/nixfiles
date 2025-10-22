@@ -16,6 +16,7 @@ args@{
   // {
     modules = modules ++ [ nixosModules.default ];
     specialArgs = specialArgs // {
+      inherit inputs;
       thoughtfull = {
         inherit nixosModules;
         lib = lib // lib.${system};

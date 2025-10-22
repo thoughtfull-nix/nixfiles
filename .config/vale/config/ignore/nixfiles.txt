@@ -1,5 +1,6 @@
 Nixfiles
 editorconfig
-mehida
+nixos
 preconfigured
+qemu
 reprovision

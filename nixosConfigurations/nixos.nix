@@ -29,8 +29,8 @@
     makeUsbBootable = true;
   };
   networking = {
-    domain = "thoughtfull.systems";
-    hostName = "mehida";
+    # set the hostname from dhcp (or default to "nixos")
+    hostName = "";
     useDHCP = true;
     wireless = {
       enable = true;
@@ -38,21 +38,25 @@
     };
   };
   programs.zsh.enable = true;
-  security.sudo.extraRules = [
-    {
-      commands = [
-        {
-          command = "ALL";
-          options = [ "NOPASSWD" ];
-        }
-      ];
-      groups = [ "wheel" ];
-    }
-  ];
+  security = {
+    # among other things, this is necessary to set the hostname from dhcp
+    polkit.enable = true;
+    sudo.extraRules = [
+      {
+        commands = [
+          {
+            command = "ALL";
+            options = [ "NOPASSWD" ];
+          }
+        ];
+        groups = [ "wheel" ];
+      }
+    ];
+  };
   services.openssh.enable = true;
   system.stateVersion = lib.trivial.release;
   users.users.technosophist = {
     extraGroups = [ "wheel" ];
-    password = "mehida";
+    password = "nixos";
   };
 }
