@@ -63,10 +63,10 @@
       };
       enable = true;
     };
-    # uses editorconfig
     shfmt = {
       args = lib.cli.toGNUCommandLine { } {
-        i = 2; # refuses to use editorconfig
+        i = 2;
+        ci = true;
       };
       enable = true;
     };
