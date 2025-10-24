@@ -14,6 +14,9 @@
     check-symlinks.enable = true;
     deadnix = {
       enable = true;
+      excludes = [
+        "nixosConfigurations/[^/]*/hardware-configuration.nix"
+      ];
       settings = {
         edit = true;
         noUnderscore = true;
@@ -47,6 +50,9 @@
     mixed-line-endings.enable = true;
     nixfmt-rfc-style = {
       enable = true;
+      excludes = [
+        "nixosConfigurations/[^/]*/hardware-configuration.nix"
+      ];
       settings.width = 100;
     };
     ripsecrets.enable = true;
