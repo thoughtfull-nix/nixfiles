@@ -1,4 +1,5 @@
 {
+  inputs,
   lib,
   modulesPath,
   pkgs,
@@ -7,13 +8,17 @@
 }:
 {
   environment = {
-    systemPackages = with pkgs; [
-      emacs-nox
-      git
-      jq
-      tmux
-      usbutils
-    ];
+    systemPackages =
+      with pkgs;
+      with inputs.disko.packages;
+      [
+        disko
+        emacs-nox
+        git
+        jq
+        tmux
+        usbutils
+      ];
   };
   imports = with thoughtfull.nixosModules; [
     "${modulesPath}/installer/cd-dvd/channel.nix"
@@ -55,6 +60,8 @@
   };
   services.openssh.enable = true;
   system.stateVersion = lib.trivial.release;
+  systemd.services.sshd-keygen.enable = true;
+  thoughtfull.impermanence.enable = false;
   users.users.technosophist = {
     extraGroups = [ "wheel" ];
     password = "nixos";

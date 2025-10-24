@@ -1,0 +1,4 @@
+# Master keys that should have access to all age encrypted secrets in this repository.
+#
+# If this file is renamed, then ttfl-provision must be updated.
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHiny6WaiKYjl0eHGVR64hF27D9WKL05S9m/5b+GHxJv technosophist@gemariah
