@@ -155,6 +155,7 @@ setup() {
   local config_path remote_hostname
 
   argc_nixfiles_dir=$(readlink -f "${argc_nixfiles_dir}")
+  [[ -e "${argc_nixfiles_dir}/flake.nix" ]] || die "Could not find nixfiles directory"
   age_recipients=${argc_nixfiles_dir}/master-keys.txt
   config_path=${argc_nixfiles_dir}/nixosConfigurations/${argc_hostname}
   hardware_config_path=${config_path}/hardware-configuration.nix
