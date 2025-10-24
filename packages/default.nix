@@ -14,6 +14,7 @@ rec {
     age = "${age}/bin/age";
     bash = "${bash}/bin/bash";
     ssh = "${openssh}/bin/ssh";
+    ssh-copy-id = "${openssh}/bin/ssh-copy-id";
     ssh-keygen = "${openssh}/bin/ssh-keygen";
     bashlib = "${bashlib}";
   };

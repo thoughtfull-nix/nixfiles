@@ -12,6 +12,7 @@
 
 set -eou pipefail
 
+# @option --iso=@iso@  name of the virtual machine
 # @option --name=nixos  name of the virtual machine
 # @option --directory=. working directory in which to create the virtual machine disk
 # @option --size=100M   virtual machine disk size
@@ -19,6 +20,7 @@ set -eou pipefail
 main() {
   disk="${argc_directory}/${argc_name}.qcow2"
   efi_vars="${argc_directory}/${argc_name}-efi-vars.fd"
+  echo "iso=${argc_iso}"
   echo "name=${argc_name}"
   echo "directory=${argc_directory}"
   echo "disk=${disk}"
@@ -44,7 +46,7 @@ main() {
     -net nic,netdev=user.0,model=virtio \
     -netdev user,id=user.0,hostfwd=tcp::"${argc_port}"-:22,hostname="${argc_name}",domainname=thoughtfull.systems \
     -hda "${disk}" \
-    -cdrom @iso@ \
+    -cdrom "${argc_iso}" \
     -device virtio-keyboard \
     -usb \
     -device usb-tablet,bus=usb-bus.0 \
