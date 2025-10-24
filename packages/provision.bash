@@ -41,7 +41,7 @@ declare -ga ssh_opts
 ## @arg ssh-destination!
 ## SSH destination (i.e. ssh://user@host:port) to provision
 ##
-## @option --nixfiles-dir=. $TTFL_NIXFILES_DIR
+## @option --nixfiles-dir=`_find-nixfiles-dir` $TTFL_NIXFILES_DIR
 ## directory of local nixfiles checkout for reading/writing secrets and configuration
 ##
 ## @option --nixfiles-url=github:thoughtfull-nix/nixfiles $TTFL_NIXFILES_URL
@@ -69,7 +69,7 @@ main() {
 ## @arg ssh-destination!
 ## SSH destination (i.e. ssh://user@host:port) to provision
 ##
-## @option --nixfiles-dir=. $TTFL_NIXFILES_DIR
+## @option --nixfiles-dir=`_find-nixfiles-dir` $TTFL_NIXFILES_DIR
 ## directory of local nixfiles checkout for reading/writing secrets and configuration
 init() {
   setup
@@ -85,7 +85,7 @@ init() {
 ## @arg ssh-destination!
 ## SSH destination (i.e. ssh://user@host:port) to provision
 ##
-## @option --nixfiles-dir=. $TTFL_NIXFILES_DIR
+## @option --nixfiles-dir=`_find-nixfiles-dir` $TTFL_NIXFILES_DIR
 ## directory of local nixfiles checkout for reading/writing secrets and configuration
 ##
 ## @option --nixfiles-url=github:thoughtfull-nix/nixfiles $TTFL_NIXFILES_URL
@@ -107,7 +107,7 @@ format() {
 ## @arg ssh-destination!
 ## SSH destination (i.e. ssh://user@host:port) to provision
 ##
-## @option --nixfiles-dir=. $TTFL_NIXFILES_DIR
+## @option --nixfiles-dir=`_find-nixfiles-dir` $TTFL_NIXFILES_DIR
 ## directory of local nixfiles checkout for reading/writing secrets and configuration
 ##
 ## @option --nixfiles-url=github:thoughtfull-nix/nixfiles $TTFL_NIXFILES_URL
@@ -115,6 +115,15 @@ format() {
 install() {
   setup
   install-remote
+}
+
+_find-nixfiles-dir() {
+  local flake_path
+  if find-dominating-file flake_path flake.nix; then
+    dirname "${flake_path}"
+  else
+    readlink -f .
+  fi
 }
 
 ssh() {
