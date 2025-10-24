@@ -18,7 +18,7 @@ IFS=$'\n\t'
 # shellcheck disable=SC1091
 . @bashlib@
 
-declare -g age_recipients hardware_config_path secrets_path TMPDIR
+declare -g age_recipients flake hardware_config_path nix secrets_path TMPDIR
 declare -ga ssh_opts
 
 ## @cmd Provision a new machine
@@ -49,10 +49,11 @@ declare -ga ssh_opts
 ##
 ## @option --age-identity-file=~/.ssh/id_ed25519 $TTFL_AGE_IDENTITY_FILE
 ## file containing age identity to use for decrypt secrets
+##
+## @option --disko-url=github:nix-community/disko/v1.12.0 $TTFL_DISKO_URL
+## URL of nixfiles repository to pull to remote for install
 main() {
   setup
-  declare flake
-  flake="${argc_nixfiles_url}#${argc_hostname}"
 
   ensure-ssh-host-key
   update-hardware-configuration
@@ -93,6 +94,9 @@ init() {
 ##
 ## @option --age-identity-file=~/.ssh/id_ed25519 $TTFL_AGE_IDENTITY_FILE
 ## file containing age identity to use for decrypt secrets
+##
+## @option --disko-url=github:nix-community/disko/v1.12.0 $TTFL_DISKO_URL
+## URL of nixfiles repository to pull to remote for install
 format() {
   setup
   format-remote
@@ -112,6 +116,9 @@ format() {
 ##
 ## @option --nixfiles-url=github:thoughtfull-nix/nixfiles $TTFL_NIXFILES_URL
 ## URL of nixfiles repository to pull to remote for install
+##
+## @option --disko-url=github:nix-community/disko/v1.12.0 $TTFL_DISKO_URL
+## URL of nixfiles repository to pull to remote for install
 install() {
   setup
   install-remote
@@ -128,6 +135,10 @@ _find-nixfiles-dir() {
 
 ssh() {
   @ssh@ "$@"
+}
+
+ssh-copy-id() {
+  @ssh-copy-id@ "${ssh_opts[@]}" "$@"
 }
 
 ssh-keygen() {
@@ -160,18 +171,22 @@ setup() {
   config_path=${argc_nixfiles_dir}/nixosConfigurations/${argc_hostname}
   hardware_config_path=${config_path}/hardware-configuration.nix
   secrets_path=${config_path}/secrets
+  [[ -v argc_nixfiles_url ]] && flake="${argc_nixfiles_url}#${argc_hostname}"
 
   TMPDIR=$(mktemp -d)
   export TMPDIR
   addtrap "rm -rf ${TMPDIR}" EXIT SIGHUP SIGINT SIGQUIT SIGPIPE SIGTERM
   ssh_opts=("-oUserKnownHostsFile=${TMPDIR}/known_hosts")
+  nix="nix --extra-experimental-features nix-command --extra-experimental-features flakes"
 
-  echo "argc_hostname=${argc_hostname}"
-  echo "argc_ssh_destination=${argc_ssh_destination}"
-  echo "argc_nixfiles_dir=${argc_nixfiles_dir}"
-  [[ -v argc_nixfiles_url ]] && echo "argc_nixfiles_url=${argc_nixfiles_url}"
-  [[ -v argc_age_identity_file ]] && echo "argc_age_identity_file=${argc_age_identity_file}"
+  echo "hostname=${argc_hostname}"
+  echo "ssh_destination=${argc_ssh_destination}"
+  echo "nixfiles_dir=${argc_nixfiles_dir}"
+  [[ -v argc_nixfiles_url ]] && echo "nixfiles_url=${argc_nixfiles_url}"
+  [[ -v flake ]] && echo "flake=${flake}"
+  [[ -v argc_disko_url ]] && echo "disko_url=${argc_disko_url}"
   echo "age_recipients=${age_recipients}"
+  [[ -v argc_age_identity_file ]] && echo "age_identity_file=${argc_age_identity_file}"
   echo "config_path=${config_path}"
   echo "hardware_config_path=${hardware_config_path}"
   echo "secrets_path=${secrets_path}"
@@ -183,6 +198,7 @@ setup() {
   remote_hostname=$(run hostname -s)
   [[ ${remote_hostname} == "${argc_hostname}" ]] ||
     die "Wrong hostname! Expected ${argc_hostname} but was ${remote_hostname}"
+  ssh-copy-id "${argc_ssh_destination}"
 }
 
 ensure-ssh-host-key() {
@@ -218,14 +234,11 @@ update-hardware-configuration() {
 }
 
 format-remote() {
-  declare flake
-  flake="${argc_nixfiles_url}#${argc_hostname}"
-
   log "Fetching latest nixfiles from ${argc_nixfiles_url} on remote"
-  run nix flake prefetch --refresh "${argc_nixfiles_url}" ||
+  run "${nix}" flake prefetch --refresh "${argc_nixfiles_url}" ||
     die "Failed to fetch latest nixfiles from ${argc_nixfiles_url} on remote"
   log "Formatting disk(s) for ${argc_hostname} on remote"
-  run disko --mode destroy,format,mount --flake "${flake}" ||
+  run "${nix}" run "${argc_disko_url}" -- --mode destroy,format,mount --flake "${flake}" ||
     die "Failed to format disk(s) for ${argc_hostname} on remote"
 }
 
@@ -270,14 +283,11 @@ copy-ssh-host-keys-to-installation() {
 }
 
 install-remote() {
-  declare flake
-  flake="${argc_nixfiles_url}#${argc_hostname}"
-
   log "Fetching latest nixfiles from ${argc_nixfiles_url} on remote"
-  run nix flake prefetch --refresh "${argc_nixfiles_url}" ||
+  run "${nix}" flake prefetch --refresh "${argc_nixfiles_url}" ||
     die "Failed to fetch latest nixfiles from ${argc_nixfiles_url} on remote"
   log "Mounting disk(s) for ${argc_hostname} on remote"
-  run disko --mode mount --flake "${flake}" ||
+  run "${nix}" run "${argc_disko_url}" -- --mode mount --flake "${flake}" ||
     die "Failed to mount disk(s) for ${argc_hostname} on remote"
   run nixos-install --flake "${flake}" --no-root-password ||
     die "Failed to install NixOS for ${argc_hostname} on remote"
