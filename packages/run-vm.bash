@@ -1,32 +1,53 @@
 #!@bash@
 
-### Copyright © technosophist
+### © technosophist
 ###
-### This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of
-### the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
+### This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy
+### of the MPL was not distributed with this file, You can obtain one at
+### http://mozilla.org/MPL/2.0/.
 ###
-### This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla Public
-### License, v. 2.0.
-
+### This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla
+### Public License, v. 2.0.
+###
 ### @meta version ∞
 
 set -eou pipefail
+shopt -s nullglob
+IFS=$'\n\t'
 
-# @option --iso=@iso@  name of the virtual machine
-# @option --name=nixos  name of the virtual machine
-# @option --directory=. working directory in which to create the virtual machine disk
-# @option --size=100M   virtual machine disk size
-# @option --port=8022   local port to forward to virtual machine port 22
+# shellcheck disable=SC1091
+. @bashlib@
+
+## @describe Run NixOS virtual machine
+##
+## Run a NixOS virtual machine using my custom ISO, unless another ISO is given.  Port forwarding is
+## setup to the VM, and the name given is used with DHCP to set the hostname.  Boots with UEFI
+## firmware.
+##
+## @option --iso=@iso@
+## name of the virtual machine
+##
+## @option --name=nixos
+## name of the virtual machine
+##
+## @option --directory=.
+## working directory in which to create the virtual machine disk
+##
+## @option --size=100M
+## virtual machine disk size
+##
+## @option --port=8022
+## local port to forward to virtual machine port 22
 main() {
   disk="${argc_directory}/${argc_name}.qcow2"
   efi_vars="${argc_directory}/${argc_name}-efi-vars.fd"
-  echo "iso=${argc_iso}"
-  echo "name=${argc_name}"
-  echo "directory=${argc_directory}"
-  echo "disk=${disk}"
-  echo "efi_vars=${efi_vars}"
-  echo "size=${argc_size}"
-  echo "port=${argc_port}"
+  debug "iso=${argc_iso}"
+  debug "name=${argc_name}"
+  debug "directory=${argc_directory}"
+  debug "disk=${disk}"
+  debug "efi_vars=${efi_vars}"
+  debug "size=${argc_size}"
+  debug "port=${argc_port}"
 
   cp @ovmf-variables@ "${efi_vars}"
   chmod 0644 "${efi_vars}"
