@@ -1,6 +1,6 @@
 #!@bash@
 
-### Copyright © technosophist
+### © technosophist
 ###
 ### This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy
 ### of the MPL was not distributed with this file, You can obtain one at
@@ -8,7 +8,7 @@
 ###
 ### This Source Code Form is "Incompatible With Secondary Licenses", as defined by the Mozilla
 ### Public License, v. 2.0.
-
+###
 ### @meta version ∞
 
 set -euo pipefail
@@ -23,13 +23,12 @@ declare -ga ssh_opts
 
 ## @cmd Provision a new machine
 ##
-## Running this script with a hostname argument and remote argument (e.g. ssh://user@host:port) will
-## generate an SSH host key, generate a hardware-configuration.nix for hostname (in
+## Generate an SSH host key, generate a hardware-configuration.nix for hostname (in
 ## 'nixosConfigurations/${hostname}'), partition and format remote with disko using hostname's
 ## configuration, copy the SSH host key into remote's installation partitions, and install NixOS on
 ## remote using hostname's configuration.
 ##
-## SSH host private keys are stored encrypted to the recipients in master-keys.txt using age.
+## SSH host private key is stored encrypted to the recipients in master-keys.txt using age.
 ##
 ## Remote must be booted with a NixOS installer.
 ##
@@ -54,7 +53,6 @@ declare -ga ssh_opts
 ## URL of nixfiles repository to pull to remote for install
 main() {
   setup
-
   ensure-ssh-host-key
   update-hardware-configuration
   format-remote
@@ -62,7 +60,14 @@ main() {
   install-remote
 }
 
-## @cmd Create SSH host key and hardware configuration for a new machine
+## @cmd Generate SSH host key for hostname and hardware configuration for a remote
+##
+## Generate SSH host key for hostname and hardware configuration for remote, unless they already
+## exist.
+##
+## SSH host private key is stored encrypted to the recipients in master-keys.txt using age.
+##
+## Remote must be booted with a NixOS installer.
 ##
 ## @arg hostname!
 ## hostname to configure the remote for
@@ -78,7 +83,13 @@ init() {
   update-hardware-configuration
 }
 
-## @cmd Format disks and copy SSH host key
+## @cmd Format remote disks and copy SSH host key into installation partitions
+##
+## Format remote disks using disko and copy SSH host key into installation partitions.
+##
+## SSH host private key will be decrypted using age-identity-file.
+##
+## Remote must be booted with a NixOS installer.
 ##
 ## @arg hostname!
 ## hostname to configure the remote for
@@ -103,7 +114,13 @@ format() {
   copy-ssh-host-keys-to-installation
 }
 
-## @cmd Install NixOS
+## @cmd Install NixOS for hostname configuration on remote
+##
+## Install NixOS for hostname configuration on remote.
+##
+## Ensures latest nixfiles are cloned and installation partitions are mounted before installation.
+##
+## Remote must be booted with a NixOS installer.
 ##
 ## @arg hostname!
 ## hostname to configure the remote for
@@ -124,44 +141,6 @@ install() {
   install-remote
 }
 
-_find-nixfiles-dir() {
-  local flake_path
-  if find-dominating-file flake_path flake.nix; then
-    dirname "${flake_path}"
-  else
-    readlink -f .
-  fi
-}
-
-ssh() {
-  @ssh@ "$@"
-}
-
-ssh-copy-id() {
-  @ssh-copy-id@ "${ssh_opts[@]}" "$@"
-}
-
-ssh-keygen() {
-  @ssh-keygen@ "${@}"
-}
-
-run() {
-  # shellcheck disable=SC2029
-  ssh "${ssh_opts[@]}" "${argc_ssh_destination}" "$@"
-}
-
-age() {
-  @age@ "$@"
-}
-
-age-encrypt() {
-  age -R "${age_recipients}" --armor "${@}"
-}
-
-age-decrypt() {
-  @age@ --decrypt -i "${argc_age_identity_file}" "$@"
-}
-
 setup() {
   local config_path remote_hostname
 
@@ -179,20 +158,18 @@ setup() {
   ssh_opts=("-oUserKnownHostsFile=${TMPDIR}/known_hosts")
   nix="nix --extra-experimental-features nix-command --extra-experimental-features flakes"
 
-  echo "hostname=${argc_hostname}"
-  echo "ssh_destination=${argc_ssh_destination}"
-  echo "nixfiles_dir=${argc_nixfiles_dir}"
-  [[ -v argc_nixfiles_url ]] && echo "nixfiles_url=${argc_nixfiles_url}"
-  [[ -v flake ]] && echo "flake=${flake}"
-  [[ -v argc_disko_url ]] && echo "disko_url=${argc_disko_url}"
-  echo "age_recipients=${age_recipients}"
-  [[ -v argc_age_identity_file ]] && echo "age_identity_file=${argc_age_identity_file}"
-  echo "config_path=${config_path}"
-  echo "hardware_config_path=${hardware_config_path}"
-  echo "secrets_path=${secrets_path}"
-  echo "TMPDIR=${TMPDIR}"
-
-  confirm
+  debug "hostname=${argc_hostname}"
+  debug "ssh_destination=${argc_ssh_destination}"
+  debug "nixfiles_dir=${argc_nixfiles_dir}"
+  [[ -v argc_nixfiles_url ]] && debug "nixfiles_url=${argc_nixfiles_url}"
+  [[ -v flake ]] && debug "flake=${flake}"
+  [[ -v argc_disko_url ]] && debug "disko_url=${argc_disko_url}"
+  debug "age_recipients=${age_recipients}"
+  [[ -v argc_age_identity_file ]] && debug "age_identity_file=${argc_age_identity_file}"
+  debug "config_path=${config_path}"
+  debug "hardware_config_path=${hardware_config_path}"
+  debug "secrets_path=${secrets_path}"
+  debug "TMPDIR=${TMPDIR}"
 
   log "Checking hostname on remote"
   remote_hostname=$(run hostname -s)
@@ -242,6 +219,24 @@ format-remote() {
     die "Failed to format disk(s) for ${argc_hostname} on remote"
 }
 
+copy-ssh-host-keys-to-installation() {
+  declare ssh_host_keys_path
+  declare -a keys
+  if run test -d /mnt/persistent; then
+    ssh_host_keys_path="/mnt/persistent/etc/ssh"
+  else
+    ssh_host_keys_path="/mnt/etc/ssh"
+  fi
+  run mkdir -p "${ssh_host_keys_path}" || die "Failed to create ${ssh_host_keys_path}"
+  log "Copying SSH host keys to ${ssh_host_keys_path} on ${argc_hostname}"
+  keys=("${secrets_path}"/ssh_host*_key.age)
+  [[ ${#keys[*]} -gt 0 ]] || die "No SSH host keys for ${argc_hostname} to copy to remote"
+  log "Copying SSH host keys for ${argc_hostname} to remote"
+  for key in "${keys[@]}"; do
+    copy-ssh-host-key-to-remote "${key}" "${ssh_host_keys_path}"
+  done
+}
+
 copy-ssh-host-key-to-remote() {
   declare key_name key_path
   key_name=$(basename "$1" .age)
@@ -264,24 +259,6 @@ copy-ssh-host-key-to-remote() {
   fi
 }
 
-copy-ssh-host-keys-to-installation() {
-  declare ssh_host_keys_path
-  declare -a keys
-  if run test -d /mnt/persistent; then
-    ssh_host_keys_path="/mnt/persistent/etc/ssh"
-  else
-    ssh_host_keys_path="/mnt/etc/ssh"
-  fi
-  run mkdir -p "${ssh_host_keys_path}" || die "Failed to create ${ssh_host_keys_path}"
-  log "Copying SSH host keys to ${ssh_host_keys_path} on ${argc_hostname}"
-  keys=("${secrets_path}"/ssh_host*_key.age)
-  [[ ${#keys[*]} -gt 0 ]] || die "No SSH host keys for ${argc_hostname} to copy to remote"
-  log "Copying SSH host keys for ${argc_hostname} to remote"
-  for key in "${keys[@]}"; do
-    copy-ssh-host-key-to-remote "${key}" "${ssh_host_keys_path}"
-  done
-}
-
 install-remote() {
   log "Fetching latest nixfiles from ${argc_nixfiles_url} on remote"
   run "${nix}" flake prefetch --refresh "${argc_nixfiles_url}" ||
@@ -291,4 +268,42 @@ install-remote() {
     die "Failed to mount disk(s) for ${argc_hostname} on remote"
   run nixos-install --flake "${flake}" --no-root-password ||
     die "Failed to install NixOS for ${argc_hostname} on remote"
+}
+
+_find-nixfiles-dir() {
+  local flake_path
+  if find-dominating-file flake_path flake.nix; then
+    dirname "${flake_path}"
+  else
+    readlink -f .
+  fi
+}
+
+run() {
+  # shellcheck disable=SC2029
+  ssh "${ssh_opts[@]}" "${argc_ssh_destination}" "$@"
+}
+
+ssh() {
+  @ssh@ "$@"
+}
+
+ssh-copy-id() {
+  @ssh-copy-id@ "${ssh_opts[@]}" "$@"
+}
+
+ssh-keygen() {
+  @ssh-keygen@ "${@}"
+}
+
+age-encrypt() {
+  age -R "${age_recipients}" --armor "${@}"
+}
+
+age() {
+  @age@ "$@"
+}
+
+age-decrypt() {
+  @age@ --decrypt -i "${argc_age_identity_file}" "$@"
 }
