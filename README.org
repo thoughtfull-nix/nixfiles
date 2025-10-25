@@ -5,7 +5,7 @@ user accounts and modules.
 
 It has all the tools I need to provision a new machine, reprovision, or rescue an existing machine.
 
-The ~ttfl-nixos-vm~ script will boot the ISO on a qemu VM.
+The ~run-vm~ script will boot the ISO on a qemu VM.
 ** LICENSE
 #+BEGIN_EXAMPLE
 © 2025 technosophist
