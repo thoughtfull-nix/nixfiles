@@ -13,13 +13,14 @@ rec {
   provision = lib.writeArgcScript "provision" ./provision.bash {
     age = "${age}/bin/age";
     bash = "${bash}/bin/bash";
+    bashlib = "${bashlib}";
     ssh = "${openssh}/bin/ssh";
     ssh-copy-id = "${openssh}/bin/ssh-copy-id";
     ssh-keygen = "${openssh}/bin/ssh-keygen";
-    bashlib = "${bashlib}";
   };
   run-vm = lib.writeArgcScript "run-vm" ./run-vm.bash {
     bash = "${bash}/bin/bash";
+    bashlib = "${bashlib}";
     iso = with nixosConfigurations.nixos.config; "${system.build.image}/iso/${image.baseName}.iso";
     ovmf-firmware = pkgs.OVMF.firmware;
     ovmf-variables = pkgs.OVMF.variables;
