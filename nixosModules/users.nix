@@ -4,9 +4,9 @@
   thoughtfull,
   ...
 }:
-with config.users.users;
 with lib;
 with thoughtfull.lib;
+with config.users.users;
 {
   users = {
     mutableUsers = mkDefault false;
