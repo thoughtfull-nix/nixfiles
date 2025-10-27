@@ -3,7 +3,7 @@
   inputs = {
     disko = {
       inputs.nixpkgs.follows = "nixpkgs";
-      url = "github:nix-community/disko/v1.11.0";
+      url = "github:nix-community/disko/v1.12.0";
     };
     flake-utils.url = "github:numtide/flake-utils";
     impermanence.url = "github:nix-community/impermanence/4b3e914cdf97a5b536a889e939fb2fd2b043a170";
