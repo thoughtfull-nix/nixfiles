@@ -1,7 +1,8 @@
 {
   default =
-    { inputs, ... }:
+    { inputs, pkgs, ... }:
     {
+      environment.systemPackages = [ pkgs.git ];
       imports = [
         ./impermanence.nix
         ./openssh.nix
