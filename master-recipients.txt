@@ -1,0 +1,7 @@
+# Master recipients who should have access to all age encrypted secrets in this repository.
+
+# 32734766
+age1yubikey1q0qqpzx0vzcdxtxc8ktcmftm9ju03n48r3kgkwmzpqay649wfl587hrt5df
+
+# 33152940
+age1yubikey1q04lpa5mj79fyrlqf3zh969evnpem7nfgrv8lsntv78m0smh80t6kgdrjck

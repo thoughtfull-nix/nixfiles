@@ -1,0 +1,106 @@
+* {
+  font-family: FiraCode Nerd Font;
+  font-size: 12pt;
+}
+
+window#waybar {
+  background-color: @theme_bg_color;
+  color: @theme_fg_color;
+}
+
+#workspaces button {
+  padding: 0 6pt;
+  color: @theme_fg_color;
+  background-color: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+#workspaces button:hover {
+  box-shadow: inherit;
+  text-shadow: inherit;
+  background: @borders;
+  border: none;
+}
+
+#workspaces button.focused {
+  color: @theme_selected_fg_color;
+  background-color: @theme_selected_bg_color;
+}
+
+#workspaces button.urgent {
+  background-color: @error_color;
+}
+
+#scratchpad {
+  padding: 0 6pt 0 0;
+  font-style: italic;
+  color: @insensitive_fg_color;
+  background-color: @borders;
+}
+
+#mode {
+  color: @theme_selected_fg_color;
+  background-color: @error_color;
+}
+
+#battery,
+#clock,
+#custom-weather,
+#custom-yubikey,
+#custom-theme,
+#custom-lock,
+#custom-power,
+#mode,
+#tray {
+  padding: 0 8pt;
+}
+
+#custom-yubikey {
+  padding-right: 10pt;
+  color: @theme_selected_fg_color;
+  background-color: @error_color;
+}
+
+#clock.utc {
+  color: @insensitive_fg_color;
+  font-size: 10pt;
+  padding-left: 3pt;
+}
+
+#clock {
+  padding-right: 3pt;
+}
+
+#battery.critical {
+  color: @theme_selected_fg_color;
+  background-color: @error_color;
+}
+
+#battery.charging {
+  color: @theme_selected_fg_color;
+  background-color: @success_color;
+}
+
+#tray {
+  background-color: @theme_selected_bg_color;
+}
+
+#tray > .passive {
+  -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+  -gtk-icon-effect: highlight;
+  background-color: @error_color;
+}
+
+#custom-power {
+  margin: 0 6pt 0 0;
+}
+
+#custom-theme:hover,
+#custom-lock:hover,
+#custom-power:hover {
+  background-color: @borders;
+}

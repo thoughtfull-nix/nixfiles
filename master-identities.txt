@@ -1,0 +1,20 @@
+# Master identities who should have access to all age encrypted secrets in this repository.
+#
+# These are obviously just handles for keys stored on my yubikeys.
+#
+# Order matters here.
+#
+# If I'm using the second key, then it will ask to either insert the first or skip it every time,
+# which is quite annoying.
+#
+# If I'm using the first key, then it will just ask for the PIN and touch.
+#
+# An alternative would be to have separate identity files and manually specify the appropriate one,
+# but I think this is fine, since I'm usually using the primary key, and it's only really annoying
+# if I'm rekeying a bunch of secrets.
+#
+# 32734766
+AGE-PLUGIN-YUBIKEY-19EL0XQVZMR3KD0G2X2FWC
+
+# 33152940
+AGE-PLUGIN-YUBIKEY-14N0LJQVZU3U2Q0QYKNAUJ

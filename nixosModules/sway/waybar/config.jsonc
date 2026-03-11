@@ -1,0 +1,100 @@
+{
+  "layer": "top",
+  "position": "top",
+  "height": 30,
+  "spacing": 0,
+
+  "modules-left": ["sway/workspaces", "sway/scratchpad" ],
+  "modules-center": [],
+  "modules-right": ["sway/mode", "custom/yubikey", "custom/weather", "clock", "clock#utc", "battery", "tray", "custom/theme", "custom/lock", "custom/power"],
+
+  "sway/workspaces": {
+    "disable-scroll": false,
+    "all-outputs": true,
+    "format": "{name}"
+  },
+
+  "sway/mode": {
+    "format": "<span style=\"italic\">{}</span>",
+    "tooltip": false,
+  },
+
+  "tray": {
+    "icon-size": 20,
+    "show-passive-items": true,
+    "spacing": 6
+  },
+
+  "battery": {
+    "interval": 60,
+    "states": {
+      "critical": 15
+    },
+    "format": "<span font=\"20px\" rise=\"-0.5pt\">{icon}</span> {capacity}%",
+    "format-icons": ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
+    "format-charging": "<span font=\"20px\" rise=\"-0.5pt\">󰂄</span> {capacity}%",
+    "format-plugged": "<span font=\"20px\" rise=\"-0.5pt\">󰚥</span> {capacity}%",
+    "format-full": "<span font=\"20px\" rise=\"-0.5pt\">󰂄</span> Full",
+    "tooltip-format": "{timeTo} ({power:.1f}W)"
+  },
+
+  "custom/weather": {
+    "format": "{}",
+    "interval": 300,
+    "exec": "waybar-weather",
+    "on-click-right": "waybar-weather-edit",
+    "return-type": "json"
+  },
+
+  "clock": {
+    "format": "{:%Y-%m-%d %H:%M:%S %Z}",
+    "interval": 1,
+    "tooltip-format": "<tt><small>{calendar}</small></tt>",
+    "calendar": {
+      "mode": "year",
+      "mode-mon-col": 3,
+      "weeks-pos": "right",
+      "on-scroll": 1,
+      "format": {
+        "months": "<span color='#ffead3'><b>{}</b></span>",
+        "days": "<span color='#ecc6d9'>{}</span>",
+        "weeks": "<span color='#99ffdd'><b>W{}</b></span>",
+        "weekdays": "<span color='#ffcc66'><b>{}</b></span>",
+        "today": "<span color='#ff6699'><b><u>{}</u></b></span>"
+      }
+    }
+  },
+
+  "clock#utc": {
+    "format": "[{:%H %Z}]",
+    "timezone" : "Etc/UTC",
+    "interval": 1800,
+    "tooltip": false,
+  },
+
+  "custom/yubikey": {
+    "exec": "waybar-yubikey",
+    "return-type": "json"
+  },
+
+  "custom/theme": {
+    "format": "<span font=\"20px\">{}</span>",
+    "exec": "theme-toggle-status",
+    "exec-on-event": true,
+    "on-click": "theme-toggle",
+    "interval": 60,
+    "tooltip-format": "Toggle theme"
+  },
+
+  "custom/lock": {
+    "format": "<span font=\"20px\">󰌾</span>",
+    "tooltip-format": "Lock screen",
+    "on-click": "gtklock"
+  },
+
+  "custom/power": {
+    "format": "<span font=\"20px\">󰐥</span>",
+    "tooltip-format": "Power menu",
+    "on-click": "power-menu --no-lock"
+  }
+}

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NixOS Options - thoughtfull-nix/nixfiles</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <h1>NixOS Options</h1>
+      <span class="subtitle">thoughtfull-nix/nixfiles</span>
+    </div>
+  </header>
+
+  <main class="main">
+    <aside class="sidebar">
+      <nav class="toc" id="toc">
+        <div class="toc-loading">Loading...</div>
+      </nav>
+    </aside>
+
+    <section class="content">
+      <div class="search-bar">
+        <input
+          type="search"
+          id="search-input"
+          placeholder="Search options..."
+          autocomplete="off"
+          autofocus
+        >
+      </div>
+
+      <div class="pagination" id="pagination-top"></div>
+
+      <div class="results-info" id="results-info"></div>
+
+      <div class="results" id="results">
+        <div class="results-loading">Loading options...</div>
+      </div>
+
+      <div class="pagination" id="pagination-bottom"></div>
+    </section>
+  </main>
+
+  <script src="marked.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

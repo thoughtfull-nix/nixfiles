@@ -1,0 +1,9 @@
+*.pyc
+.devenv*
+.direnv
+.pre-commit-config.yaml
+/*-efi-vars.fd
+/*.qcow2
+/result
+devenv.local.nix
+devenv.local.yaml

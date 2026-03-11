@@ -1,0 +1,4 @@
+---
+extends: spelling
+ignore:
+  - nixfiles.txt
