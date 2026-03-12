@@ -19,6 +19,10 @@ on-notify=none
 [app-name=dnd]
 invisible=0
 
+# Notifications that should not play sound (user-initiated actions)
+[category=no-sound]
+on-notify=none
+
 [app-name=speaker-status]
 on-notify=none
 border-size=0
