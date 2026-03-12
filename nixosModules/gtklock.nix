@@ -8,7 +8,7 @@
 let
   inherit (config.programs) gnupg;
   inherit (lib) mkDefault;
-  inherit (pkgs) bash gtklock;
+  inherit (pkgs) bash gtklock mako;
   inherit (thoughtfull.pkgs) theme-toggle;
   inherit (thoughtfull.lib) writeFileScriptBin;
   clear-secrets = writeFileScriptBin {
@@ -24,6 +24,7 @@ let
     replacements = {
       bash = "${bash}/bin/bash";
       gtklock = "${gtklock}/bin/gtklock";
+      makoctl = "${mako}/bin/makoctl";
       theme-get = "${theme-toggle}/bin/theme-get";
     };
     src = ./gtklock/wrapper.bash;
