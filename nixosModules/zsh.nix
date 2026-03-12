@@ -39,6 +39,8 @@ in
       "HIST_FIND_NO_DUPS"
       # do not store duplicate of previous command
       "HIST_IGNORE_DUPS"
+      # disable command hashing to immediately see new scripts after nixos-rebuild
+      "NO_HASH_CMDS"
       # make history available immediately across shell instances
       "SHARE_HISTORY"
     ];
