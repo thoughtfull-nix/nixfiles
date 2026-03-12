@@ -22,6 +22,7 @@ let
     writeFileScriptBin
     ;
 in
+# Keep these alphabetized
 {
   attach-yubikey = writeArgcScript "attach-yubikey" ./packages/attach-yubikey.bash {
     bash = "${bash}/bin/bash";
@@ -43,6 +44,7 @@ in
     ssh-add = "${openssh}/bin/ssh-add";
     ssh-agent = "${openssh}/bin/ssh-agent";
   };
+  options-doc = import ./packages/options-doc self;
   pins = import ./packages/pins.nix self;
   power-menu = import ./packages/power-menu.nix self;
   run-vm = writeArgcScript "run-vm" ./packages/run-vm.bash {
@@ -64,5 +66,5 @@ in
     };
     src = ./packages/waybar-yubikey.bash;
   };
-  options-doc = import ./packages/options-doc self;
+  yubikey-totp = import ./packages/yubikey-totp.nix self;
 }

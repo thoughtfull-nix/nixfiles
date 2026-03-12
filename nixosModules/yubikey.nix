@@ -2,15 +2,22 @@
   config,
   lib,
   pkgs,
+  thoughtfull,
   ...
 }:
 let
   inherit (lib) mkDefault mkEnableOption mkIf;
+  inherit (pkgs)
+    age-plugin-yubikey
+    yubioath-flutter
+    ;
+  inherit (thoughtfull.pkgs) yubikey-totp;
 in
 {
   config = mkIf config.thoughtfull.yubikey.enable {
-    environment.systemPackages = with pkgs; [
+    environment.systemPackages = [
       age-plugin-yubikey
+      yubikey-totp
       yubioath-flutter
     ];
     hardware.gpgSmartcards.enable = mkDefault true;
