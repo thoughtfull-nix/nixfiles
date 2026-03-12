@@ -86,11 +86,11 @@
     },
     "kryptonix": {
       "locked": {
-        "lastModified": 1772966540,
-        "narHash": "sha256-vBGJZJfdsmQEOBbYIgyAXk4b38MSTZYYbglcU5hYDkk=",
+        "lastModified": 1773271210,
+        "narHash": "sha256-ur3F9DWbUIwGiW2xAB+jvAHFoSZN15OEPn6VAcQ3LuA=",
         "ref": "sedna",
-        "rev": "fdc2375ee6f24ad6396bc392fffceb6c637a664f",
-        "revCount": 5,
+        "rev": "be25bff0177f391c0a6567f1336d0affc9fef008",
+        "revCount": 6,
         "type": "git",
         "url": "ssh://git@github.com/technosophist/kryptonix"
       },
