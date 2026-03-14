@@ -40,6 +40,7 @@
       inherit (self.lib) forEachSystem;
     in
     {
+      checks = import ./tests.nix self;
       emacsPackages = import ./emacsPackages.nix self;
       lib = import ./lib.nix self;
       nixosConfigurations = import ./nixosConfigurations.nix self;

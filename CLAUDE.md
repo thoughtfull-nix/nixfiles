@@ -29,7 +29,7 @@ This is a NixOS flake-based system configuration framework using nixpkgs 25.11 w
 
 ### Module System
 
-All modules in `nixosModules/` are auto-imported via `lib.dirPaths`. Modules use NixOS options to conditionally enable features rather than conditional imports.
+All modules in `nixosModules/` are imported unconditionally. Modules use NixOS options to conditionally enable features rather than conditional imports.  New modules are manually added to `nixosModules.nix` (using `lib.dirPaths` prevented the options documentation from linking to the correct file).
 
 **Module patterns:**
 - Simple module: Single `.nix` file (for example, `git.nix`)
@@ -50,27 +50,81 @@ in
 }
 ```
 
-**Custom namespace:** All custom options live under `config.thoughtfull.*`:
+**Custom namespace:** Modules for new programs and services or global options or "category" modules that configure across multiple programs/services (for example, `rust.nix` installs system packages, emacs packages, configures environment variables, etc.) live under `config.thoughtfull.*`:
 - `thoughtfull.user` - User account configuration
 - `thoughtfull.impermanence` - Stateless root configuration
 - `thoughtfull.graphical` - Graphical environment toggle
 - `thoughtfull.programs.*` - Program-specific options
+- `thoughtfull.rust` - Category module
+
+**Extending upstream modules:** Usually upstream modules are configured with reasonable defaults and only enabled if they're a dependency of a category module or some other module, or if the user enables it in a nixosConfiguration.  Sometimes extensions to upstream NixOS modules add a `thoughtfull` option to the upstream options.  For example for `services.syncthing` there's `services.syncthing.thoughtfull.keyFile` etc.
+
+**Scripts:** Scripts in modules should assume the programs they need exist on the path.  They should avoid binding directly to specific binaries in the nix store.  This allows for a rebuild switch without breaking things or having to restart a bunch of things so they see new versions of executables.  In particular, scripts using, say, bash should use `#!/usr/bin/env bash` and ensure that `programs.bash.enable` is true, and similarly for other programs.
 
 ### Key Library Functions (lib.nix)
 
-- `dirPaths`: Import all .nix files in a directory as modules
 - `dirFiles`: List .nix files in a directory
 - `nixosConfiguration`: Helper wrapping `nixpkgs.lib.nixosSystem` with dependency injection
 - `githubKeys`: Fetch SSH public keys from GitHub by username
+- `writeArgcScript`: Write bash script using Argc framework
 
 ### Package System
 
-Custom packages in `packages/` use template substitution via `replaceVars` to inject tool paths at build time. Scripts use `@meta` argc annotations for CLI argument parsing (see `packages/nixfiles.bash`).
+Custom packages in `packages/` use template substitution via `replaceVars` to inject tool paths at build time. Packages should be overridable so the NixOS modules can pass in customized versions of dependent packages.  Simple scripts can be written simply.  Scripts meant for user interaction or needing to take arguments, should use `lib.writeArgcScript` and use the Argc Bash framework.
 
 ### Host Configurations
 
 - `nixosConfigurations/bootstrap.nix`: Template for provisioning new systems with `BOOTSTRAP` replaced with the name of the provisioned system.
 - `nixosConfigurations/nixos.nix`: Minimal ISO environment for initial provisioning
+
+## Testing
+
+Tests are located in the `tests/` directory. Each module should have a corresponding test file (e.g., `tests/avahi.nix` for `nixosModules/avahi.nix`).
+
+### Running Tests
+
+```bash
+# Run all tests
+nix flake check
+
+# Run a specific test (e.g., avahi)
+nix build .#checks.x86_64-linux.avahi
+
+# Run test in interactive mode for debugging
+nix build .#checks.x86_64-linux.avahi.driverInteractive
+./result/bin/nixos-test-driver
+```
+
+### Test-Driven Development Workflow
+
+When modifying a module, follow this workflow:
+
+1. **Update test expectations first** - Modify the test in `tests/` to reflect the desired behavior
+2. **Wait for user review** - Present the test changes to the user and wait for approval before proceeding
+3. **Verify the test fails** - After approval, run the specific test to confirm it fails as expected
+4. **Update the module** - Make changes to the module in `nixosModules/`
+5. **Verify the test passes** - Run the test again to confirm it now passes
+
+**IMPORTANT: Always wait for user review and approval of test changes before running tests or modifying modules.** This ensures the user understands what behavior is being tested and agrees with the approach before implementation begins.
+
+### Test Structure
+
+Tests use NixOS VM testing framework (`nixpkgs.testers.nixosTest`). A typical test:
+- Imports the module being tested
+- Sets up one or more test VMs
+- Runs commands to verify expected behavior
+- Tests default values (use module's `mkDefault` settings without overriding)
+
+## Git and Version Control
+
+**IMPORTANT: Never commit or push changes automatically. Always present changes for user review and approval before committing.**
+
+When the user requests commits:
+- Present a summary of changes
+- Wait for explicit user approval
+- Only create commits after approval is given
+
+**Never push commits to remote repositories unless explicitly instructed by the user.** After creating commits, inform the user that changes are ready to push but wait for their explicit instruction to do so.
 
 ## Conventions
 
