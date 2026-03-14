@@ -264,16 +264,30 @@ ensure-passphrase() {
 age-encrypt() {
   mkdir -p "${secrets_path}" ||
     die "Could not create secrets directory: ${secrets_path}"
-  host_pub_key="${host_path}/ssh_host_ed25519_key.pub"
   log "Encrypting $1"
   host_pub_key_arg=()
-  if [[ -r ${host_pub_key} ]]; then
-    host_pub_key_arg+=("-R" "${host_pub_key}")
+  if [[ "$(basename "${host_path}")" == "shared" ]]; then
+    nixos_configs_path="$(dirname "${host_path}")"
+    for host_dir in "${nixos_configs_path}"/*/; do
+      host_dir_name="$(basename "${host_dir}")"
+      [[ "${host_dir_name}" == "shared" ]] && continue
+      host_pub_key="${host_dir}ssh_host_ed25519_key.pub"
+      if [[ -r "${host_pub_key}" ]]; then
+        host_pub_key_arg+=("-R" "${host_pub_key}")
+      else
+        warn "Missing host pub key for ${host_dir_name}, skipping"
+      fi
+    done
   else
-    warn "Missing host pub key, using only master key"
+    host_pub_key="${host_path}/ssh_host_ed25519_key.pub"
+    if [[ -r ${host_pub_key} ]]; then
+      host_pub_key_arg+=("-R" "${host_pub_key}")
+    else
+      warn "Missing host pub key, using only master key"
+    fi
   fi
   secret_path="${secrets_path}/$1.age"
-  relpath="${argc_hostname}/secrets/$1"
+  relpath="$(basename "${host_path}")/secrets/$1"
   if [[ -e ${secret_path} ]]; then
     log "Backing up existing encrypted value to ${relpath}.bak"
     mv "${secret_path}" "${secret_path}.bak"
@@ -296,11 +310,14 @@ age-decrypt() {
 ## Encrypt a to 'nixosConfigurations/${host}/secrets/${secret_name}.age' using as recipients its ssh
 ## host public key and the keys in 'master-recipients.txt` at the repository root.
 ##
+## If host is 'shared', encrypt to all host public keys.  The secret is saved to
+## 'nixosConfigurations/shared/secrets/${secret_name}.age'.
+##
 ## If input-file is given, then use it as input.  Otherwise create an empty file and open it with
 ## $EDITOR.
 ##
 ## @arg hostname!
-## name of host
+## name of host, or 'shared' for a secret shared across all hosts
 ##
 ## @arg secret_name!
 ## name of the secret to encrypt, do not include an '.age' suffix
@@ -360,6 +377,9 @@ secret() {
 ## recipients its ssh host public key and the keys in 'master-recipients.txt` at the repository
 ## root.
 ##
+## Shared secrets in 'nixosConfigurations/shared/secrets' are always rekeyed as well, since they
+## are encrypted to all host keys.
+##
 ## @arg hostname
 ## name of host
 ##
@@ -386,6 +406,12 @@ rekey() {
     hosts=("${nixos_configs_path}"/*)
   else
     hosts=("${nixos_configs_path}/${argc_hostname}")
+    shared_path="${nixos_configs_path}/shared"
+    # Rekey shared secrets whenever any specific host is rekeyed, since shared
+    # secrets are encrypted to all host keys.  Skip if already rekeying shared.
+    if [[ -d "${shared_path}" ]] && [[ "${argc_hostname}" != "shared" ]]; then
+      hosts+=("${shared_path}")
+    fi
   fi
   tmpfile=$(mktemp)
   checkfile=$(mktemp)
