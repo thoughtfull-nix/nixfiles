@@ -2,6 +2,7 @@ self: {
   default =
     {
       lib,
+      thoughtfull,
       ...
     }:
     let
@@ -9,6 +10,7 @@ self: {
     in
     {
       boot.loader.timeout = lib.mkForce 2;
+      environment.systemPackages = [ thoughtfull.pkgs.nixfiles ];
       # Load all modules in nixosModules.  Each module is imported unconditionally and should use
       # options for conditional configuration.  If a module needs auxiliary files, then it should
       # use a directory with the same name as the module (e.g. './foo.nix' should use files in
