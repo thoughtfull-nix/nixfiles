@@ -37,6 +37,7 @@ self: {
         ./nixosModules/javascript.nix
         ./nixosModules/less.nix
         ./nixosModules/mako.nix
+        ./nixosModules/monitoring.nix
         ./nixosModules/obsidian.nix
         ./nixosModules/openssh.nix
         ./nixosModules/pipewire.nix
