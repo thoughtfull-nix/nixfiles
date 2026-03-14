@@ -54,12 +54,7 @@
         services = {
           emacs.enable = true;
           openssh.enable = true;
-          restic.thoughtfull = {
-            enable = true;
-            environmentFile = ./sedna/secrets/restic-environment.age;
-            passwordFile = ./sedna/secrets/restic-password.age;
-            repositoryFile = ./sedna/secrets/restic-repository.age;
-          };
+          restic.thoughtfull.enable = true;
           syncthing = {
             enable = true;
             thoughtfull.passwordFile = ./sedna/secrets/syncthing-password.age;
@@ -102,7 +97,6 @@
             extraGroups = [ "wheel" ];
             hashedPasswordFile = ./sedna/secrets/hashed-user-passphrase.age;
           };
-          weather.apiKeyFile = ./sedna/secrets/openweathermap-api-key.age;
         };
         time.timeZone = "America/New_York";
       }

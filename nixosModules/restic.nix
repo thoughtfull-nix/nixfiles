@@ -48,7 +48,7 @@ in
   options.services.restic.thoughtfull = {
     enable = mkEnableOption "restic";
     environmentFile = mkOption {
-      default = null;
+      default = ../nixosConfigurations/shared/secrets/restic-environment.age;
       description = ''
         age encrypted file containing the credentials to access the repository, in the format of an
         EnvironmentFile as described by {manpage}systemd.exec(5)
@@ -56,12 +56,12 @@ in
       type = nullOr path;
     };
     passwordFile = mkOption {
-      default = null;
+      default = ../nixosConfigurations/shared/secrets/restic-password.age;
       description = "Read the repository password from an age encrypted file.";
       type = nullOr path;
     };
     repositoryFile = mkOption {
-      default = null;
+      default = ../nixosConfigurations/shared/secrets/restic-repository.age;
       description = ''
         Path to the age encrypted file containing the repository location to backup to.
       '';
