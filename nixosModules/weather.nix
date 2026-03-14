@@ -34,7 +34,7 @@ in
   };
   options.thoughtfull.weather = {
     apiKeyFile = mkOption {
-      default = null;
+      default = ../nixosConfigurations/shared/secrets/openweathermap-api-key.age;
       description = "Path to the .age file containing the OpenWeatherMap API key";
       type = types.nullOr types.path;
     };
