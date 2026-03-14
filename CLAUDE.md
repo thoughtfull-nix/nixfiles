@@ -77,6 +77,55 @@ Custom packages in `packages/` use template substitution via `replaceVars` to in
 - `nixosConfigurations/bootstrap.nix`: Template for provisioning new systems with `BOOTSTRAP` replaced with the name of the provisioned system.
 - `nixosConfigurations/nixos.nix`: Minimal ISO environment for initial provisioning
 
+## Testing
+
+Tests are located in the `tests/` directory. Each module should have a corresponding test file (e.g., `tests/avahi.nix` for `nixosModules/avahi.nix`).
+
+### Running Tests
+
+```bash
+# Run all tests
+nix flake check
+
+# Run a specific test (e.g., avahi)
+nix build .#checks.x86_64-linux.avahi
+
+# Run test in interactive mode for debugging
+nix build .#checks.x86_64-linux.avahi.driverInteractive
+./result/bin/nixos-test-driver
+```
+
+### Test-Driven Development Workflow
+
+When modifying a module, follow this workflow:
+
+1. **Update test expectations first** - Modify the test in `tests/` to reflect the desired behavior
+2. **Wait for user review** - Present the test changes to the user and wait for approval before proceeding
+3. **Verify the test fails** - After approval, run the specific test to confirm it fails as expected
+4. **Update the module** - Make changes to the module in `nixosModules/`
+5. **Verify the test passes** - Run the test again to confirm it now passes
+
+**IMPORTANT: Always wait for user review and approval of test changes before running tests or modifying modules.** This ensures the user understands what behavior is being tested and agrees with the approach before implementation begins.
+
+### Test Structure
+
+Tests use NixOS VM testing framework (`nixpkgs.testers.nixosTest`). A typical test:
+- Imports the module being tested
+- Sets up one or more test VMs
+- Runs commands to verify expected behavior
+- Tests default values (use module's `mkDefault` settings without overriding)
+
+## Git and Version Control
+
+**IMPORTANT: Never commit or push changes automatically. Always present changes for user review and approval before committing.**
+
+When the user requests commits:
+- Present a summary of changes
+- Wait for explicit user approval
+- Only create commits after approval is given
+
+**Never push commits to remote repositories unless explicitly instructed by the user.** After creating commits, inform the user that changes are ready to push but wait for their explicit instruction to do so.
+
 ## Conventions
 
 - Use `mkDefault` for all option values to allow overrides in host configurations
