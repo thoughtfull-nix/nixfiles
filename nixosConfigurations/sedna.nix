@@ -86,6 +86,16 @@
             enable = true;
             user.directories = [ "src" ];
           };
+          monitoring = {
+            enable = true;
+            services = [
+              "sshd"
+              "syncthing"
+              "restic-backups-default"
+              "mako"
+              "test-failure"
+            ];
+          };
           programs.obsidian.enable = true;
           rust.enable = true;
           user = {
