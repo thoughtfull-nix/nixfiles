@@ -89,7 +89,7 @@ case "$mode" in
       # Join lines into a single string
       result=$(echo "$trimmed" | tr '\n' ' ' | sed 's/[[:space:]]*$//')
       if [[ -n "$result" ]]; then
-        @wtype@ -d 25 "$result"
+        @wtype@ -d 10 "$result"
         @notify-send@ -a dictation \
           -t 3000 \
           --category=no-sound \
