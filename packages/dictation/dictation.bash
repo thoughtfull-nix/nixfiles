@@ -51,8 +51,6 @@ case "$mode" in
 
     # Stop the recording process
     pid=$(cat "$pidfile")
-    # Small delay to let audio pipeline flush into sox's buffer
-    sleep 0.3
     kill -s INT "$pid" 2>/dev/null || true
     wait "$pid" 2>/dev/null || true
     rm "$pidfile"
@@ -91,7 +89,7 @@ case "$mode" in
       # Join lines into a single string
       result=$(echo "$trimmed" | tr '\n' ' ' | sed 's/[[:space:]]*$//')
       if [[ -n "$result" ]]; then
-        @wtype@ -d 50 "$result"
+        @wtype@ -d 25 "$result"
         @notify-send@ -a dictation \
           -t 3000 \
           --category=no-sound \
