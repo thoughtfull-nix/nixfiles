@@ -3,48 +3,118 @@ set -euo pipefail
 
 model="@model@"
 if [[ -z "$model" ]]; then
-  @notify-send@ -t 3000 \
-    -h string:x-dunst-stack-tag:dictation \
+  @notify-send@ -a dictation \
+    -t 0 \
+    --category=no-sound \
+    --hint=string:x-dunst-stack-tag:dictation \
+    --hint=string:synchronous:dictation \
     "Dictation" "Error: no model file configured"
   exit 1
 fi
 
-tmpdir=$(mktemp -d)
-trap 'rm -rf "$tmpdir"' EXIT
+# Runtime directory for storing state
+runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
+pidfile="$runtime_dir/dictation.pid"
+wavfile="$runtime_dir/dictation.wav"
 
-wav="$tmpdir/recording.wav"
-@notify-send@ -t 30000 \
-  -h string:x-dunst-stack-tag:dictation \
-  "Dictation" "Recording..."
+mode="${1:-toggle}"
 
-# Record until 2 seconds of silence (stop when volume < 3% for 2s)
-# Parameters: above-periods above-duration above-threshold below-periods below-duration below-threshold
-# - Start when audio is above 3% for 0.1s, stop when below 3% for 2s
-@rec@ -t wav "$wav" silence 1 0.1 3% 1 2.0 3%
+case "$mode" in
+  start)
+    # Start recording
+    if [[ -f "$pidfile" ]]; then
+      exit 0  # Already recording
+    fi
 
-@notify-send@ -t 10000 \
-  -h string:x-dunst-stack-tag:dictation \
-  "Dictation" "Transcribing..."
+    # Play start sound
+    @play@ -q @start-sound@ &
 
-# Transcribe with whisper-cpp
-@whisper-cpp@ --model "$model" --output-txt --output-dir "$tmpdir" "$wav"
+    @notify-send@ -a dictation \
+      -t 0 \
+      --category=no-sound \
+      --hint=string:x-dunst-stack-tag:dictation \
+      --hint=string:synchronous:dictation \
+      "Dictation" "Recording..."
 
-result_file="$tmpdir/recording.txt"
-if [[ -f "$result_file" ]]; then
-  # Filter whisper-cpp metadata markers (e.g. [BLANK_AUDIO], [MUSIC])
-  filtered=$(grep -v '^\[' "$result_file")
-  # Remove blank lines and leading/trailing whitespace per line
-  trimmed=$(echo "$filtered" | sed '/^[[:space:]]*$/d;s/^[[:space:]]*//;s/[[:space:]]*$//')
-  # Join lines into a single string
-  result=$(echo "$trimmed" | tr '\n' ' ' | sed 's/[[:space:]]*$//')
-  if [[ -n "$result" ]]; then
-    @wtype@ "$result"
-    @notify-send@ -t 5000 \
-      -h string:x-dunst-stack-tag:dictation \
-      "Dictation" "$result"
-  else
-    @notify-send@ -t 3000 \
-      -h string:x-dunst-stack-tag:dictation \
-      "Dictation" "No speech detected"
-  fi
-fi
+    # Start recording in background and save PID
+    # --buffer 1024: smaller buffer for lower latency
+    # Use ALSA directly for lower latency (bypass PulseAudio)
+    AUDIODRIVER=alsa @recbin@ --buffer 1024 -t wav "$wavfile" &
+    echo $! > "$pidfile"
+    ;;
+
+  stop)
+    # Stop recording and transcribe
+    if [[ ! -f "$pidfile" ]]; then
+      exit 0  # Not recording
+    fi
+
+    # Stop the recording process
+    pid=$(cat "$pidfile")
+    # Small delay to let audio pipeline flush into sox's buffer
+    sleep 0.3
+    kill -s INT "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+    rm "$pidfile"
+
+    # Check if we have a recording
+    if [[ ! -f "$wavfile" ]] || [[ ! -s "$wavfile" ]]; then
+      @play@ -q @cancel-sound@ &
+      @notify-send@ -a dictation \
+        -t 3000 \
+        --category=no-sound \
+        --hint=string:x-dunst-stack-tag:dictation \
+        --hint=string:synchronous:dictation \
+        "Dictation" "No audio recorded"
+      rm -f "$wavfile"
+      exit 0
+    fi
+
+    @notify-send@ -a dictation \
+      -t 0 \
+      --category=no-sound \
+      --hint=string:x-dunst-stack-tag:dictation \
+      --hint=string:synchronous:dictation \
+      "Dictation" "Transcribing..."
+
+    # Transcribe with whisper-cpp
+    # --max-len 0: no limit on segment length
+    # --max-tokens 0: no limit on tokens per segment
+    @whisper@ --model "$model" --output-txt "$wavfile"
+
+    result_file="${wavfile}.txt"
+    if [[ -f "$result_file" ]]; then
+      # Filter whisper metadata markers (e.g. [BLANK_AUDIO], [MUSIC])
+      filtered=$(grep -v '^\[' "$result_file")
+      # Remove blank lines and leading/trailing whitespace per line
+      trimmed=$(echo "$filtered" | sed '/^[[:space:]]*$/d;s/^[[:space:]]*//;s/[[:space:]]*$//')
+      # Join lines into a single string
+      result=$(echo "$trimmed" | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+      if [[ -n "$result" ]]; then
+        @wtype@ "$result"
+        @notify-send@ -a dictation \
+          -t 3000 \
+          --category=no-sound \
+          --hint=string:x-dunst-stack-tag:dictation \
+          --hint=string:synchronous:dictation \
+          "Dictation" "Done"
+      else
+        @play@ -q @cancel-sound@ &
+        @notify-send@ -a dictation \
+          -t 3000 \
+          --category=no-sound \
+          --hint=string:x-dunst-stack-tag:dictation \
+          --hint=string:synchronous:dictation \
+          "Dictation" "No speech detected"
+      fi
+    fi
+
+    # Clean up
+    rm -f "$wavfile" "$result_file"
+    ;;
+
+  *)
+    echo "Usage: $0 {start|stop}"
+    exit 1
+    ;;
+esac

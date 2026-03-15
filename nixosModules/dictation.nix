@@ -21,7 +21,8 @@ in
   config = mkIf cfg.enable {
     environment = {
       etc."sway/config.d/dictation.conf".text = mkIf sway.enable ''
-        bindsym $mod+Shift+d exec dictation
+        bindsym --no-repeat Shift+Space exec dictation start
+        bindsym --release Shift+Space exec dictation stop
       '';
       systemPackages = [ dictation ];
     };

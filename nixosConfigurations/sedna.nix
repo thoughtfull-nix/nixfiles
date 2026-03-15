@@ -91,7 +91,16 @@
               "test-failure"
             ];
           };
-          programs.obsidian.enable = true;
+          programs = {
+            dictation = {
+              enable = true;
+              modelFile = pkgs.fetchurl {
+                url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin";
+                sha256 = "sha256-oDd5yG3zMjB19eeWyyzlAp8A7Ihp7uP9+4l6/jbG0AI=";
+              };
+            };
+            obsidian.enable = true;
+          };
           rust.enable = true;
           user = {
             extraGroups = [ "wheel" ];
