@@ -1,20 +1,49 @@
 {
   config,
   lib,
+  pkgs,
   thoughtfull,
   ...
 }:
 let
   inherit (config.programs) sway;
   inherit (lib)
+    mkDefault
     mkEnableOption
     mkIf
     mkOption
     types
     ;
   cfg = config.thoughtfull.programs.dictation;
+
+  # Whisper model variants with their URLs and hashes
+  modelVariants = {
+    tiny = {
+      url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin";
+      sha256 = "sha256-7OuKVWLzFAUQz6f1Fy8AgQrGCdGTj+NGIy+k5fQdOOk=";
+    };
+    base = {
+      url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin";
+      sha256 = "sha256-oDd5yG3zMjB19eeWyyzlAp8A7Ihp7uP9+4l6/jbG0AI=";
+    };
+    small = {
+      url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin";
+      sha256 = "sha256-Ke+tTsMO2SMwWrEZjCQg5271uLqoLMqBo/bBDIPsPgk=";
+    };
+    medium = {
+      url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en.bin";
+      sha256 = "sha256-VcKePln1pr8yWILHl0fz0W9WfoxrP9pGmHZUDRXGI1s=";
+    };
+    large = {
+      url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin";
+      sha256 = "sha256-1ERrcCW0xG2Bl/kcHXXL7teRClV8EQBdZhJHX3GJZzM=";
+    };
+  };
+
+  modelFile = pkgs.fetchurl modelVariants.${cfg.modelVariant};
+
   dictation = thoughtfull.pkgs.dictation.override {
-    modelFile = cfg.modelFile;
+    inherit modelFile;
   };
 in
 {
@@ -29,22 +58,18 @@ in
   };
   options.thoughtfull.programs.dictation = {
     enable = mkEnableOption "speech dictation with whisper-cpp and wtype";
-    modelFile = mkOption {
-      default = null;
+    modelVariant = mkOption {
+      default = "base";
       description = ''
-        Path to the whisper-cpp GGML model file for speech recognition.
-        When null, the dictation script will show an error at runtime.
-
-        Use `nix-prefetch-url` to obtain the correct hash for a model file.
-        Example:
-        ```nix
-        pkgs.fetchurl {
-          url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin";
-          sha256 = ""; # fill in with: nix-prefetch-url <url>
-        }
-        ```
+        Whisper model variant to use for speech recognition.
+        Available variants (in order of size/accuracy):
+        - tiny: Fastest, least accurate
+        - base: Good balance of speed and accuracy
+        - small: Better accuracy, slower
+        - medium: High accuracy, slower
+        - large: Best accuracy, slowest
       '';
-      type = types.nullOr types.path;
+      type = types.enum [ "tiny" "base" "small" "medium" "large" ];
     };
   };
 }
