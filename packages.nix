@@ -32,6 +32,7 @@ in
   detach-yubikey = writeArgcScript "detach-yubikey" ./packages/detach-yubikey.bash {
     nc = "${netcat}/bin/nc";
   };
+  dictation = import ./packages/dictation.nix self;
   mic = import ./packages/mic.nix self;
   nixfiles = writeArgcScript "nixfiles" ./packages/nixfiles.bash {
     age = "${age}/bin/age";

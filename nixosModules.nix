@@ -22,6 +22,7 @@ self: {
         ./nixosModules/bluetooth.nix
         ./nixosModules/claude.nix
         ./nixosModules/clojure.nix
+        ./nixosModules/dictation.nix
         ./nixosModules/discord.nix
         ./nixosModules/docker.nix
         ./nixosModules/dvorak.nix

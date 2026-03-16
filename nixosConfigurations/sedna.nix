@@ -91,7 +91,10 @@
               "test-failure"
             ];
           };
-          programs.obsidian.enable = true;
+          programs = {
+            dictation.enable = true;
+            obsidian.enable = true;
+          };
           rust.enable = true;
           user = {
             extraGroups = [ "wheel" ];
