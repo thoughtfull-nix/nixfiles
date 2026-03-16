@@ -59,6 +59,19 @@ in
         RestartSec = 1;
       };
     };
+    # Workaround for yubikey-touch-detector GPG detection stopping after suspend/resume.
+    # After resuming from suspend, GPG touch detection stops working while SSH and FIDO2
+    # detection continue to work normally. Restarting the service fixes the issue.
+    # See: https://github.com/thoughtfull-nix/nixfiles/issues/139
+    restart-yubikey-touch-detector = mkIf config.programs.yubikey-touch-detector.enable {
+      description = "Restart YubiKey touch detector after resume";
+      after = [ "sleep.target" ];
+      wantedBy = [ "sleep.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = "${pkgs.systemd}/bin/systemctl --user restart yubikey-touch-detector.service";
+      };
+    };
     waybar.path = [
       bash
       curl

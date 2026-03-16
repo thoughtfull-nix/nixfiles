@@ -14,5 +14,6 @@ forEachSystem (
   in
   {
     avahi = callTest ./tests/avahi.nix;
+    waybar = callTest ./tests/waybar.nix;
   }
 )
