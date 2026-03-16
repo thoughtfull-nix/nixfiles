@@ -76,14 +76,13 @@ case "$mode" in
       "Dictation" "Transcribing..."
 
     # Transcribe with whisper-cpp
-    # --max-len 0: no limit on segment length
-    # --max-tokens 0: no limit on tokens per segment
-    @whisper@ --model "$model" --output-txt "$wavfile"
+    @whisper@ --model "$model" --output-txt "$wavfile" || true
 
     result_file="${wavfile}.txt"
     if [[ -f "$result_file" ]]; then
+      cat "${result_file}"
       # Filter whisper metadata markers (e.g. [BLANK_AUDIO], [MUSIC])
-      filtered=$(grep -v '^\[' "$result_file")
+      filtered=$(grep -v '^\[' "$result_file" || echo "")
       # Remove blank lines and leading/trailing whitespace per line
       trimmed=$(echo "$filtered" | sed '/^[[:space:]]*$/d;s/^[[:space:]]*//;s/[[:space:]]*$//')
       # Join lines into a single string
@@ -105,6 +104,14 @@ case "$mode" in
           --hint=string:synchronous:dictation \
           "Dictation" "No speech detected"
       fi
+    else
+      @play@ -q @cancel-sound@ &
+      @notify-send@ -a dictation \
+        -t 3000 \
+        --category=no-sound \
+        --hint=string:x-dunst-stack-tag:dictation \
+        --hint=string:synchronous:dictation \
+        "Dictation" "No result file"
     fi
 
     # Clean up
