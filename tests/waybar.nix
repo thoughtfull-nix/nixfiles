@@ -18,12 +18,22 @@ nixpkgs.testers.nixosTest {
       { config, pkgs, lib, ... }:
       {
         imports = [
-          # Import only the sway/waybar module and its direct dependencies
+          # Import the sway/waybar module and its direct dependencies
           ../nixosModules/sway/waybar.nix
+          # Define minimal thoughtfull.user option for the test
+          {
+            options.thoughtfull.user.name = lib.mkOption {
+              type = lib.types.str;
+              default = "testuser";
+            };
+          }
         ];
 
         # Pass thoughtfull as a module argument
         _module.args = { inherit thoughtfull; };
+
+        # Configure thoughtfull user (required for the restart service)
+        thoughtfull.user.name = "testuser";
 
         # Enable sway and waybar directly (bypassing the graphical module)
         programs.sway.enable = true;
@@ -46,28 +56,32 @@ nixpkgs.testers.nixosTest {
         machine.succeed("test -f /etc/systemd/user/yubikey-touch-detector.service")
 
     with subtest("restart service exists with correct configuration"):
-        # Check that the restart service exists
-        machine.succeed("test -f /etc/systemd/user/restart-yubikey-touch-detector.service")
+        # Check that the restart service exists as a system service
+        machine.succeed("test -f /etc/systemd/system/restart-yubikey-touch-detector.service")
 
         # Verify the service has the correct Type
-        result = machine.succeed("grep 'Type=oneshot' /etc/systemd/user/restart-yubikey-touch-detector.service")
+        result = machine.succeed("grep 'Type=oneshot' /etc/systemd/system/restart-yubikey-touch-detector.service")
         print(f"Service type: {result}")
 
         # Verify the service restarts yubikey-touch-detector
-        result = machine.succeed("grep 'ExecStart=.*systemctl.*restart yubikey-touch-detector.service' /etc/systemd/user/restart-yubikey-touch-detector.service")
+        result = machine.succeed("grep 'ExecStart=.*systemctl.*--user.*restart yubikey-touch-detector.service' /etc/systemd/system/restart-yubikey-touch-detector.service")
         print(f"ExecStart: {result}")
 
+        # Verify the service runs as the correct user
+        result = machine.succeed("grep 'User=testuser' /etc/systemd/system/restart-yubikey-touch-detector.service")
+        print(f"User: {result}")
+
     with subtest("restart service has correct dependencies"):
-        # Verify After=sleep.target
-        result = machine.succeed("grep 'After=.*sleep.target' /etc/systemd/user/restart-yubikey-touch-detector.service")
+        # Verify After=suspend.target
+        result = machine.succeed("grep 'After=.*suspend.target' /etc/systemd/system/restart-yubikey-touch-detector.service")
         print(f"After dependency: {result}")
 
-        # Verify WantedBy=sleep.target
-        result = machine.succeed("grep 'WantedBy=.*sleep.target' /etc/systemd/user/restart-yubikey-touch-detector.service")
+        # Verify WantedBy=suspend.target
+        result = machine.succeed("grep 'WantedBy=.*suspend.target' /etc/systemd/system/restart-yubikey-touch-detector.service")
         print(f"WantedBy dependency: {result}")
 
-    with subtest("restart service is enabled for user"):
-        # Check that the service symlink exists in sleep.target.wants
-        machine.succeed("test -L /etc/systemd/user/sleep.target.wants/restart-yubikey-touch-detector.service")
+    with subtest("restart service is enabled"):
+        # Check that the service symlink exists in suspend.target.wants
+        machine.succeed("test -L /etc/systemd/system/suspend.target.wants/restart-yubikey-touch-detector.service")
   '';
 }

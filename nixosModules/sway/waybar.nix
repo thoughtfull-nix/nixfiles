@@ -7,6 +7,7 @@
 }:
 let
   inherit (config.programs) gtklock sway;
+  inherit (config.thoughtfull) user;
   inherit (lib) mkDefault mkIf;
   inherit (pkgs)
     bash
@@ -47,38 +48,42 @@ in
       verbose = mkDefault true;
     };
   };
-  systemd.user.services = mkIf cfg.enable {
-    pasystray = {
-      after = [ "sway-session.target" ];
-      bindsTo = [ "sway-session.target" ];
-      enable = mkDefault sway.enable;
-      wantedBy = [ "sway-session.target" ];
-      serviceConfig = {
-        ExecStart = "${pasystray}/bin/pasystray -N none";
-        Restart = "on-failure";
-        RestartSec = 1;
-      };
-    };
+  systemd = {
     # Workaround for yubikey-touch-detector GPG detection stopping after suspend/resume.
     # After resuming from suspend, GPG touch detection stops working while SSH and FIDO2
     # detection continue to work normally. Restarting the service fixes the issue.
+    # This must be a system service (not user service) to properly hook into suspend/resume.
     # See: https://github.com/thoughtfull-nix/nixfiles/issues/139
-    restart-yubikey-touch-detector = mkIf config.programs.yubikey-touch-detector.enable {
+    services.restart-yubikey-touch-detector = mkIf config.programs.yubikey-touch-detector.enable {
       description = "Restart YubiKey touch detector after resume";
-      after = [ "sleep.target" ];
-      wantedBy = [ "sleep.target" ];
+      after = [ "suspend.target" ];
+      wantedBy = [ "suspend.target" ];
       serviceConfig = {
         Type = "oneshot";
+        User = user.name;
         ExecStart = "${pkgs.systemd}/bin/systemctl --user restart yubikey-touch-detector.service";
       };
     };
-    waybar.path = [
-      bash
-      curl
-      gtklock.package
-      power-menu
-      theme-toggle
-      waybar-yubikey
-    ];
+    user.services = mkIf cfg.enable {
+      pasystray = {
+        after = [ "sway-session.target" ];
+        bindsTo = [ "sway-session.target" ];
+        enable = mkDefault sway.enable;
+        wantedBy = [ "sway-session.target" ];
+        serviceConfig = {
+          ExecStart = "${pasystray}/bin/pasystray -N none";
+          Restart = "on-failure";
+          RestartSec = 1;
+        };
+      };
+      waybar.path = [
+        bash
+        curl
+        gtklock.package
+        power-menu
+        theme-toggle
+        waybar-yubikey
+      ];
+    };
   };
 }
