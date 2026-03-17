@@ -79,5 +79,18 @@ nixpkgs.testers.nixosTest {
     with subtest("restart service is enabled"):
         # Check that the service symlink exists in suspend.target.wants
         machine.succeed("test -L /etc/systemd/system/suspend.target.wants/restart-yubikey-touch-detector.service")
+
+    with subtest("restart service can execute successfully"):
+        # Manually start the restart service to verify it works correctly
+        # (Testing actual suspend/resume in QEMU is unreliable, but this verifies the core functionality)
+        machine.succeed("systemctl start restart-yubikey-touch-detector.service")
+
+        # Verify the service executed successfully by checking journalctl
+        result = machine.succeed("journalctl -u restart-yubikey-touch-detector.service --no-pager")
+        print(f"Service journal: {result}")
+
+        # Verify the service completed successfully
+        machine.succeed("journalctl -u restart-yubikey-touch-detector.service --no-pager | grep -q 'Starting Restart YubiKey touch detector after resume'")
+        machine.succeed("journalctl -u restart-yubikey-touch-detector.service --no-pager | grep -q 'Finished Restart YubiKey touch detector after resume'")
   '';
 }
