@@ -63,13 +63,9 @@ nixpkgs.testers.nixosTest {
         result = machine.succeed("grep 'Type=oneshot' /etc/systemd/system/restart-yubikey-touch-detector.service")
         print(f"Service type: {result}")
 
-        # Verify the service restarts yubikey-touch-detector
-        result = machine.succeed("grep 'ExecStart=.*systemctl.*--user.*restart yubikey-touch-detector.service' /etc/systemd/system/restart-yubikey-touch-detector.service")
+        # Verify the service restarts yubikey-touch-detector for the correct user
+        result = machine.succeed("grep 'ExecStart=.*systemctl.*--machine=testuser@.host.*--user.*restart yubikey-touch-detector.service' /etc/systemd/system/restart-yubikey-touch-detector.service")
         print(f"ExecStart: {result}")
-
-        # Verify the service runs as the correct user
-        result = machine.succeed("grep 'User=testuser' /etc/systemd/system/restart-yubikey-touch-detector.service")
-        print(f"User: {result}")
 
     with subtest("restart service has correct dependencies"):
         # Verify After=suspend.target

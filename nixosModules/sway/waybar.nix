@@ -60,8 +60,7 @@ in
       wantedBy = [ "suspend.target" ];
       serviceConfig = {
         Type = "oneshot";
-        User = user.name;
-        ExecStart = "${pkgs.systemd}/bin/systemctl --user restart yubikey-touch-detector.service";
+        ExecStart = "${pkgs.systemd}/bin/systemctl --machine=${user.name}@.host --user restart yubikey-touch-detector.service";
       };
     };
     user.services = mkIf cfg.enable {
