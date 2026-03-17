@@ -60,6 +60,7 @@ in
       wantedBy = [ "suspend.target" ];
       serviceConfig = {
         Type = "oneshot";
+        # Use --machine to connect to the user's systemd instance and D-Bus session
         ExecStart = "${pkgs.systemd}/bin/systemctl --machine=${user.name}@.host --user restart yubikey-touch-detector.service";
       };
     };
