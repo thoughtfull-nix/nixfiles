@@ -1,13 +1,13 @@
 {
   config,
   lib,
-  thoughtfull,
+  pkgs,
   ...
 }:
 let
   inherit (config.thoughtfull) graphical;
   inherit (lib) mkDefault mkIf;
-  inherit (thoughtfull.pkgs) ssh-askpass;
+  inherit (pkgs.thoughtfull) ssh-askpass;
 in
 {
   programs.ssh = {

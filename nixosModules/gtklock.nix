@@ -2,15 +2,13 @@
   config,
   lib,
   pkgs,
-  thoughtfull,
   ...
 }:
 let
   inherit (config.programs) gnupg;
   inherit (lib) mkDefault;
   inherit (pkgs) bash gtklock mako;
-  inherit (thoughtfull.pkgs) theme-toggle;
-  inherit (thoughtfull.lib) writeFileScriptBin;
+  inherit (pkgs.thoughtfull) theme-toggle writeFileScriptBin;
   clear-secrets = writeFileScriptBin {
     name = "clear-secrets";
     replacements = {

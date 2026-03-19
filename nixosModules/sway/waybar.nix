@@ -2,7 +2,6 @@
   config,
   lib,
   pkgs,
-  thoughtfull,
   ...
 }:
 let
@@ -16,8 +15,8 @@ let
     pasystray
     waybar
     ;
-  inherit (thoughtfull.pkgs) theme-toggle waybar-yubikey;
-  power-menu = thoughtfull.pkgs.power-menu.override { gtklock = gtklock.package; };
+  inherit (pkgs.thoughtfull) theme-toggle waybar-yubikey;
+  power-menu = pkgs.thoughtfull.power-menu.override { gtklock = gtklock.package; };
   cfg = config.programs.waybar;
 in
 {

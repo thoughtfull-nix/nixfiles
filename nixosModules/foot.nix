@@ -2,15 +2,13 @@
   config,
   lib,
   pkgs,
-  thoughtfull,
   ...
 }:
 let
   inherit (config.thoughtfull) graphical;
   inherit (lib) mkDefault;
   inherit (pkgs) bash foot;
-  inherit (thoughtfull.pkgs) theme-toggle;
-  inherit (thoughtfull.lib) writeFileScriptBin;
+  inherit (pkgs.thoughtfull) theme-toggle writeFileScriptBin;
   footWrapper = writeFileScriptBin {
     name = "foot";
     replacements = {

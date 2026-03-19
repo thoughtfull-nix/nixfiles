@@ -8,16 +8,12 @@ let
     mkOptionType
     ;
   forEachSystem = eachSystemMap [ system.x86_64-linux ];
-  systemLib = forEachSystem (
-    system: import ./lib/system.nix { pkgs = import inputs.nixpkgs { inherit system; }; }
-  );
 in
 {
   inherit forEachSystem;
   dirFiles = import ./lib/dir-files.nix self;
   dirPaths = import ./lib/dir-paths.nix self;
   githubKeys = import ./lib/github-keys.nix self;
-  nixosConfiguration = import ./lib/nixos-configuration.nix self;
   # selectorFunction taken from home-manager
   types.selectorFunction = mkOptionType {
     name = "selectorFunction";
@@ -30,4 +26,3 @@ in
       concatMap (select: select as) (getValues defs);
   };
 }
-// systemLib

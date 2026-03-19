@@ -36,30 +36,60 @@
       ...
     }:
     let
-      inherit (self) packages;
-      inherit (self.lib) forEachSystem;
+      # Import custom lib functions
+      customLib = import ./lib.nix self;
+      # Extend nixpkgs lib with thoughtfull namespace
+      lib = nixpkgs.lib.extend (
+        _final: _prev: {
+          thoughtfull = {
+            inherit (customLib)
+              dirFiles
+              dirPaths
+              githubKeys
+              types
+              ;
+          };
+        }
+      );
+      inherit (customLib) forEachSystem;
     in
     {
       checks = import ./tests.nix self;
       emacsPackages = import ./emacsPackages.nix self;
-      lib = import ./lib.nix self;
+      inherit lib;
       nixosConfigurations = import ./nixosConfigurations.nix self;
-      nixosModules = import ./nixosModules.nix self;
+      nixosModules.default = import ./nixosModules/default.nix;
       overlays = import ./overlays.nix self;
       packages = forEachSystem (
         system:
-        import ./packages.nix (
-          self
-          // {
-            lib = self.lib // self.lib.${system};
-            pkgs =
-              import nixpkgs {
-                allowUnfree = true;
-                inherit system;
-              }
-              // packages.${system};
-          }
-        )
+        let
+          pkgs = import nixpkgs {
+            config.allowUnfree = true;
+            inherit system;
+            overlays = [ self.overlays.thoughtfull ];
+          };
+        in
+        {
+          inherit (pkgs.thoughtfull)
+            attach-yubikey
+            brightness
+            detach-yubikey
+            dictation
+            mic
+            nixfiles
+            options-doc
+            pins
+            power-menu
+            run-vm
+            speaker
+            ssh-askpass
+            theme-toggle
+            uns
+            waybar-weather
+            waybar-yubikey
+            yubikey-totp
+            ;
+        }
       );
     };
 }

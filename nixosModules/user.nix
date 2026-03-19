@@ -2,7 +2,6 @@
   config,
   lib,
   pkgs,
-  thoughtfull,
   ...
 }:
 let
@@ -15,9 +14,9 @@ let
     mkOptionDefault
     types
     ;
+  inherit (lib.thoughtfull) githubKeys;
   inherit (pkgs) runCommand writeText;
   inherit (pkgs.lib.strings) join;
-  inherit (thoughtfull.lib) githubKeys;
   cfg = config.thoughtfull.user;
   user = config.users.users.${cfg.name};
   wheel = elem "wheel" user.extraGroups;

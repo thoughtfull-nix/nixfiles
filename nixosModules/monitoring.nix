@@ -2,19 +2,17 @@
   config,
   lib,
   pkgs,
-  thoughtfull,
   ...
 }:
 let
   inherit (lib)
-    mkDefault
     mkEnableOption
     mkIf
     mkOption
     types
     ;
   inherit (pkgs) curl;
-  inherit (thoughtfull.lib) writeFileScriptBin;
+  inherit (pkgs.thoughtfull) writeFileScriptBin;
   cfg = config.thoughtfull.monitoring;
 
   alert-script = writeFileScriptBin {
@@ -43,7 +41,8 @@ in
           ExecStart = "${alert-script}/bin/ntfy";
         };
       };
-    } // (lib.attrsets.genAttrs cfg.services (name: {
+    }
+    // (lib.attrsets.genAttrs cfg.services (_name: {
       onFailure = [ "alert-on-failure@%n.service" ];
     }));
   };

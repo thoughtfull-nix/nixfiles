@@ -2,13 +2,11 @@
   config,
   lib,
   pkgs,
-  thoughtfull,
   ...
 }:
 let
   inherit (config.programs) sway;
   inherit (lib)
-    mkDefault
     mkEnableOption
     mkIf
     mkOption
@@ -42,7 +40,7 @@ let
 
   modelFile = pkgs.fetchurl modelVariants.${cfg.modelVariant};
 
-  dictation = thoughtfull.pkgs.dictation.override {
+  dictation = pkgs.thoughtfull.dictation.override {
     inherit modelFile;
   };
 in
@@ -69,7 +67,13 @@ in
         - medium: High accuracy, slower
         - large: Best accuracy, slowest
       '';
-      type = types.enum [ "tiny" "base" "small" "medium" "large" ];
+      type = types.enum [
+        "tiny"
+        "base"
+        "small"
+        "medium"
+        "large"
+      ];
     };
   };
 }

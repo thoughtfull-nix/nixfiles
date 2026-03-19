@@ -1,7 +1,7 @@
 {
   config,
   lib,
-  thoughtfull,
+  pkgs,
   ...
 }:
 let
@@ -14,7 +14,7 @@ let
     mkOption
     types
     ;
-  inherit (thoughtfull.pkgs) waybar-weather;
+  inherit (pkgs.thoughtfull) waybar-weather;
 in
 {
   config = mkIf weather.enable {

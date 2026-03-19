@@ -2,7 +2,6 @@
   config,
   lib,
   pkgs,
-  thoughtfull,
   ...
 }:
 let
@@ -49,7 +48,7 @@ in
       inherit
         config
         lib
-        thoughtfull
+        pkgs
         ;
     })
   ]);
