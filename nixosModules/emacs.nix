@@ -2,12 +2,12 @@
   config,
   lib,
   pkgs,
-  thoughtfull,
   ...
 }:
 let
   inherit (config.thoughtfull) graphical;
   inherit (lib) mkDefault mkIf mkOption;
+  inherit (lib.thoughtfull.types) selectorFunction;
   inherit (lib.types) lines;
   inherit (pkgs)
     aspell
@@ -17,8 +17,7 @@ let
     silver-searcher
     unzip
     ;
-  inherit (thoughtfull.lib) writeFile;
-  inherit (thoughtfull.lib.types) selectorFunction;
+  inherit (pkgs.thoughtfull) writeFile;
   cfg = config.services.emacs;
 in
 {

@@ -2,7 +2,6 @@
   config,
   lib,
   pkgs,
-  thoughtfull,
   ...
 }:
 let
@@ -11,7 +10,7 @@ let
     age-plugin-yubikey
     yubioath-flutter
     ;
-  inherit (thoughtfull.pkgs) yubikey-totp;
+  inherit (pkgs.thoughtfull) yubikey-totp;
 in
 {
   config = mkIf config.thoughtfull.yubikey.enable {

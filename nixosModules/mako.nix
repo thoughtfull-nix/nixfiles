@@ -2,7 +2,6 @@
   config,
   lib,
   pkgs,
-  thoughtfull,
   ...
 }:
 let
@@ -19,7 +18,7 @@ let
     mpv
     replaceVars
     ;
-  inherit (thoughtfull.lib) writeFileScriptBin;
+  inherit (pkgs.thoughtfull) writeFileScriptBin;
   makoDismiss = writeFileScriptBin {
     name = "mako-dismiss";
     src = ./mako/dismiss.bash;

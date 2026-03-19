@@ -1,11 +1,11 @@
 {
   config,
   lib,
-  thoughtfull,
+  pkgs,
 }:
 let
   inherit (lib) mkIf mkMerge;
-  inherit (thoughtfull.lib) replaceVarsString;
+  inherit (pkgs.thoughtfull) replaceVarsString;
   impermanence = config.thoughtfull.impermanence;
   rollback = replaceVarsString ./rollback.bash {
     device = "/dev/mapper/${impermanence.encrypted.name}";

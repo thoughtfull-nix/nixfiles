@@ -2,7 +2,6 @@
   config,
   lib,
   pkgs,
-  thoughtfull,
   ...
 }:
 let
@@ -26,7 +25,7 @@ let
     numix-icon-theme
     xdg-desktop-portal-gtk
     ;
-  inherit (thoughtfull.pkgs)
+  inherit (pkgs.thoughtfull)
     brightness
     mic
     speaker
@@ -35,7 +34,7 @@ let
 in
 {
   environment = mkIf sway.enable {
-    etc = (import ./sway/config.d thoughtfull.lib) // {
+    etc = (import ./sway/config.d { dirFiles = lib.thoughtfull.dirFiles; }) // {
       "sway/config.d/nixos.conf".source = mkForce ./sway/nixos.conf;
       "sway/config".source = ./sway/config;
       "sway/wallpaper-dark.svg".source = "${gnome-backgrounds}/share/backgrounds/gnome/drool-d.svg";

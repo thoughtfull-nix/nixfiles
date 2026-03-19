@@ -1,7 +1,7 @@
 {
   modules = [
     (
-      { pkgs, thoughtfull, ... }:
+      { pkgs, ... }:
       {
         boot = {
           initrd = {
@@ -18,7 +18,7 @@
           };
         };
         environment.systemPackages = [ pkgs.devenv ];
-        imports = with thoughtfull.nixosModules; [
+        imports = [
           ./BOOTSTRAP/hardware-configuration.nix
         ];
         networking = {

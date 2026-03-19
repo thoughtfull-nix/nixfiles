@@ -2,7 +2,7 @@
 {
   modules = [
     (
-      { pkgs, thoughtfull, ... }:
+      { pkgs, ... }:
       {
         boot = {
           initrd = {
@@ -20,12 +20,14 @@
         };
         environment.systemPackages = [
           pkgs.devenv
-          thoughtfull.pkgs.nixfiles
-          thoughtfull.pkgs.pins
-          thoughtfull.pkgs.uns
-        ];
+        ]
+        ++ (with pkgs.thoughtfull; [
+          nixfiles
+          pins
+          uns
+        ]);
         hardware.bluetooth.enable = true;
-        imports = with thoughtfull.nixosModules; [
+        imports = [
           ./sedna/hardware-configuration.nix
         ];
         networking = {

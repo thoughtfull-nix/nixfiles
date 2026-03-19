@@ -1,10 +1,10 @@
 self@{
   inputs,
-  lib,
   ...
 }:
 let
-  inherit (lib) forEachSystem;
+  customLib = import ./lib.nix self;
+  inherit (customLib) forEachSystem;
 in
 forEachSystem (
   system:
