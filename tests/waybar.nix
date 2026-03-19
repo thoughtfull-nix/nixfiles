@@ -1,12 +1,4 @@
 { nixpkgs, self, ... }:
-let
-  # Create a minimal thoughtfull specialArgs for the test
-  thoughtfull = {
-    lib = self.lib;
-    pkgs = self.packages.x86_64-linux;
-    nixosModules = self.nixosModules;
-  };
-in
 nixpkgs.testers.nixosTest {
   name = "waybar";
 
@@ -15,7 +7,7 @@ nixpkgs.testers.nixosTest {
 
   nodes = {
     machine =
-      { config, pkgs, lib, ... }:
+      { lib, ... }:
       {
         imports = [
           # Import the sway/waybar module and its direct dependencies
@@ -29,8 +21,8 @@ nixpkgs.testers.nixosTest {
           }
         ];
 
-        # Pass thoughtfull as a module argument
-        _module.args = { inherit thoughtfull; };
+        # Apply the thoughtfull overlay to get pkgs.thoughtfull
+        nixpkgs.overlays = [ self.overlays.thoughtfull ];
 
         # Configure thoughtfull user (required for the restart service)
         thoughtfull.user.name = "testuser";
