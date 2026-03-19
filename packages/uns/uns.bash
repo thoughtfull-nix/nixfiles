@@ -8,5 +8,5 @@ NOUNS=(Actor Gold Painting Advertisement Grass Parrot Afternoon Greece Pencil Ai
 
 # shellcheck disable=SC2034
 for i in {1..6}; do
-  echo "${ADJECTIVES[RANDOM % ${#ADJECTIVES[@]}]}${NOUNS[RANDOM % ${#NOUNS[@]}]}$(@apg@ -a1 -n1 -MN -m2 -x2)"
+  echo "${ADJECTIVES[RANDOM%${#ADJECTIVES[@]}]}${NOUNS[RANDOM%${#NOUNS[@]}]}$(@apg@ -a1 -n1 -MN -m2 -x2)"
 done

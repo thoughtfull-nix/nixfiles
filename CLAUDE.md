@@ -14,11 +14,14 @@ nix flake check
 # Build ISO image for nixos
 nix build .#nixosConfigurations.nixos.config.system.build.isoImage
 
-# Format Nix files (runs automatically via pre-commit)
+# Verify changes by running pre-commit hooks
+devenv tasks run devenv:git-hooks:run
+
+# Format Nix files
 nixfmt-rfc-style <file.nix>
 ```
 
-Pre-commit hooks run automatically on commit, including: `nixfmt-rfc-style`, `deadnix`, `statix`, `shellcheck`, `shfmt`, `eclint`, `gitlint`, and others configured in `devenv.nix`.
+**Verifying Changes:** Always run `devenv tasks run devenv:git-hooks:run` to verify changes before committing. This runs all configured hooks including: `nixfmt-rfc-style`, `deadnix`, `statix`, `shellcheck`, `shfmt`, `eclint`, `gitlint`, and others configured in `devenv.nix`.
 
 ## Architecture Overview
 
@@ -64,7 +67,6 @@ in
 ### Key Library Functions (lib.nix)
 
 - `dirFiles`: List .nix files in a directory
-- `nixosConfiguration`: Helper wrapping `nixpkgs.lib.nixosSystem` with dependency injection
 - `githubKeys`: Fetch SSH public keys from GitHub by username
 - `writeArgcScript`: Write bash script using Argc framework
 

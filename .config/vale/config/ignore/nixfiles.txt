@@ -1,3 +1,4 @@
+VMs
 agenix
 argc
 askpass
@@ -5,12 +6,15 @@ config
 ctmg
 disko
 editorconfig
+emacs
 keypair
 luks
 namespace
 nixfiles
 nixos
+nixosConfiguration
 nixpkgs
+overridable
 pam_rssh
 pam_ssh_agent_auth
 preconfigured

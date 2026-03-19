@@ -40,7 +40,7 @@
     end-of-file-fixer.enable = true;
     flake-checker = {
       enable = true;
-      args = lib.cli.toGNUCommandLine { } {
+      args = lib.cli.toCommandLineGNU { } {
         check-outdated = true;
         check-supported = true;
         no-telemetry = true;
@@ -48,7 +48,7 @@
     };
     gitlint = {
       args =
-        (lib.cli.toGNUCommandLine { } {
+        (lib.cli.toCommandLineGNU { } {
           C = ".config/gitlint.ini";
           staged = true;
         })
@@ -71,7 +71,7 @@
       language = "system";
       pass_filenames = false;
     };
-    nixfmt-rfc-style = {
+    nixfmt = {
       enable = true;
       excludes = [
         "nixosConfigurations/[^/]*/hardware-configuration.nix"
@@ -85,7 +85,7 @@
       ];
     };
     shellcheck = {
-      args = lib.cli.toGNUCommandLine { } {
+      args = lib.cli.toCommandLineGNU { } {
         e = [
           # using replaceVars with bash makes these unhappy
           "SC1008" # This shebang was unrecognized.
@@ -98,8 +98,8 @@
       enable = true;
     };
     shfmt = {
-      args = lib.cli.toGNUCommandLine { } {
-        i = 2;
+      args = lib.cli.toCommandLineGNU { } {
+        indent = 2;
         ci = true;
       };
       enable = true;

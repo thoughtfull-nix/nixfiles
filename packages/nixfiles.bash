@@ -270,9 +270,9 @@ age-encrypt() {
     nixos_configs_path="$(dirname "${host_path}")"
     for host_dir in "${nixos_configs_path}"/*/; do
       host_dir_name="$(basename "${host_dir}")"
-      [[ "${host_dir_name}" == "shared" ]] && continue
+      [[ ${host_dir_name} == "shared" ]] && continue
       host_pub_key="${host_dir}ssh_host_ed25519_key.pub"
-      if [[ -r "${host_pub_key}" ]]; then
+      if [[ -r ${host_pub_key} ]]; then
         host_pub_key_arg+=("-R" "${host_pub_key}")
       else
         warn "Missing host pub key for ${host_dir_name}, skipping"
@@ -409,7 +409,7 @@ rekey() {
     shared_path="${nixos_configs_path}/shared"
     # Rekey shared secrets whenever any specific host is rekeyed, since shared
     # secrets are encrypted to all host keys.  Skip if already rekeying shared.
-    if [[ -d "${shared_path}" ]] && [[ "${argc_hostname}" != "shared" ]]; then
+    if [[ -d ${shared_path} ]] && [[ ${argc_hostname} != "shared" ]]; then
       hosts+=("${shared_path}")
     fi
   fi
