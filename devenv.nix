@@ -1,10 +1,12 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 {
   difftastic.enable = true;
+  packages = [ pkgs.emacs-nox ];
   git-hooks.hooks = {
     check-added-large-files.enable = true;
     check-case-conflicts.enable = true;
