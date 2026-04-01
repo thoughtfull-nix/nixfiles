@@ -6,6 +6,7 @@
 }:
 {
   difftastic.enable = true;
+  # emacs-nox is required for the elisp-indent git hook
   packages = [ pkgs.emacs-nox ];
   git-hooks.hooks = {
     check-added-large-files.enable = true;
