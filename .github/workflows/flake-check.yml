@@ -13,12 +13,6 @@ jobs:
         uses: actions/checkout@v4
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
-        with:
-          # yamllint disable rule:line-length
-          extra-conf: |
-            extra-trusted-public-keys = devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=
-            extra-substituters = https://devenv.cachix.org
-          # yamllint enable rule:line-length
       - name: Setup Nix cache
         uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Setup SSH for private flake inputs
