@@ -28,4 +28,4 @@ jobs:
       - name: Run devenv test
         run: nix develop --no-pure-eval --command devenv test
       - name: Run flake check
-        run: nix flake check
+        run: nix flake check --no-pure-eval
