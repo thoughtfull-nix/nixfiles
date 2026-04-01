@@ -1,6 +1,14 @@
 {
   description = "Thoughtfull Systems nixfiles";
+  nixConfig = {
+    extra-substituters = "https://devenv.cachix.org";
+    extra-trusted-public-keys = "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=";
+  };
   inputs = {
+    devenv = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:cachix/devenv";
+    };
     agenix = {
       inputs = {
         darwin.follows = "";
@@ -30,7 +38,7 @@
     systems.url = "github:nix-systems/default";
   };
   outputs =
-    {
+    inputs@{
       self,
       nixpkgs,
       ...
@@ -89,6 +97,18 @@
             waybar-yubikey
             yubikey-totp
             ;
+        }
+      );
+      devShells = forEachSystem (
+        system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+        in
+        {
+          default = inputs.devenv.lib.mkShell {
+            inherit inputs pkgs;
+            modules = [ ./devenv.nix ];
+          };
         }
       );
     };

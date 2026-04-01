@@ -1,6 +1,6 @@
 ---
 name: Flake Check
-"on":
+on:
   push:
     branches: [main]
   pull_request:
@@ -19,5 +19,7 @@ jobs:
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.KRYPTONIX_DEPLOY_KEY }}
+      - name: Run devenv test
+        run: nix develop --no-pure-eval --command devenv test
       - name: Run flake check
-        run: nix flake check
+        run: nix flake check --no-pure-eval
