@@ -4,7 +4,7 @@ pkgs.stdenv.mkDerivation {
   version = "1.2";
 
   src = pkgs.fetchurl {
-    url = "https://www.gnome-look.org/p/999081/startdownload?file_id=1468223087&file_name=sound-theme-smooth-1.2.tar.gz&file_type=application/x-gzip&file_size=592367";
+    url = "https://my.opendesktop.org/s/QrcjmXiTpqQsciE/download";
     hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
   };
 
@@ -19,7 +19,7 @@ pkgs.stdenv.mkDerivation {
 
   meta = {
     description = "Smooth sound theme providing comprehensive XDG-compatible event sounds";
-    homepage = "https://www.gnome-look.org/p/999081/";
+    homepage = "https://www.pling.com/p/1187979/";
     license = pkgs.lib.licenses.gpl2Plus;
     platforms = pkgs.lib.platforms.all;
   };
