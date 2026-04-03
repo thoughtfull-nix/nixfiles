@@ -5,7 +5,7 @@ pkgs.stdenv.mkDerivation {
 
   src = pkgs.fetchurl {
     url = "https://my.opendesktop.org/s/QrcjmXiTpqQsciE/download";
-    hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+    hash = "sha256-XtyXXOIWoVx+ExnSq08gIJ5j4DmP9IOaeH9ZihkfKtA=";
   };
 
   dontBuild = true;
