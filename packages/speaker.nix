@@ -2,6 +2,7 @@
 let
   inherit (pkgs)
     bash
+    libcanberra-gtk3
     libnotify
     pulseaudio
     replaceVars
@@ -57,10 +58,9 @@ let
     replacements = {
       DEFAULT_SINK = null;
       bash = "${bash}/bin/bash";
+      canberra-gtk-play = "${libcanberra-gtk3}/bin/canberra-gtk-play";
       pactl = "${pulseaudio}/bin/pactl";
-      paplay = "${pulseaudio}/bin/paplay";
       speaker-status = "${speaker-status}/bin/speaker-status";
-      speaker-volume-pop = "${./speaker/speaker-volume-pop.ogg}";
     };
     src = ./speaker/speaker-volume-down.bash;
   };
@@ -69,10 +69,9 @@ let
     replacements = {
       DEFAULT_SINK = null;
       bash = "${bash}/bin/bash";
+      canberra-gtk-play = "${libcanberra-gtk3}/bin/canberra-gtk-play";
       pactl = "${pulseaudio}/bin/pactl";
-      paplay = "${pulseaudio}/bin/paplay";
       speaker-status = "${speaker-status}/bin/speaker-status";
-      speaker-volume-pop = "${./speaker/speaker-volume-pop.ogg}";
     };
     src = ./speaker/speaker-volume-up.bash;
   };

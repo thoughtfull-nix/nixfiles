@@ -28,6 +28,7 @@ let
   inherit (pkgs.thoughtfull)
     brightness
     mic
+    sound-theme-smooth
     speaker
     theme-toggle
     ;
@@ -60,6 +61,7 @@ in
       mic
       numix-cursor-theme
       numix-icon-theme
+      sound-theme-smooth
       speaker
       theme-toggle
     ];
@@ -70,7 +72,19 @@ in
     ./sway/waybar.nix
   ];
   programs = {
-    dconf.enable = mkDefault sway.enable;
+    dconf = {
+      enable = mkDefault sway.enable;
+      profiles.user.databases = lib.optionals sway.enable [
+        {
+          settings = {
+            "org/gnome/desktop/sound" = {
+              event-sounds = true;
+              theme-name = "Smooth";
+            };
+          };
+        }
+      ];
+    };
     gtklock.enable = mkDefault sway.enable;
     sway = {
       enable = mkDefault graphical.enable;

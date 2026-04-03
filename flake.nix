@@ -89,6 +89,7 @@
             pins
             power-menu
             run-vm
+            sound-theme-smooth
             speaker
             ssh-askpass
             theme-toggle
