@@ -5,6 +5,7 @@ pkgs.stdenv.mkDerivation {
 
   src = pkgs.fetchurl {
     url = "https://my.opendesktop.org/s/QrcjmXiTpqQsciE/download";
+    name = "sound-theme-smooth-1.2.tar.gz";
     hash = "sha256-XtyXXOIWoVx+ExnSq08gIJ5j4DmP9IOaeH9ZihkfKtA=";
   };
 
