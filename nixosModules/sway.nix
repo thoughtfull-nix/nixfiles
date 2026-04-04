@@ -72,19 +72,7 @@ in
     ./sway/waybar.nix
   ];
   programs = {
-    dconf = {
-      enable = mkDefault sway.enable;
-      profiles.user.databases = lib.optionals sway.enable [
-        {
-          settings = {
-            "org/gnome/desktop/sound" = {
-              event-sounds = true;
-              theme-name = "Smooth";
-            };
-          };
-        }
-      ];
-    };
+    dconf.enable = mkDefault sway.enable;
     gtklock.enable = mkDefault sway.enable;
     sway = {
       enable = mkDefault graphical.enable;
