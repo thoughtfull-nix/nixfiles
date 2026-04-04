@@ -142,7 +142,6 @@ in
       };
       pkgs = final;
     };
-    sound-theme-smooth = import ../packages/sound-theme-smooth.nix { pkgs = final; };
     ssh-askpass = import ../packages/ssh-askpass.nix {
       lib = {
         inherit writeFileScriptBin;

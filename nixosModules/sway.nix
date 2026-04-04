@@ -23,12 +23,12 @@ let
     libadwaita
     numix-cursor-theme
     numix-icon-theme
+    sound-theme-freedesktop
     xdg-desktop-portal-gtk
     ;
   inherit (pkgs.thoughtfull)
     brightness
     mic
-    sound-theme-smooth
     speaker
     theme-toggle
     ;
@@ -61,7 +61,7 @@ in
       mic
       numix-cursor-theme
       numix-icon-theme
-      sound-theme-smooth
+      sound-theme-freedesktop
       speaker
       theme-toggle
     ];
