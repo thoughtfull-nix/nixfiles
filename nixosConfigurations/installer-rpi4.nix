@@ -1,7 +1,8 @@
 { inputs, ... }:
 {
   modules = [
-    "${inputs.nixpkgs}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix"
+    "${inputs.nixpkgs}/nixos/modules/installer/sd-card/sd-image-aarch64-installer.nix"
+    inputs.nixos-hardware.nixosModules.raspberry-pi-4
     (
       {
         lib,
@@ -9,19 +10,29 @@
         ...
       }:
       {
+        hardware.raspberry-pi."4".poe-hat.enable = true;
+        # Fix: allow missing modules for other ARM platforms (Rockchip, Allwinner) that don't exist
+        # on RPi4 See:
+        # https://discourse.nixos.org/t/cannot-build-raspberry-pi-sdimage-module-dw-hdmi-not-found/71804
+        boot.initrd.allowMissingModules = true;
         environment.systemPackages =
           with pkgs;
-          with inputs.disko.packages.${pkgs.stdenv.hostPlatform.system};
+          with pkgs.thoughtfull;
+          with inputs.disko.packages.aarch64-linux;
           [
+            curl
             disko
             jq
+            nixfiles
+            pins
             tmux
+            uns
+            unzip
             usbutils
           ];
-        networking = {
-          # set the hostname from dhcp (or default to "nixos")
-          hostName = "";
-        };
+        hardware.enableRedistributableFirmware = true;
+        # set the hostname from dhcp (or default to "nixos")
+        networking.hostName = "";
         programs = {
           git = {
             enable = true;
@@ -50,6 +61,7 @@
         services = {
           emacs.enable = true;
           openssh.enable = true;
+          pcscd.enable = true;
           xremap.enable = true;
         };
         system.stateVersion = lib.trivial.release;
@@ -65,5 +77,5 @@
       }
     )
   ];
-  system = "x86_64-linux";
+  system = "aarch64-linux";
 }
