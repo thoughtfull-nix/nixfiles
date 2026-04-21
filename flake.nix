@@ -93,6 +93,7 @@
             ssh-askpass
             theme-toggle
             uns
+            usb-menu
             waybar-weather
             waybar-yubikey
             yubikey-totp

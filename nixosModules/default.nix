@@ -72,6 +72,7 @@ in
     ./swayidle.nix
     ./syncthing.nix
     ./terminal.nix
+    ./usb.nix
     ./user.nix
     ./vpn.nix
     ./weather.nix
