@@ -11,8 +11,11 @@ direnv allow
 # Check flake validity
 nix flake check
 
-# Build ISO image for nixos
-nix build .#nixosConfigurations.nixos.config.system.build.isoImage
+# Build ISO image for installer
+nix build .#nixosConfigurations.installer.config.system.build.isoImage
+
+# Build SD card image for Raspberry Pi 4
+nix build .#nixosConfigurations.installer-rpi4.config.system.build.sdImage
 
 # Verify changes by running pre-commit hooks
 devenv tasks run devenv:git-hooks:run
