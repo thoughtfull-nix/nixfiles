@@ -65,6 +65,8 @@ in
       xremap.enable = mkDefault true;
     };
     system.stateVersion = mkDefault lib.trivial.release;
+    # mkOverride 900: win over openssh module's mkDefault (1000) but yield to
+    # host configs using normal assignment (100) or mkForce (50)
     systemd.services.sshd-keygen.enable = mkOverride 900 true;
     thoughtfull = {
       impermanence.enable = mkDefault false;
