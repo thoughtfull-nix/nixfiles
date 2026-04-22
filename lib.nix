@@ -7,7 +7,10 @@ let
     isFunction
     mkOptionType
     ;
-  forEachSystem = eachSystemMap [ system.x86_64-linux ];
+  forEachSystem = eachSystemMap [
+    system.x86_64-linux
+    system.aarch64-linux
+  ];
 in
 {
   inherit forEachSystem;

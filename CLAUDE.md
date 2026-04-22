@@ -11,8 +11,11 @@ direnv allow
 # Check flake validity
 nix flake check
 
-# Build ISO image for nixos
-nix build .#nixosConfigurations.nixos.config.system.build.isoImage
+# Build ISO image for installer
+nix build .#nixosConfigurations.installer.config.system.build.isoImage
+
+# Build SD card image for Raspberry Pi 4
+nix build .#nixosConfigurations.installer-rpi4.config.system.build.sdImage
 
 # Verify changes by running pre-commit hooks
 devenv tasks run devenv:git-hooks:run
@@ -32,7 +35,7 @@ This is a NixOS flake-based system configuration framework using nixpkgs 25.11 w
 
 ### Module System
 
-All modules in `nixosModules/` are imported unconditionally. Modules use NixOS options to conditionally enable features rather than conditional imports.  New modules are manually added to `nixosModules.nix` (using `lib.dirPaths` prevented the options documentation from linking to the correct file).
+All modules in `nixosModules/` are imported unconditionally. Modules use NixOS options to conditionally enable features rather than conditional imports.  New modules are manually added to `nixosModules/default.nix` (using `lib.dirPaths` prevented the options documentation from linking to the correct file).
 
 **Module patterns:**
 - Simple module: Single `.nix` file (for example, `git.nix`)
@@ -77,7 +80,8 @@ Custom packages in `packages/` use template substitution via `replaceVars` to in
 ### Host Configurations
 
 - `nixosConfigurations/bootstrap.nix`: Template for provisioning new systems with `BOOTSTRAP` replaced with the name of the provisioned system.
-- `nixosConfigurations/nixos.nix`: Minimal ISO environment for initial provisioning
+- `nixosConfigurations/installer.nix`: Minimal ISO environment for initial provisioning
+- `nixosConfigurations/installer-rpi4.nix`: SD card image for Raspberry Pi 4 provisioning
 
 ## Testing
 

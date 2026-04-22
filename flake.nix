@@ -35,6 +35,7 @@
     };
     kryptonix.url = "git+ssh://git@github.com/technosophist/kryptonix?ref=sedna";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    nixos-hardware.url = "github:NixOS/nixos-hardware";
     systems.url = "github:nix-systems/default";
   };
   outputs =
@@ -93,6 +94,7 @@
             ssh-askpass
             theme-toggle
             uns
+            usb-menu
             waybar-weather
             waybar-yubikey
             yubikey-totp

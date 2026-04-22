@@ -64,16 +64,6 @@ provision() {
   host_path="${nixos_configs_path}/${argc_hostname}"
   secrets_path="${host_path}/secrets"
   git_opts=(-C "${argc_nixfiles_path}")
-  # == Configure age+yubikey
-  log "Configuring age+yubikey"
-  cat <<EOF | sudo tee /etc/nixos/configuration2.nix
-  { pkgs, ... }: {
-    environment.systemPackages = with pkgs; [ age-plugin-yubikey ];
-    imports = [ ./configuration.nix ];
-    services.pcscd.enable = true;
-  }
-EOF
-  sudo NIXOS_CONFIG=/etc/nixos/configuration2.nix nixos-rebuild switch
   # == Running SSH agent
   log "Running SSH agent"
   eval "$(@ssh-agent@ -s)" || die "Failed to start SSH agent"
@@ -190,6 +180,10 @@ EOF
       --flake "${argc_nixfiles_path}#${argc_hostname}" \
       --yes-wipe-all-disks ||
       die "Failed to format disks"
+    # Install UEFI firmware for RPi4 (required for systemd-boot on ARM)
+    if [[ "$(uname -m)" == "aarch64" ]]; then
+      install-rpi4-uefi-firmware
+    fi
   fi
   # == Ensure systemd FIDO2 enrollment
   log "Ensure systemd FIDO2 enrollment"
@@ -439,6 +433,31 @@ rekey() {
 
 _default-hostname() {
   hostname -s
+}
+
+# Install TianoCore UEFI firmware for Raspberry Pi 4
+# This enables systemd-boot on RPi4 hardware
+install-rpi4-uefi-firmware() {
+  local esp_mount="/mnt/boot"
+  local firmware_version="v1.38"
+  local firmware_url="https://github.com/pftf/RPi4/releases/download/${firmware_version}/RPi4_UEFI_Firmware_${firmware_version}.zip"
+  local firmware_zip="${TMPDIR}/rpi4-uefi-firmware.zip"
+
+  log "Downloading TianoCore UEFI firmware ${firmware_version} for RPi4"
+  curl -L -o "${firmware_zip}" "${firmware_url}" ||
+    die "Failed to download UEFI firmware"
+
+  local expected_sha256="f82404a1f52497308aaed69040baa663a2d8c5c4fd78edddc6132ee8ca62ae2b"
+  local actual_sha256
+  actual_sha256=$(sha256sum "${firmware_zip}" | awk '{print $1}')
+  [[ ${actual_sha256} == "${expected_sha256}" ]] ||
+    die "UEFI firmware checksum mismatch (got ${actual_sha256})"
+
+  log "Extracting UEFI firmware to ${esp_mount}"
+  sudo unzip -o "${firmware_zip}" -d "${esp_mount}" ||
+    die "Failed to extract UEFI firmware"
+
+  log "UEFI firmware installed successfully"
 }
 
 age() {

@@ -12,7 +12,7 @@ let
   };
 
   # Use the ISO config (has all modules, no secrets)
-  nixosSystem = self.nixosConfigurations.nixos;
+  nixosSystem = self.nixosConfigurations.installer;
 
   # Transform declarations to GitHub URLs
   # Match by path patterns since store paths differ between evaluation contexts
