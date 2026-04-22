@@ -32,7 +32,7 @@ This is a NixOS flake-based system configuration framework using nixpkgs 25.11 w
 
 ### Module System
 
-All modules in `nixosModules/` are imported unconditionally. Modules use NixOS options to conditionally enable features rather than conditional imports.  New modules are manually added to `nixosModules.nix` (using `lib.dirPaths` prevented the options documentation from linking to the correct file).
+All modules in `nixosModules/` are imported unconditionally. Modules use NixOS options to conditionally enable features rather than conditional imports.  New modules are manually added to `nixosModules/default.nix` (using `lib.dirPaths` prevented the options documentation from linking to the correct file).
 
 **Module patterns:**
 - Simple module: Single `.nix` file (for example, `git.nix`)
