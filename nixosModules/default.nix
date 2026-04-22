@@ -56,6 +56,7 @@ in
     ./graphical.nix
     ./gtklock.nix
     ./impermanence.nix
+    ./installer.nix
     ./java.nix
     ./javascript.nix
     ./less.nix
@@ -66,6 +67,7 @@ in
     ./pipewire.nix
     ./printing.nix
     ./restic.nix
+    ./rpi4.nix
     ./rust.nix
     ./slack.nix
     ./sway.nix
