@@ -80,7 +80,8 @@ Custom packages in `packages/` use template substitution via `replaceVars` to in
 ### Host Configurations
 
 - `nixosConfigurations/bootstrap.nix`: Template for provisioning new systems with `BOOTSTRAP` replaced with the name of the provisioned system.
-- `nixosConfigurations/nixos.nix`: Minimal ISO environment for initial provisioning
+- `nixosConfigurations/installer.nix`: Minimal ISO environment for initial provisioning
+- `nixosConfigurations/installer-rpi4.nix`: SD card image for Raspberry Pi 4 provisioning
 
 ## Testing
 
