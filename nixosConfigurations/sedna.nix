@@ -5,6 +5,7 @@
       { pkgs, ... }:
       {
         boot = {
+          binfmt.emulatedSystems = [ "aarch64-linux" ];
           initrd = {
             luks.devices.encrypted.crypttabExtraOpts = [
               "fido2-device=auto"
