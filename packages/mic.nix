@@ -1,6 +1,7 @@
 { lib, pkgs, ... }:
 let
   inherit (pkgs)
+    libcanberra-gtk3
     libnotify
     pulseaudio
     replaceVars
@@ -53,10 +54,9 @@ let
     name = "mic-volume-down";
     replacements = {
       DEFAULT_SOURCE = null;
+      canberra-gtk-play = "${libcanberra-gtk3}/bin/canberra-gtk-play";
       pactl = "${pulseaudio}/bin/pactl";
-      paplay = "${pulseaudio}/bin/paplay";
       mic-status = "${mic-status}/bin/mic-status";
-      mic-volume-pop = "${./speaker/speaker-volume-pop.ogg}";
     };
     src = ./mic/mic-volume-down.bash;
   };
@@ -64,10 +64,9 @@ let
     name = "mic-volume-up";
     replacements = {
       DEFAULT_SOURCE = null;
+      canberra-gtk-play = "${libcanberra-gtk3}/bin/canberra-gtk-play";
       pactl = "${pulseaudio}/bin/pactl";
-      paplay = "${pulseaudio}/bin/paplay";
       mic-status = "${mic-status}/bin/mic-status";
-      mic-volume-pop = "${./speaker/speaker-volume-pop.ogg}";
     };
     src = ./mic/mic-volume-up.bash;
   };
