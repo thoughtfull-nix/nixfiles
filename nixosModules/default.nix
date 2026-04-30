@@ -63,7 +63,6 @@ in
     ./less.nix
     ./mako.nix
     ./monitoring.nix
-    ./ntp.nix
     ./obsidian.nix
     ./openssh.nix
     ./pipewire.nix
