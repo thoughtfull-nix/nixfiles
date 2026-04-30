@@ -10,8 +10,9 @@ let
   inherit (pkgs.thoughtfull) ssh-askpass;
 in
 {
+  environment.systemPackages = mkIf graphical.enable [ ssh-askpass ];
   programs.ssh = {
-    askPassword = mkIf graphical.enable "${ssh-askpass}/bin/ssh-askpass";
+    askPassword = mkIf graphical.enable "ssh-askpass";
     enableAskPassword = mkDefault graphical.enable;
     extraConfig = ''
       VerifyHostKeyDNS yes
