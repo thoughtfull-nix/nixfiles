@@ -180,27 +180,29 @@ provision() {
       --flake "${argc_nixfiles_path}#${argc_hostname}" \
       --yes-wipe-all-disks ||
       die "Failed to format disks"
-    # Install UEFI firmware for RPi4 (required for systemd-boot on ARM)
+    # Install firmware for RPi4 (required for U-Boot/extlinux boot from USB)
     if [[ "$(uname -m)" == "aarch64" ]]; then
-      install-rpi4-uefi-firmware
+      install-rpi4-firmware
     fi
   fi
-  # == Ensure systemd FIDO2 enrollment
-  log "Ensure systemd FIDO2 enrollment"
-  luks_device=$(sudo blkid -t TYPE=crypto_LUKS -o device -l)
-  if ! sudo systemd-cryptenroll "${luks_device}" | grep fido2; then
-    log "Enrolling ${luks_device} with FIDO2"
-    sudo systemd-cryptenroll --fido2-device=auto "${luks_device}" ||
-      die "Failed to enroll ${luks_device} with FIDO2"
-    log "Please remove your primary FIDO2 device and insert your backup device"
-    pause
+  # == Ensure systemd FIDO2 enrollment (non-rpi4)
+  if [[ "$(uname -m)" != "aarch64" ]]; then
+    log "Ensure systemd FIDO2 enrollment"
     luks_device=$(sudo blkid -t TYPE=crypto_LUKS -o device -l)
-    log "Enrolling ${luks_device} with FIDO2"
-    while ! sudo systemd-cryptenroll --fido2-device=auto "${luks_device}"; do
-      echo "Failed to enroll ${luks_device} with FIDO2, retrying"
-    done
-    log "Please remove your backup FIDO2 devices and insert your primary device"
-    pause
+    if ! sudo systemd-cryptenroll "${luks_device}" | grep fido2; then
+      log "Enrolling ${luks_device} with FIDO2"
+      sudo systemd-cryptenroll --fido2-device=auto "${luks_device}" ||
+        die "Failed to enroll ${luks_device} with FIDO2"
+      log "Please remove your primary FIDO2 device and insert your backup device"
+      pause
+      luks_device=$(sudo blkid -t TYPE=crypto_LUKS -o device -l)
+      log "Enrolling ${luks_device} with FIDO2"
+      while ! sudo systemd-cryptenroll --fido2-device=auto "${luks_device}"; do
+        echo "Failed to enroll ${luks_device} with FIDO2, retrying"
+      done
+      log "Please remove your backup FIDO2 devices and insert your primary device"
+      pause
+    fi
   fi
   # == Ensure SSH host key
   host_key_path="/mnt/persistent/etc/ssh/ssh_host_ed25519_key"
@@ -435,29 +437,40 @@ _default-hostname() {
   hostname -s
 }
 
-# Install TianoCore UEFI firmware for Raspberry Pi 4
-# This enables systemd-boot on RPi4 hardware
-install-rpi4-uefi-firmware() {
-  local esp_mount="/mnt/boot"
-  local firmware_version="v1.38"
-  local firmware_url="https://github.com/pftf/RPi4/releases/download/${firmware_version}/RPi4_UEFI_Firmware_${firmware_version}.zip"
-  local firmware_zip="${TMPDIR}/rpi4-uefi-firmware.zip"
+# Install Raspberry Pi 4 firmware and U-Boot for USB boot
+# This enables the U-Boot/extlinux boot chain on RPi4 hardware
+install-rpi4-firmware() {
+  local boot_mount="/mnt/boot"
+  local firmware_src="@raspberrypi-firmware@"
+  local uboot_src="@uboot-rpi4@"
 
-  log "Downloading TianoCore UEFI firmware ${firmware_version} for RPi4"
-  curl -L -o "${firmware_zip}" "${firmware_url}" ||
-    die "Failed to download UEFI firmware"
+  log "Installing RPi4 firmware to ${boot_mount}"
 
-  local expected_sha256="f82404a1f52497308aaed69040baa663a2d8c5c4fd78edddc6132ee8ca62ae2b"
-  local actual_sha256
-  actual_sha256=$(sha256sum "${firmware_zip}" | awk '{print $1}')
-  [[ ${actual_sha256} == "${expected_sha256}" ]] ||
-    die "UEFI firmware checksum mismatch (got ${actual_sha256})"
+  # Copy Broadcom GPU firmware
+  sudo cp "${firmware_src}/start4.elf" "${boot_mount}/" ||
+    die "Failed to copy start4.elf"
+  sudo cp "${firmware_src}/fixup4.dat" "${boot_mount}/" ||
+    die "Failed to copy fixup4.dat"
+  sudo cp "${firmware_src}/bcm2711-rpi-4-b.dtb" "${boot_mount}/" ||
+    die "Failed to copy device tree"
 
-  log "Extracting UEFI firmware to ${esp_mount}"
-  sudo unzip -o "${firmware_zip}" -d "${esp_mount}" ||
-    die "Failed to extract UEFI firmware"
+  # Copy device tree overlays
+  sudo mkdir -p "${boot_mount}/overlays"
+  sudo cp "${firmware_src}/overlays/"* "${boot_mount}/overlays/" ||
+    die "Failed to copy device tree overlays"
 
-  log "UEFI firmware installed successfully"
+  # Copy U-Boot binary
+  sudo cp "${uboot_src}" "${boot_mount}/u-boot.bin" ||
+    die "Failed to copy U-Boot"
+
+  # Create config.txt for RPi4 boot
+  sudo tee "${boot_mount}/config.txt" >/dev/null <<'CONFIGTXT'
+arm_64bit=1
+enable_uart=1
+kernel=u-boot.bin
+CONFIGTXT
+
+  log "RPi4 firmware installed successfully"
 }
 
 age() {
@@ -473,5 +486,5 @@ gpg() {
 }
 
 phraze() {
-  @phraze@ -t
+  @phraze@ -s ' '
 }

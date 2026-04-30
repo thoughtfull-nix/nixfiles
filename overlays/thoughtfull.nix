@@ -106,17 +106,25 @@ in
       };
       pkgs = final;
     };
-    nixfiles = writeArgcScript "nixfiles" ../packages/nixfiles.bash {
-      age = "${age}/bin/age";
-      disko = "${disko}/bin/disko";
-      git = "${git}/bin/git";
-      gpg = "${gnupg}/bin/gpg";
-      gpgconf = "${gnupg}/bin/gpgconf";
-      phraze = "${phraze}/bin/phraze";
-      pinentry = "${pinentry-tty}/bin/pinentry-tty";
-      ssh-add = "${openssh}/bin/ssh-add";
-      ssh-agent = "${openssh}/bin/ssh-agent";
-    };
+    nixfiles = writeArgcScript "nixfiles" ../packages/nixfiles.bash (
+      {
+        age = "${age}/bin/age";
+        disko = "${disko}/bin/disko";
+        git = "${git}/bin/git";
+        gpg = "${gnupg}/bin/gpg";
+        gpgconf = "${gnupg}/bin/gpgconf";
+        phraze = "${phraze}/bin/phraze";
+        pinentry = "${pinentry-tty}/bin/pinentry-tty";
+        raspberrypi-firmware = "";
+        ssh-add = "${openssh}/bin/ssh-add";
+        ssh-agent = "${openssh}/bin/ssh-agent";
+        uboot-rpi4 = "";
+      }
+      // prev.lib.optionalAttrs prev.stdenv.hostPlatform.isAarch64 {
+        raspberrypi-firmware = "${prev.raspberrypifw}/share/raspberrypi/boot";
+        uboot-rpi4 = "${prev.ubootRaspberryPi4_64bit}/u-boot.bin";
+      }
+    );
     options-doc = import ../packages/options-doc (self // { pkgs = final; });
     pins = import ../packages/pins.nix {
       lib = {
