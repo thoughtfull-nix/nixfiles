@@ -4,21 +4,7 @@
     (
       { pkgs, ... }:
       {
-        boot = {
-          binfmt.emulatedSystems = [ "aarch64-linux" ];
-          initrd = {
-            luks.devices.encrypted.crypttabExtraOpts = [
-              "fido2-device=auto"
-              "token-timeout=5s"
-            ];
-            systemd.enable = true;
-          };
-          loader = {
-            efi.canTouchEfiVariables = true;
-            grub.enable = false;
-            systemd-boot.enable = true;
-          };
-        };
+        boot.binfmt.emulatedSystems = [ "aarch64-linux" ];
         environment.systemPackages = [
           pkgs.devenv
         ]

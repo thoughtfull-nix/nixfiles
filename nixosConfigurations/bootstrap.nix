@@ -4,20 +4,6 @@
     (
       { pkgs, ... }:
       {
-        boot = {
-          initrd = {
-            luks.devices.encrypted.crypttabExtraOpts = [
-              "fido2-device=auto"
-              "token-timeout=5s"
-            ];
-            systemd.enable = true;
-          };
-          loader = {
-            efi.canTouchEfiVariables = true;
-            grub.enable = false;
-            systemd-boot.enable = true;
-          };
-        };
         environment.systemPackages = [ pkgs.devenv ];
         imports = [
           ./BOOTSTRAP/hardware-configuration.nix

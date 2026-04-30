@@ -40,6 +40,7 @@ in
     ./avahi.nix
     ./backlight.nix
     ./bluetooth.nix
+    ./boot.nix
     ./claude.nix
     ./clojure.nix
     ./dictation.nix
