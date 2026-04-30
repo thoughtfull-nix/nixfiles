@@ -25,7 +25,7 @@ in
     hardware.enableRedistributableFirmware = mkDefault true;
     networking = {
       networkmanager.enable = mkOverride 900 false;
-      useNetworkd = mkDefault true;
+      useNetworkd = mkOverride 900 true;
     };
   };
   options.thoughtfull.rpi4.enable = mkEnableOption "Raspberry Pi 4 configuration";
