@@ -8,6 +8,7 @@ let
     mkDefault
     mkIf
     mkMerge
+    mkOverride
     ;
   rpi4 = config.thoughtfull.rpi4.enable;
 in
@@ -36,13 +37,13 @@ in
         };
         systemd = {
           network = {
-            enable = mkDefault true;
+            enable = mkOverride 900 true;
             networks."10-end0" = {
               matchConfig.Name = mkDefault "end0";
               networkConfig.DHCP = mkDefault "yes";
             };
           };
-          users.root.shell = mkDefault "/bin/systemd-tty-ask-password-agent";
+          users.root.shell = mkOverride 900 "/bin/systemd-tty-ask-password-agent";
         };
       };
     })
