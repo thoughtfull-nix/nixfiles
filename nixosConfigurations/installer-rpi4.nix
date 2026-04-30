@@ -6,6 +6,10 @@
     (
       { ... }:
       {
+        boot.initrd = {
+          allowMissingModules = true;
+          network.ssh.enable = false;
+        };
         hardware.raspberry-pi."4".poe-hat.enable = true;
         thoughtfull = {
           installer.enable = true;

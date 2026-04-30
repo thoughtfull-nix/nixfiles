@@ -16,6 +16,10 @@ in
       }
     ];
     hardware.enableRedistributableFirmware = mkDefault true;
+    networking = {
+      networkmanager.enable = mkDefault false;
+      useNetworkd = mkDefault true;
+    };
   };
   options.thoughtfull.rpi4.enable = mkEnableOption "Raspberry Pi 4 configuration";
 }
