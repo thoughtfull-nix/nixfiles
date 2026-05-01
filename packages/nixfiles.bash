@@ -38,7 +38,7 @@ git_user_email="technosophist@thoughtfull.systems"
 ## clone a nixfiles repository, and a GPG key to commit to and push the repository.  The Yubikey is
 ## also setup to unlock the LUKS partition with FIDO2.
 ##
-## A LUKS recovery code and Restic recovery code are generated, encrypted, and committed to the
+## A LUKS recovery code is generated, encrypted, and committed to the
 ## repository along with a bootstrapped NixOS configuration and generated
 ## hardware-configuration.nix.
 ##
@@ -155,7 +155,6 @@ provision() {
   fi
   # == Ensure passphrases
   ensure-passphrase "LUKS recovery passphrase"
-  ensure-passphrase "Restic recovery passphrase"
   if [[ ! -r "${secrets_path}/hashed-user-passphrase.age" ]]; then
     log "Hashing user passphrase"
     user_passphrase=$(phraze)
