@@ -46,7 +46,7 @@
           restic.thoughtfull.enable = true;
           syncthing = {
             enable = true;
-            thoughtfull.passwordFile = ./sedna/secrets/syncthing-password.age;
+            thoughtfull.passwordFile = ./sedna/secrets/syncthing-passphrase.age;
           };
           xremap.enable = true;
         };

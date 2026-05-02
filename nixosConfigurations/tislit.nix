@@ -27,6 +27,15 @@
         services = {
           emacs.enable = true;
           openssh.enable = true;
+          syncthing = {
+            enable = true;
+            folders = {
+              archive.enable = true;
+              obsidian.enable = true;
+              org.enable = true;
+            };
+            thoughtfull.passwordFile = ./tislit/secrets/syncthing-passphrase.age;
+          };
         };
         system.stateVersion = "25.11";
         thoughtfull = {

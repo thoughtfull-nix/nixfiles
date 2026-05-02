@@ -43,6 +43,7 @@ in
         owner = syncthing.user;
       };
     };
+    networking.firewall.allowedTCPPorts = mkIf syncthing.enable [ 8384 ];
     services.syncthing = {
       cert = mkIf hasCert syncthing-cert.path;
       dataDir = user.final.home;
@@ -50,6 +51,7 @@ in
       guiAddress = "0.0.0.0:8384";
       guiPasswordFile = mkIf syncthing.enable syncthing-password.path;
       key = mkIf hasKey syncthing-key.path;
+      openDefaultPorts = mkDefault true;
       relay.enable = false;
       settings = {
         # device ids & external addresses are defined in kryptonix
@@ -63,8 +65,17 @@ in
           heldai.addresses = [
             "tcp://heldai.lan:22000"
           ];
+          mira.addresses = [
+            "tcp://mira.lan:22000"
+          ];
           naarah.addresses = [
             "tcp://naarah.lan:22000"
+          ];
+          sedna.addresses = [
+            "tcp://sedna.lan:22000"
+          ];
+          tislit.addresses = [
+            "tcp://tislit.lan:22000"
           ];
         };
         # folder ids are defined in kryptonix
@@ -73,14 +84,17 @@ in
             devices = [
               "gemariah"
               "naarah"
+              "tislit"
             ];
             path = mkDefault "~/archive";
           };
           obsidian = folderDefaults // {
             devices = [
               "gemariah"
+              "mira"
               "naarah"
               "heldai"
+              "tislit"
             ];
             ignorePatterns = [
               ".obsidian/workspace"
@@ -105,8 +119,10 @@ in
           org = folderDefaults // {
             devices = [
               "gemariah"
+              "mira"
               "naarah"
               "heldai"
+              "tislit"
             ];
             ignorePatterns = [ "work" ];
             path = mkDefault "~/org";
