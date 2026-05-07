@@ -32,6 +32,7 @@
             folders = {
               archive.enable = true;
               obsidian.enable = true;
+              obsidian-archive.enable = true;
               org.enable = true;
             };
             thoughtfull.passwordFile = ./tislit/secrets/syncthing-passphrase.age;
