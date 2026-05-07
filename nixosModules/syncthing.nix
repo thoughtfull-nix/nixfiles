@@ -105,6 +105,14 @@ in
             ];
             path = mkDefault "~/obsidian";
           };
+          obsidian-archive = folderDefaults // {
+            devices = [
+              "gemariah"
+              "naarah"
+              "tislit"
+            ];
+            path = mkDefault "~/obsidian-archive";
+          };
           obsidian-work = folderDefaults // {
             devices = [
               "bennu"
