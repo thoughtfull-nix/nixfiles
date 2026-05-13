@@ -27,6 +27,7 @@
         services = {
           emacs.enable = true;
           openssh.enable = true;
+          restic.thoughtfull.enable = true;
           syncthing = {
             enable = true;
             folders = {
