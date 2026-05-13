@@ -62,9 +62,6 @@ in
           gemariah.addresses = [
             "tcp://gemariah.lan:22000"
           ];
-          heldai.addresses = [
-            "tcp://heldai.lan:22000"
-          ];
           mira.addresses = [
             "tcp://mira.lan:22000"
           ];
@@ -93,7 +90,6 @@ in
               "gemariah"
               "mira"
               "naarah"
-              "heldai"
               "tislit"
             ];
             ignorePatterns = [
@@ -121,7 +117,6 @@ in
               "gemariah"
               "mira"
               "naarah"
-              "heldai"
               "tislit"
             ];
             ignorePatterns = [ "work" ];
