@@ -5,6 +5,15 @@
     extra-trusted-public-keys = "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=";
   };
   inputs = {
+    agenix = {
+      inputs = {
+        darwin.follows = "";
+        home-manager.follows = "";
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+      };
+      url = "github:ryantm/agenix";
+    };
     devenv = {
       inputs = {
         crate2nix.inputs = {
@@ -17,15 +26,6 @@
         nixpkgs.follows = "nixpkgs";
       };
       url = "github:cachix/devenv";
-    };
-    agenix = {
-      inputs = {
-        darwin.follows = "";
-        home-manager.follows = "";
-        nixpkgs.follows = "nixpkgs";
-        systems.follows = "systems";
-      };
-      url = "github:ryantm/agenix";
     };
     disko = {
       inputs.nixpkgs.follows = "nixpkgs";
@@ -43,8 +43,8 @@
       url = "github:nix-community/impermanence";
     };
     kryptonix.url = "git+ssh://git@github.com/technosophist/kryptonix?ref=sedna";
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     nixos-hardware.url = "github:NixOS/nixos-hardware";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     systems.url = "github:nix-systems/default";
     unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
