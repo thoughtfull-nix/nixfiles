@@ -17,6 +17,12 @@ in
     extraConfig = ''
       VerifyHostKeyDNS yes
       VisualHostKey yes
+      # Workaround: Firewalla returns :: (IPv6 unspecified) AAAA records for
+      # .lan hosts even with IPv6 disabled, causing SSH to fall back to
+      # localhost when the target refuses the connection. Remove this if
+      # Firewalla fixes their DNS behavior.
+      Match host *.lan
+        AddressFamily inet
     '';
     knownHostsFiles = [
       ./openssh/known_hosts_github
