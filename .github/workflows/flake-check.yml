@@ -16,7 +16,6 @@ jobs:
         with:
           extra-conf: |
             trusted-users = root runner
-            accept-flake-config = true
             access-tokens = github.com=${{ secrets.KRYPTONIX_ACCESS_TOKEN }}
       - name: Setup Nix cache
         uses: DeterminateSystems/magic-nix-cache-action@main
