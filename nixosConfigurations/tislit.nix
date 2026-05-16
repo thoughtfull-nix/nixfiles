@@ -30,7 +30,7 @@
           restic.thoughtfull.enable = true;
           syncthing = {
             enable = true;
-            folders = {
+            settings.folders = {
               archive.enable = true;
               obsidian.enable = true;
               org.enable = true;

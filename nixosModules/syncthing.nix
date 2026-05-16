@@ -140,7 +140,10 @@ in
           relaysEnabled = mkDefault false;
           urAccepted = -1;
         };
-        gui.user = "syncthing";
+        gui = {
+          address = "0.0.0.0:8384";
+          user = "syncthing";
+        };
       };
       user = user.name;
     };
