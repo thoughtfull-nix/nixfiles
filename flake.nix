@@ -37,6 +37,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     nixos-hardware.url = "github:NixOS/nixos-hardware";
     systems.url = "github:nix-systems/default";
+    unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
   outputs =
     inputs@{

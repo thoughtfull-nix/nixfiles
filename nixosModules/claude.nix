@@ -6,7 +6,8 @@
 }:
 let
   inherit (lib) mkEnableOption mkIf;
-  inherit (pkgs) claude-code gh;
+  inherit (pkgs) gh;
+  inherit (pkgs.unstable) claude-code;
   cfg = config.thoughtfull.claude;
 in
 {

@@ -98,6 +98,7 @@ in
     overlays = [
       self.overlays.emacs
       self.overlays.thoughtfull
+      self.overlays.unstable
     ];
   };
 }
