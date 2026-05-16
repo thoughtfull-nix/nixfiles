@@ -37,6 +37,7 @@ in
     # use a directory with the same name as the module (e.g. './foo.nix' should use files in
     # './foo/').
     ./agenix.nix
+    ./auto-upgrade.nix
     ./avahi.nix
     ./backlight.nix
     ./bluetooth.nix
@@ -53,6 +54,7 @@ in
     ./foot.nix
     ./fuzzel.nix
     ./git.nix
+    ./github-token.nix
     ./gnupg.nix
     ./graphical.nix
     ./gtklock.nix

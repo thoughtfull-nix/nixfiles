@@ -42,7 +42,7 @@
       };
       url = "github:nix-community/impermanence";
     };
-    kryptonix.url = "git+ssh://git@github.com/technosophist/kryptonix?ref=sedna";
+    kryptonix.url = "github:technosophist/kryptonix?ref=sedna";
     nixos-hardware.url = "github:NixOS/nixos-hardware";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     systems.url = "github:nix-systems/default";

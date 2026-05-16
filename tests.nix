@@ -13,7 +13,9 @@ forEachSystem (
     callTest = path: import path { inherit self nixpkgs; };
   in
   {
+    auto-upgrade = callTest ./tests/auto-upgrade.nix;
     avahi = callTest ./tests/avahi.nix;
+    github-token = callTest ./tests/github-token.nix;
     waybar = callTest ./tests/waybar.nix;
   }
 )
