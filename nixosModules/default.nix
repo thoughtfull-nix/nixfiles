@@ -70,6 +70,7 @@ in
     ./restic.nix
     ./rpi4.nix
     ./rust.nix
+    ./screenshot.nix
     ./slack.nix
     ./sway.nix
     ./swayidle.nix
