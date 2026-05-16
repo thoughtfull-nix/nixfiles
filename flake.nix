@@ -7,9 +7,13 @@
   inputs = {
     devenv = {
       inputs = {
-        crate2nix.inputs.cachix.inputs.nixpkgs.follows = "nixpkgs";
-        crate2nix.inputs.crate2nix_stable.inputs.cachix.inputs.nixpkgs.follows = "nixpkgs";
-        crate2nix.inputs.crate2nix_stable.inputs.nixpkgs.follows = "nixpkgs";
+        crate2nix.inputs = {
+          cachix.inputs.nixpkgs.follows = "nixpkgs";
+          crate2nix_stable.inputs = {
+            cachix.inputs.nixpkgs.follows = "nixpkgs";
+            nixpkgs.follows = "nixpkgs";
+          };
+        };
         nixpkgs.follows = "nixpkgs";
       };
       url = "github:cachix/devenv";
