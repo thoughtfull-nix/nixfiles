@@ -6,7 +6,12 @@
   };
   inputs = {
     devenv = {
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        crate2nix.inputs.cachix.inputs.nixpkgs.follows = "nixpkgs";
+        crate2nix.inputs.crate2nix_stable.inputs.cachix.inputs.nixpkgs.follows = "nixpkgs";
+        crate2nix.inputs.crate2nix_stable.inputs.nixpkgs.follows = "nixpkgs";
+        nixpkgs.follows = "nixpkgs";
+      };
       url = "github:cachix/devenv";
     };
     agenix = {
@@ -37,6 +42,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     nixos-hardware.url = "github:NixOS/nixos-hardware";
     systems.url = "github:nix-systems/default";
+    unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
   outputs =
     inputs@{
