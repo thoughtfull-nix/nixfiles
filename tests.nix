@@ -16,6 +16,7 @@ forEachSystem (
     auto-upgrade = callTest ./tests/auto-upgrade.nix;
     avahi = callTest ./tests/avahi.nix;
     github-token = callTest ./tests/github-token.nix;
+    system-pull = callTest ./tests/system-pull.nix;
     waybar = callTest ./tests/waybar.nix;
   }
 )

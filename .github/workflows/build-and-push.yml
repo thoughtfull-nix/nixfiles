@@ -1,0 +1,75 @@
+---
+# Lines inside the `extra-conf:` block include the base64 cache signing
+# public key, which pushes them past the default 100-char limit.
+# yamllint disable rule:line-length
+name: Build and Push
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 2 * * *" # daily 02:00 UTC, ~1 hr before client pulls
+  workflow_dispatch:
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: sedna
+            runner: ubuntu-24.04
+          - host: tislit
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: us-east-1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: |
+            trusted-users = root runner
+            access-tokens = github.com=${{ secrets.KRYPTONIX_ACCESS_TOKEN }}
+            experimental-features = nix-command flakes
+            extra-substituters = s3://thoughtfull-nix-cache?region=us-east-1
+            extra-trusted-public-keys = nix-cache.thoughtfull.systems:kN4M+h0QLcDpQksBsFNtE9t6+bLa/s4axEWYpDmz2ag=
+      - name: Setup Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Build system closure
+        id: build
+        run: |
+          out=$(nix build --no-link --print-out-paths \
+            --override-input nixpkgs github:NixOS/nixpkgs/nixos-25.11 \
+            ".#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel")
+          echo "out=$out" >>"$GITHUB_OUTPUT"
+      - name: Sign closure
+        run: |
+          umask 077
+          printf '%s\n' "${{ secrets.CACHE_SIGNING_KEY }}" >/tmp/sign.key
+          nix store sign --key-file /tmp/sign.key --recursive \
+            "${{ steps.build.outputs.out }}"
+          shred -u /tmp/sign.key
+      - name: Push closure to S3
+        run: |
+          umask 077
+          printf '%s\n' "${{ secrets.CACHE_SIGNING_KEY }}" >/tmp/sign.key
+          nix copy --to \
+            "s3://thoughtfull-nix-cache?region=us-east-1&secret-key=/tmp/sign.key" \
+            "${{ steps.build.outputs.out }}"
+          shred -u /tmp/sign.key
+      - name: Publish pointer
+        run: |
+          jq -n \
+            --arg p "${{ steps.build.outputs.out }}" \
+            --arg r "${{ github.sha }}" \
+            --arg t "$(date -u +%FT%TZ)" \
+            '{storePath:$p, gitRev:$r, builtAt:$t}' \
+            >latest.json
+          aws s3 cp latest.json \
+            "s3://thoughtfull-nix-cache/hosts/${{ matrix.host }}/latest.json" \
+            --cache-control "no-cache"

@@ -40,6 +40,7 @@ in
     ./auto-upgrade.nix
     ./avahi.nix
     ./backlight.nix
+    ./binary-cache.nix
     ./bluetooth.nix
     ./boot.nix
     ./claude.nix
@@ -77,6 +78,7 @@ in
     ./sway.nix
     ./swayidle.nix
     ./syncthing.nix
+    ./system-pull.nix
     ./terminal.nix
     ./usb.nix
     ./user.nix

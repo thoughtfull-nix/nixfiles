@@ -1,13 +1,18 @@
-# Future direction: build-and-push instead of fetch-and-build.
+# Workstations no longer evaluate the flake at activation; the daily upgrade
+# is driven by `thoughtfull.systemPull`, which fetches a pre-built signed
+# closure from the binary cache. Private flake inputs (e.g. kryptonix) are
+# resolved in GitHub Actions, not on each host, so a runtime PAT is not
+# required for normal operation.
 #
-# At a larger scale (or to keep private source off the hosts entirely), run
-# `nixos-rebuild` on a single trusted builder that has read access to
-# kryptonix, sign the resulting system closure, push it to a binary cache,
-# and have each host `nix copy` + `switch-to-configuration` from the
-# substituter. Hosts never fetch private source and need no token. This is
-# the model used by Cachix Deploy / `colmena push` / `deploy-rs`. Bigger
-# architectural shift, much cleaner blast radius — worth revisiting if the
-# fleet grows past a handful of machines.
+# This module remains useful for two paths that still evaluate the flake
+# from source:
+#   1. Manual `nixos-rebuild` invocations by an operator who wants to build
+#      locally instead of waiting for the next CI run.
+#   2. Installer / bootstrap flows for a freshly-provisioned host.
+# In both cases, set `thoughtfull.githubToken.tokenFile` to the encrypted
+# token path.
+#
+# See `doc/binary-cache.md` for the realized architecture.
 { config, lib, ... }:
 let
   inherit (config.thoughtfull) githubToken;
@@ -23,7 +28,7 @@ in
 
   options.thoughtfull.githubToken = {
     tokenFile = mkOption {
-      default = ../nixosConfigurations/shared/secrets/github-access-token.age;
+      default = null;
       description = ''
         Path to an age-encrypted file whose plaintext is a single nix.conf
         line such as `access-tokens = github.com=ghp_xxxxxxxxxxxxxxxxxxxx`.
@@ -33,13 +38,10 @@ in
         inputs (e.g. via the `github:owner/repo` URL scheme) without an SSH
         agent.
 
-        Set to `null` to disable.
-
-        Bootstrap: a freshly provisioned host has no decrypted token before
-        its first `nixos-rebuild`, so the initial install of a host that
-        uses private inputs still needs the token in the operator's
-        environment (`--option access-tokens 'github.com=…'` or
-        `~/.config/nix/nix.conf`).
+        Defaults to `null` (disabled). Set to the encrypted file path on
+        hosts that still need to evaluate the flake locally — operator
+        workstations doing manual `nixos-rebuild` and installer/bootstrap
+        images that don't yet have a system closure in the binary cache.
       '';
       type = types.nullOr types.path;
     };

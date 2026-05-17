@@ -156,6 +156,12 @@ in
       };
       pkgs = final;
     };
+    system-pull = import ../packages/system-pull.nix {
+      lib = {
+        inherit writeFileScriptBin;
+      };
+      pkgs = final;
+    };
     theme-toggle = import ../packages/theme-toggle.nix {
       lib = {
         inherit writeFileScriptBin;
