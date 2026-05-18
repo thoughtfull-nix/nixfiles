@@ -69,7 +69,13 @@ in
     # host configs using normal assignment (100) or mkForce (50)
     systemd.services.sshd-keygen.enable = mkOverride 900 true;
     thoughtfull = {
+      # Installer images have no agenix-decrypted credentials, so disable
+      # both the binary cache substituter (would fail to read S3) and the
+      # daily system-pull timer (would fail to fetch the pointer file).
+      # The installer evaluates the flake locally instead.
+      binaryCache.enable = mkDefault false;
       impermanence.enable = mkDefault false;
+      systemPull.enable = mkDefault false;
       user = {
         extraGroups = [ "wheel" ];
         name = mkDefault "technosophist";

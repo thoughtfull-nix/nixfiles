@@ -25,6 +25,8 @@ nixpkgs.testers.nixosTest {
         graphicalStub
       ];
       thoughtfull.graphical.enable = true;
+      # Default is disabled; opt back in for this test node.
+      system.autoUpgrade.enable = true;
     };
 
     headless = {
@@ -33,17 +35,16 @@ nixpkgs.testers.nixosTest {
         graphicalStub
       ];
       # graphical.enable stays false
+      system.autoUpgrade.enable = true;
     };
 
-    optout =
-      { lib, ... }:
-      {
-        imports = [
-          ../nixosModules/auto-upgrade.nix
-          graphicalStub
-        ];
-        system.autoUpgrade.enable = lib.mkForce false;
-      };
+    defaultDisabled = {
+      imports = [
+        ../nixosModules/auto-upgrade.nix
+        graphicalStub
+      ];
+      # No override; should land on the module default of disabled.
+    };
   };
 
   testScript = ''
@@ -61,7 +62,7 @@ nixpkgs.testers.nixosTest {
     start_all()
     graphical.wait_for_unit("multi-user.target")
     headless.wait_for_unit("multi-user.target")
-    optout.wait_for_unit("multi-user.target")
+    defaultDisabled.wait_for_unit("multi-user.target")
 
     with subtest("graphical default: timer fires at noon"):
         timer = graphical.succeed("systemctl cat nixos-upgrade.timer")
@@ -110,8 +111,8 @@ nixpkgs.testers.nixosTest {
             "default flake should be github:thoughtfull-nix/nixfiles"
         )
 
-    with subtest("opt-out: timer and service do not exist"):
-        optout.fail("systemctl cat nixos-upgrade.timer")
-        optout.fail("systemctl cat nixos-upgrade.service")
+    with subtest("default: timer and service do not exist (build-and-push is the primary path)"):
+        defaultDisabled.fail("systemctl cat nixos-upgrade.timer")
+        defaultDisabled.fail("systemctl cat nixos-upgrade.service")
   '';
 }
