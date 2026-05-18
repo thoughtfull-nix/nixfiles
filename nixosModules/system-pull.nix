@@ -33,7 +33,6 @@ in
       description = "Pull the latest system closure from the binary cache";
       after = [ "network-online.target" ];
       wants = [ "network-online.target" ];
-      path = [ pkgs.thoughtfull.system-pull ];
       serviceConfig = {
         Type = "oneshot";
         User = "root";

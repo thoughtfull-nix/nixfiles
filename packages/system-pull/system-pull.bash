@@ -23,7 +23,7 @@ pointer_url="s3://${bucket}/hosts/${hostname}/latest.json"
 echo "system-pull: fetching ${pointer_url}"
 
 pointer=$(@aws@ s3 cp "${pointer_url}" - --region "${region}")
-target=$(echo "${pointer}" | @jq@ -r '.storePath')
+target=$(printf '%s\n' "${pointer}" | @jq@ -r '.storePath')
 
 if [[ -z ${target} || ${target} == "null" ]]; then
   echo "system-pull: pointer file did not contain a storePath" >&2

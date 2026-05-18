@@ -30,7 +30,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
+        uses: DeterminateSystems/nix-installer-action@v22
         with:
           extra-conf: |
             trusted-users = root runner
@@ -39,7 +39,7 @@ jobs:
             extra-substituters = s3://thoughtfull-nix-cache?region=us-east-1
             extra-trusted-public-keys = nix-cache.thoughtfull.systems:kN4M+h0QLcDpQksBsFNtE9t6+bLa/s4axEWYpDmz2ag=
       - name: Setup Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@main
+        uses: DeterminateSystems/magic-nix-cache-action@v13
       - name: Build system closure
         id: build
         run: |
@@ -47,14 +47,7 @@ jobs:
             --override-input nixpkgs github:NixOS/nixpkgs/nixos-25.11 \
             ".#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel")
           echo "out=$out" >>"$GITHUB_OUTPUT"
-      - name: Sign closure
-        run: |
-          umask 077
-          printf '%s\n' "${{ secrets.CACHE_SIGNING_KEY }}" >/tmp/sign.key
-          nix store sign --key-file /tmp/sign.key --recursive \
-            "${{ steps.build.outputs.out }}"
-          shred -u /tmp/sign.key
-      - name: Push closure to S3
+      - name: Sign and push closure to S3
         run: |
           umask 077
           printf '%s\n' "${{ secrets.CACHE_SIGNING_KEY }}" >/tmp/sign.key

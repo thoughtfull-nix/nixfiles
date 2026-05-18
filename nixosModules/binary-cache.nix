@@ -15,10 +15,10 @@ in
       mode = "0440";
     };
     nix.settings = {
-      substituters = [
+      extra-substituters = [
         "s3://${cfg.bucket}?region=${cfg.region}"
       ];
-      trusted-public-keys = [ cfg.publicKey ];
+      extra-trusted-public-keys = [ cfg.publicKey ];
     };
     systemd.services.nix-daemon.serviceConfig.EnvironmentFile =
       config.age.secrets.cache-aws-credentials.path;
@@ -42,12 +42,6 @@ in
         `../nixosConfigurations/shared/secrets/cache-aws-credentials.age`)
         once the operator has generated the `nixfiles-host` IAM access key
         and run `nixfiles secret encrypt shared cache-aws-credentials`.
-
-        When `null` (default), the substituter and `system-pull` wiring
-        are skipped — the host falls back to whatever upstream substituters
-        nix-daemon already knows about and the daily pull timer does not
-        run. This keeps a freshly-checked-out repo evaluating cleanly before
-        the credentials file has been committed.
       '';
       type = types.nullOr types.path;
     };
