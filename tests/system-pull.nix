@@ -1,5 +1,10 @@
-{ nixpkgs, ... }:
+{ nixpkgs, self, ... }:
 let
+  # Apply the thoughtfull overlay so pkgs.thoughtfull.system-pull resolves.
+  overlayModule = {
+    nixpkgs.overlays = [ self.overlays.thoughtfull ];
+  };
+
   # Stub the agenix `age.secrets` option so we can test the module's
   # systemd wiring without actually pulling in the agenix activation scripts
   # (which need a real SSH identity to decrypt).
@@ -45,6 +50,7 @@ let
     ../nixosModules/system-pull.nix
     ageSecretsStub
     graphicalStub
+    overlayModule
   ];
 in
 nixpkgs.testers.nixosTest {
@@ -73,6 +79,7 @@ nixpkgs.testers.nixosTest {
     # No credentials => systemPull default is false, no timer/service.
     noCredentials = {
       inherit imports;
+      thoughtfull.binaryCache.awsCredentialsFile = null;
     };
   };
 
