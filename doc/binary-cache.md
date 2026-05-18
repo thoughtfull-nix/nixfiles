@@ -70,7 +70,7 @@ Two IAM users:
   `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
 - `nixfiles-host`: read-only (`s3:GetObject`, `s3:ListBucket`).
   Credentials live in
-  `nixosConfigurations/shared/secrets/cache-aws-credentials.age`,
+  `nixosConfigurations/shared/secrets/nix-cache-host-credentials.age`,
   decrypted by agenix into `EnvironmentFile`-format and supplied to
   `nix-daemon` and to the `system-pull` systemd unit.
 
@@ -126,7 +126,7 @@ The public half is committed in cleartext as the default value of the
 - `/etc/ssh/ssh_host_ed25519_key` (or `/persistent/etc/ssh/ssh_host_ed25519_key`
   on impermanence-enabled hosts)—agenix identity for decrypting `.age`
   files at activation.
-- `/run/agenix/cache-aws-credentials`—decrypted IAM credentials,
+- `/run/agenix/nix-cache-host-credentials`—decrypted IAM credentials,
   referenced as `EnvironmentFile` by `nix-daemon` and `system-pull`.
 - `/nix/var/nix/profiles/system`—generation pointer updated by `system-pull`.
 - `/run/current-system`—symlink to the active generation.

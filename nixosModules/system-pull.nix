@@ -36,7 +36,7 @@ in
       serviceConfig = {
         Type = "oneshot";
         User = "root";
-        EnvironmentFile = config.age.secrets.cache-aws-credentials.path;
+        EnvironmentFile = config.age.secrets.nix-cache-host-credentials.path;
         ExecStart = "${pkgs.thoughtfull.system-pull}/bin/system-pull ${binaryCache.bucket} ${binaryCache.region}";
       };
     };

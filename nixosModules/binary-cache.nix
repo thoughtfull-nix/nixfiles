@@ -10,7 +10,7 @@ let
 in
 {
   config = mkIf (cfg.enable && hasCredentials) {
-    age.secrets.cache-aws-credentials = {
+    age.secrets.nix-cache-host-credentials = {
       file = cfg.awsCredentialsFile;
       mode = "0440";
     };
@@ -21,7 +21,7 @@ in
       extra-trusted-public-keys = [ cfg.publicKey ];
     };
     systemd.services.nix-daemon.serviceConfig.EnvironmentFile =
-      config.age.secrets.cache-aws-credentials.path;
+      config.age.secrets.nix-cache-host-credentials.path;
   };
 
   options.thoughtfull.binaryCache = {
@@ -39,9 +39,9 @@ in
         ```
 
         Set this to the encrypted file path (typically
-        `../nixosConfigurations/shared/secrets/cache-aws-credentials.age`)
+        `../nixosConfigurations/shared/secrets/nix-cache-host-credentials.age`)
         once the operator has generated the `nixfiles-host` IAM access key
-        and run `nixfiles secret encrypt shared cache-aws-credentials`.
+        and run `nixfiles secret encrypt shared nix-cache-host-credentials`.
       '';
       type = types.nullOr types.path;
     };

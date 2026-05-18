@@ -86,7 +86,7 @@ the dev shell.
    AWS_SECRET_ACCESS_KEY=...
    AWS_DEFAULT_REGION=us-east-1
    EOF
-   nixfiles secret encrypt shared cache-aws-credentials < /tmp/creds
+   nixfiles secret encrypt shared nix-cache-host-credentials < /tmp/creds
    shred -u /tmp/creds
    ```
 
@@ -236,7 +236,7 @@ systemctl start system-pull.service
    AWS_SECRET_ACCESS_KEY=...
    AWS_DEFAULT_REGION=us-east-1
    EOF
-   nixfiles secret encrypt shared cache-aws-credentials < /tmp/creds
+   nixfiles secret encrypt shared nix-cache-host-credentials < /tmp/creds
    shred -u /tmp/creds
    git commit -am "Rotate cache host AWS credentials"
    git push
