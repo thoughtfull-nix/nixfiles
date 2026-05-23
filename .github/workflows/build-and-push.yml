@@ -6,8 +6,6 @@ name: Build and Push
 on:
   push:
     branches: [main]
-  schedule:
-    - cron: "0 2 * * *" # daily 02:00 UTC, ~1 hr before client pulls
   workflow_dispatch:
 jobs:
   build:
