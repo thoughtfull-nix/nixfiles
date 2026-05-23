@@ -119,6 +119,31 @@ nixpkgs.testers.nixosTest {
             f"ExecStart should invoke system-pull with bucket and region; got:\n{unit}"
         )
 
+    with subtest("switch-to-configuration runs in a transient unit detached from system-pull.service"):
+        # The script must wrap switch-to-configuration with systemd-run so the
+        # switch survives activation-time stop of system-pull.service itself.
+        exec_start = headless.succeed(
+            "systemctl show system-pull.service -p ExecStart --value"
+        )
+        script_path = exec_start.split("argv[]=")[1].split()[0]
+        script = headless.succeed(f"cat {script_path}")
+        print(f"system-pull script:\n{script}")
+        # Strip comment lines so the ordering check isn't fooled by prose.
+        code = "\n".join(
+            line for line in script.splitlines() if not line.lstrip().startswith("#")
+        )
+        assert "systemd-run" in code, (
+            "system-pull must invoke switch-to-configuration via systemd-run "
+            "so activation can stop/restart system-pull.service without killing "
+            "the in-flight switch"
+        )
+        assert "switch-to-configuration" in code, (
+            "system-pull must invoke switch-to-configuration"
+        )
+        assert code.index("systemd-run") < code.index("switch-to-configuration"), (
+            "systemd-run must wrap the switch-to-configuration invocation"
+        )
+
     with subtest("nix.conf gets s3:// substituter and trusted public key"):
         nix_conf = headless.succeed("cat /etc/nix/nix.conf")
         print(f"headless nix.conf:\n{nix_conf}")
