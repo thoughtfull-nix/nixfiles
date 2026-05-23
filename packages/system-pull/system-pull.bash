@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!@bash@
 set -euo pipefail
 
 # Pull the latest signed system closure for this host from the S3 binary

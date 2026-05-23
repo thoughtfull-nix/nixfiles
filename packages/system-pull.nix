@@ -2,7 +2,9 @@
 let
   inherit (pkgs)
     awscli2
+    bash
     coreutils
+    hostname-debian
     jq
     nix
     ;
@@ -12,7 +14,8 @@ writeFileScriptBin {
   name = "system-pull";
   replacements = {
     aws = "${awscli2}/bin/aws";
-    hostname = "${coreutils}/bin/hostname";
+    bash = "${bash}/bin/bash";
+    hostname = "${hostname-debian}/bin/hostname";
     jq = "${jq}/bin/jq";
     nix_env = "${nix}/bin/nix-env";
     nix_store = "${nix}/bin/nix-store";
