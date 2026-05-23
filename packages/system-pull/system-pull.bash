@@ -44,6 +44,17 @@ echo "system-pull: registering system profile generation"
 @nix_env@ -p /nix/var/nix/profiles/system --set "${target}"
 
 echo "system-pull: switching configuration"
-"${target}/bin/switch-to-configuration" switch
+# Run switch-to-configuration in a transient unit so the switch survives
+# activation-time stop/restart of system-pull.service itself.
+@systemd_run@ \
+  -E LOCALE_ARCHIVE \
+  --collect \
+  --no-ask-password \
+  --pipe \
+  --quiet \
+  --service-type=exec \
+  --unit=system-pull-switch-to-configuration \
+  -- \
+  "${target}/bin/switch-to-configuration" switch
 
 echo "system-pull: switched to ${target}"
