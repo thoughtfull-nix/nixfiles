@@ -8,6 +8,7 @@ let
   inherit (config.thoughtfull) binaryCache graphical;
   cfg = config.thoughtfull.systemPull;
   inherit (lib)
+    mkDefault
     mkIf
     mkOption
     types
@@ -30,24 +31,25 @@ in
     ];
 
     systemd.services.system-pull = {
-      description = "Pull the latest system closure from the binary cache";
+      description = mkDefault "Pull the latest system closure from the binary cache";
       after = [ "network-online.target" ];
       wants = [ "network-online.target" ];
+      restartIfChanged = mkDefault false;
       serviceConfig = {
-        Type = "oneshot";
-        User = "root";
-        EnvironmentFile = config.age.secrets.nix-cache-host-credentials.path;
-        ExecStart = "${pkgs.thoughtfull.system-pull}/bin/system-pull ${binaryCache.bucket} ${binaryCache.region}";
+        Type = mkDefault "oneshot";
+        User = mkDefault "root";
+        EnvironmentFile = mkDefault config.age.secrets.nix-cache-host-credentials.path;
+        ExecStart = mkDefault "${pkgs.thoughtfull.system-pull}/bin/system-pull ${binaryCache.bucket} ${binaryCache.region}";
       };
     };
 
     systemd.timers.system-pull = {
-      description = "Daily pull of the latest system closure";
+      description = mkDefault "Daily pull of the latest system closure";
       wantedBy = [ "timers.target" ];
       timerConfig = {
-        OnCalendar = cfg.dates;
-        Persistent = true;
-        RandomizedDelaySec = "15min";
+        OnCalendar = mkDefault cfg.dates;
+        Persistent = mkDefault true;
+        RandomizedDelaySec = mkDefault "15min";
       };
     };
   };
