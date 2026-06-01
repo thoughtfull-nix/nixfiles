@@ -43,12 +43,6 @@
         };
         system.stateVersion = "25.11";
         thoughtfull = {
-          # Bootstrap images have no agenix-decrypted credentials, so the
-          # binary cache substituter and daily pull timer must stay off
-          # until the host is provisioned. The bootstrap flow evaluates
-          # the flake locally.
-          binaryCache.enable = false;
-          systemPull.enable = false;
           graphical.enable = true;
           impermanence = {
             disko = {
