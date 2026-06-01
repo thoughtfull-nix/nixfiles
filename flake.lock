@@ -630,16 +630,15 @@
     },
     "kryptonix": {
       "locked": {
-        "lastModified": 1780334502,
-        "narHash": "sha256-iBW+8mgxasM6XCUGE1c18EFzcinoHFhjmOA40F/Sq5Q=",
+        "lastModified": 1780346745,
+        "narHash": "sha256-6iRXOU66EsRkOqCOE145JP273LBxd2omhW5ycp/CeVk=",
         "owner": "technosophist",
         "repo": "kryptonix",
-        "rev": "9cd553bd0464dca3fd05fc5a235b6b644c5db523",
+        "rev": "c61e42dc212399e4bfd3019d9734f3a1a6257709",
         "type": "github"
       },
       "original": {
         "owner": "technosophist",
-        "ref": "sedna",
         "repo": "kryptonix",
         "type": "github"
       }

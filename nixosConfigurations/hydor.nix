@@ -6,11 +6,11 @@
       {
         environment.systemPackages = [ pkgs.devenv ];
         imports = [
-          ./BOOTSTRAP/hardware-configuration.nix
+          ./hydor/hardware-configuration.nix
         ];
         networking = {
           domain = "thoughtfull.systems";
-          hostName = "BOOTSTRAP";
+          hostName = "hydor";
           networkmanager.enable = true;
         };
         programs = {
@@ -28,6 +28,17 @@
         services = {
           emacs.enable = true;
           openssh.enable = true;
+          syncthing = {
+            enable = true;
+            settings.folders = {
+              archive.enable = true;
+              obsidian.enable = true;
+              obsidian-work.enable = true;
+              org.enable = true;
+              org-work.enable = true;
+            };
+            thoughtfull.passwordFile = ./hydor/secrets/syncthing-passphrase.age;
+          };
           xremap.enable = true;
         };
         system.stateVersion = "25.11";
@@ -48,8 +59,7 @@
           };
           user = {
             extraGroups = [ "wheel" ];
-            hashedPasswordFile = ./BOOTSTRAP/secrets/hashed-user-passphrase.age;
-            name = "technosophist";
+            hashedPasswordFile = ./hydor/secrets/hashed-user-passphrase.age;
           };
         };
       }
