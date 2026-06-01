@@ -80,6 +80,7 @@ in
           archive = folderDefaults // {
             devices = [
               "gemariah"
+              "hydor"
               "naarah"
               "tislit"
             ];
@@ -88,6 +89,7 @@ in
           obsidian = folderDefaults // {
             devices = [
               "gemariah"
+              "hydor"
               "mira"
               "naarah"
               "tislit"
@@ -105,6 +107,7 @@ in
             devices = [
               "bennu"
               "gemariah"
+              "hydor"
             ];
             ignorePatterns = [
               ".obsidian/workspace"
@@ -115,6 +118,7 @@ in
           org = folderDefaults // {
             devices = [
               "gemariah"
+              "hydor"
               "mira"
               "naarah"
               "tislit"
@@ -126,6 +130,7 @@ in
             devices = [
               "bennu"
               "gemariah"
+              "hydor"
             ];
             path = mkDefault "~/org-work";
           };
