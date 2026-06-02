@@ -1,4 +1,8 @@
 * Nixfiles for NixOS
+** git hooks
+To install githooks run:
+: devenv tasks run devenv:git-hooks:install
+
 ** nixos
 An installation/rescue ISO file based on the NixOS installation ISO file, but preconfigured with my
 user accounts and modules.
