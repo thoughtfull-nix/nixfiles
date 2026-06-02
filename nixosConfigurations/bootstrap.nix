@@ -28,10 +28,7 @@
         thoughtfull = {
           graphical.enable = true;
           impermanence = {
-            disko = {
-              enable = true;
-              encrypted.device = "/dev/nvme0n1";
-            };
+            disko.enable = true;
             enable = true;
           };
           user = {
