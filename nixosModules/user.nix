@@ -50,6 +50,10 @@ in
       systemPackages = [ templates ];
     };
     services.accounts-daemon.enable = mkDefault true;
+    thoughtfull.impermanence.user.directories = [
+      "Documents"
+      "src"
+    ];
     users = {
       mutableUsers = lib.mkDefault false;
       users = {

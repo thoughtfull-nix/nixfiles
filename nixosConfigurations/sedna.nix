@@ -62,7 +62,6 @@
               swap.size = "64G";
             };
             enable = true;
-            user.directories = [ "src" ];
           };
           monitoring = {
             enable = true;
