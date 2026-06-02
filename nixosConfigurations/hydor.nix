@@ -15,13 +15,7 @@
         };
         programs = {
           firefox.enable = true;
-          git = {
-            config.user = {
-              email = "technosophist@thoughtfull.systems";
-              signingkey = "DF2034C6";
-            };
-            enable = true;
-          };
+          git.enable = true;
           sway.enable = true;
           zsh.enable = true;
         };
@@ -56,7 +50,6 @@
             hashedPasswordFile = ./hydor/secrets/hashed-user-passphrase.age;
           };
         };
-        time.timeZone = "America/New_York";
       }
     )
   ];

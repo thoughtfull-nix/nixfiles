@@ -15,13 +15,7 @@
           hostName = "tislit";
         };
         programs = {
-          git = {
-            config.user = {
-              email = "technosophist@thoughtfull.systems";
-              signingkey = "DF2034C6";
-            };
-            enable = true;
-          };
+          git.enable = true;
           zsh.enable = true;
         };
         services = {
@@ -56,7 +50,6 @@
             name = "technosophist";
           };
         };
-        time.timeZone = "America/New_York";
       }
     )
   ];

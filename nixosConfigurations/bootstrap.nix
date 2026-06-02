@@ -15,13 +15,7 @@
         };
         programs = {
           firefox.enable = true;
-          git = {
-            config.user = {
-              email = "technosophist@thoughtfull.systems";
-              signingkey = "DF2034C6";
-            };
-            enable = true;
-          };
+          git.enable = true;
           sway.enable = true;
           zsh.enable = true;
         };
@@ -32,18 +26,9 @@
         };
         system.stateVersion = "25.11";
         thoughtfull = {
-          # Bootstrap images have no agenix-decrypted credentials, so the
-          # binary cache substituter and daily pull timer must stay off
-          # until the host is provisioned. The bootstrap flow evaluates
-          # the flake locally.
-          binaryCache.enable = false;
-          systemPull.enable = false;
           graphical.enable = true;
           impermanence = {
-            disko = {
-              enable = true;
-              encrypted.device = "/dev/nvme0n1";
-            };
+            disko.enable = true;
             enable = true;
           };
           user = {

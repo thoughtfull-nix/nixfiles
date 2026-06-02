@@ -29,13 +29,7 @@
         };
         programs = {
           firefox.enable = true;
-          git = {
-            config.user = {
-              email = "technosophist@thoughtfull.systems";
-              signingkey = "DF2034C6";
-            };
-            enable = true;
-          };
+          git.enable = true;
           java.package = pkgs.javaPackages.compiler.temurin-bin.jdk-25;
           sway.enable = true;
           zsh.enable = true;
@@ -90,7 +84,6 @@
             hashedPasswordFile = ./sedna/secrets/hashed-user-passphrase.age;
           };
         };
-        time.timeZone = "America/New_York";
       }
     )
   ];

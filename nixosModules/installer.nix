@@ -34,13 +34,7 @@ in
     # set the hostname from dhcp (or default to "nixos")
     networking.hostName = mkDefault "";
     programs = {
-      git = {
-        enable = mkDefault true;
-        config.user = {
-          email = mkDefault "technosophist@thoughtfull.systems";
-          signingkey = mkDefault "DF2034C6";
-        };
-      };
+      git.enable = mkDefault true;
       zsh.enable = mkDefault true;
     };
     security = {
