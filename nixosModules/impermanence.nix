@@ -10,37 +10,41 @@ let
     mkDefault
     mkEnableOption
     mkIf
-    mkMerge
     mkOption
     types
     ;
 in
 {
-  config = mkIf impermanence.enable (mkMerge [
-    {
-      environment.persistence."/${impermanence.persistent.name}" = {
-        enable = mkDefault true;
-        hideMounts = mkDefault true;
-        directories = [
-          "/etc/NetworkManager/system-connections"
-          "/var/lib/nixos"
-          "/var/lib/systemd/coredump"
-          "/var/log"
-          {
-            directory = "/var/db/sudo";
-            mode = "u=rwx,g=x,o=x";
-          }
-        ]
-        ++ impermanence.directories;
-        files = [
-          "/etc/machine-id"
-        ]
-        ++ impermanence.files;
-        users.${user.name} = (impermanence.user);
-      };
-      fileSystems."/${impermanence.persistent.name}".neededForBoot = mkDefault true;
-      services.btrfs.autoScrub.enable = mkDefault true;
-    }
+  config = mkIf impermanence.enable {
+    environment.persistence."/${impermanence.persistent.name}" = {
+      enable = mkDefault true;
+      hideMounts = mkDefault true;
+      directories = [
+        "/etc/NetworkManager/system-connections"
+        "/var/lib/nixos"
+        "/var/lib/systemd/coredump"
+        "/var/log"
+        {
+          directory = "/var/db/sudo";
+          mode = "u=rwx,g=x,o=x";
+        }
+      ]
+      ++ impermanence.directories;
+      files = [
+        "/etc/machine-id"
+      ]
+      ++ impermanence.files;
+      users.${user.name} = (impermanence.user);
+    };
+    fileSystems."/${impermanence.persistent.name}".neededForBoot = mkDefault true;
+    services.btrfs.autoScrub.enable = mkDefault true;
+  };
+  imports = [
+    (import ./impermanence/mounts.nix {
+      inherit config lib;
+      locationCfg = config.environment.persistence."/${impermanence.persistent.name}";
+      usersCfg = config.users.users;
+    })
     (import ./impermanence/gpt.nix {
       inherit config lib pkgs;
     })
@@ -50,13 +54,6 @@ in
         lib
         pkgs
         ;
-    })
-  ]);
-  imports = [
-    (import ./impermanence/mounts.nix {
-      inherit config lib;
-      locationCfg = config.environment.persistence."/${impermanence.persistent.name}";
-      usersCfg = config.users.users;
     })
   ];
   options.thoughtfull.impermanence = {
