@@ -20,7 +20,7 @@ in
   config = {
     assertions = [
       {
-        assertion = !enable || (encrypted.device && encrypted.device != null);
+        assertion = !enable || encrypted.device != null;
         message = "thoughtfull.impermanence.disko.encrypted.device is not configured";
       }
     ];
