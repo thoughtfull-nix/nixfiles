@@ -1,6 +1,6 @@
 * Nixfiles for NixOS
 ** git hooks
-To install githooks run:
+To install git hooks run:
 : devenv tasks run devenv:git-hooks:install
 
 ** nixos
