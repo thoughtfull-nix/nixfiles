@@ -56,6 +56,7 @@
             hashedPasswordFile = ./hydor/secrets/hashed-user-passphrase.age;
           };
         };
+        time.timeZone = "America/New_York";
       }
     )
   ];
