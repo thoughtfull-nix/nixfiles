@@ -62,6 +62,9 @@ in
           gemariah.addresses = [
             "tcp://gemariah.lan:22000"
           ];
+          hydor.addresses = [
+            "tcp://hydor.lan:22000"
+          ];
           mira.addresses = [
             "tcp://mira.lan:22000"
           ];
