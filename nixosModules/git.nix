@@ -2,7 +2,6 @@
 let
   inherit (builtins) any;
   inherit (config.programs) git;
-  inherit (config.thoughtfull) user;
   inherit (lib)
     mkDefault
     mkIf
