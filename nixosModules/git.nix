@@ -16,6 +16,10 @@ in
         assertion = !git.enable || any (c: c ? user.email && c.user.email != null) git.config;
         message = "programs.git.config.user.email is not configured";
       }
+      {
+        assertion = !git.enable || any (c: c ? user.name && c.user.name != null) git.config;
+        message = "programs.git.config.user.name is not configured";
+      }
     ];
     programs.git.config = {
       commit.gpgsign = mkIf hasSigningkey (mkDefault true);
@@ -25,7 +29,6 @@ in
       };
       init.defaultBranch = mkDefault "main";
       pull.rebase = mkDefault false;
-      user.name = mkDefault user.name;
     };
     thoughtfull.impermanence.user.directories = mkIf git.enable [ ".config/git" ];
   };
