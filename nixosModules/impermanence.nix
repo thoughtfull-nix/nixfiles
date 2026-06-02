@@ -5,7 +5,6 @@
   ...
 }:
 let
-  inherit (builtins) any;
   inherit (config.thoughtfull) impermanence user;
   inherit (lib)
     mkDefault
@@ -19,14 +18,6 @@ in
 {
   config = mkIf impermanence.enable (mkMerge [
     {
-      assertions = [
-        {
-          assertion = !impermanence.enable ||
-                      (impermanence.disko.encrypted.device &&
-                       impermanence.disko.encrypted.device != null);
-          message = "thoughtfull.impermanence.disko.encrypted.device is not configured";
-        }
-      ];
       environment.persistence."/${impermanence.persistent.name}" = {
         enable = mkDefault true;
         hideMounts = mkDefault true;
