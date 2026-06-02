@@ -10,8 +10,8 @@ let
   inherit (lib) mkEnableOption mkIf;
 in
 {
-  config = {
-    environment.systemPackages = mkIf obsidian.enable [ pkgs.obsidian ];
+  config = mkIf obsidian.enable {
+    environment.systemPackages = [ pkgs.obsidian ];
     thoughtfull.impermanence.user.directories = [ ".config/obsidian" ];
   };
   options.thoughtfull.programs.obsidian.enable = mkEnableOption "obsidian" // {

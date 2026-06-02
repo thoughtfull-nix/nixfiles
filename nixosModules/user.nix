@@ -6,6 +6,7 @@
 }:
 let
   inherit (config.age) secrets;
+  inherit (config.thoughtfull) graphical;
   inherit (lib)
     elem
     mkDefault
@@ -50,7 +51,7 @@ in
       systemPackages = [ templates ];
     };
     services.accounts-daemon.enable = mkDefault true;
-    thoughtfull.impermanence.user.directories = [
+    thoughtfull.impermanence.user.directories = mkIf graphical.enable [
       "Documents"
       "src"
     ];
