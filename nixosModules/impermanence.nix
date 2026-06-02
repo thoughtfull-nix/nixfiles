@@ -75,7 +75,7 @@ in
         default = impermanence.enable;
       };
       encrypted.device = mkOption {
-        type = types.str;
+        type = types.nullOr types.str;
       };
       nix.mountOptions = mkOption {
         default = [
