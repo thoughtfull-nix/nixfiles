@@ -37,13 +37,26 @@
         };
         system.stateVersion = "25.11";
         thoughtfull = {
+          backlight.enable = true;
+          claude.enable = true;
+          clojure.enable = true;
           graphical.enable = true;
           impermanence = {
             disko = {
+              # boot.size = "1G";
               enable = true;
               encrypted.device = "/dev/nvme0n1";
+              # swap.size = "64G";
             };
             enable = true;
+          };
+          monitoring = {
+            enable = true;
+            services = [
+              "sshd"
+              "syncthing"
+              "restic-backups-default"
+            ];
           };
           user = {
             extraGroups = [ "wheel" ];
