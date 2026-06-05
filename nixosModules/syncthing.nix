@@ -172,6 +172,7 @@ in
       type = types.nullOr types.path;
     };
     passwordFile = mkOption {
+      description = "Age-encrypted file whose plaintext content is the Syncthing GUI password. Create with `nixfiles secret <HOST> syncthing-passphrase`.";
       type = types.path;
     };
   };

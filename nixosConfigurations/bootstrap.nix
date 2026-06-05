@@ -13,7 +13,7 @@
           dev.enable = true;
           graphical.enable = true;
           impermanence.disko = {
-            # boot.size = "512M";
+            # boot.size = "1G";
             # encrypted.device = "/dev/nvme0n1";
             # swap.size = "4G";
           };
