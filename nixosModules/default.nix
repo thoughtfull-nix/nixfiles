@@ -45,6 +45,7 @@ in
     ./boot.nix
     ./claude.nix
     ./clojure.nix
+    ./dev.nix
     ./dictation.nix
     ./discord.nix
     ./docker.nix
