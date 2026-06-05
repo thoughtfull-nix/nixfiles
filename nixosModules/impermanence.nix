@@ -64,7 +64,6 @@ in
           type = types.listOf types.str;
         };
         size = mkOption {
-          default = "512M";
           type = types.str;
         };
       };
@@ -72,8 +71,7 @@ in
         default = impermanence.enable;
       };
       encrypted.device = mkOption {
-        default = null;
-        type = types.nullOr types.str;
+        type = types.str;
       };
       nix.mountOptions = mkOption {
         default = [
@@ -122,7 +120,6 @@ in
         };
       };
       swap.size = mkOption {
-        default = "4G";
         type = types.str;
       };
     };
