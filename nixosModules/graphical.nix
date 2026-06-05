@@ -19,10 +19,10 @@ in
       uns
     ];
     gtk.iconCache.enable = mkDefault true;
-    hardware.bluetooth.enable = true;
+    hardware.bluetooth.enable = mkDefault true;
     networking = {
-      domain = "thoughtfull.systems";
-      networkmanager.enable = true;
+      domain = mkDefault "thoughtfull.systems";
+      networkmanager.enable = mkDefault true;
     };
     programs = {
       firefox.enable = mkDefault true;
@@ -36,7 +36,7 @@ in
       syncthing.enable = mkDefault true;
       xremap.enable = mkDefault true;
     };
-    systemd.user.services.mako.enable = true;
+    systemd.user.services.mako.enable = mkDefault true;
     thoughtfull = {
       backlight.enable = mkDefault true;
       impermanence = {
