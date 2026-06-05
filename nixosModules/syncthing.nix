@@ -29,6 +29,12 @@ let
 in
 {
   config = {
+    assertions = [
+      {
+        assertion = !syncthing.enable || passwordFile != null;
+        message = "services.syncthing.thoughtfull.passwordFile must be set when syncthing is enabled";
+      }
+    ];
     age.secrets = mkIf syncthing.enable {
       syncthing-cert = mkIf hasCert {
         file = certFile;
