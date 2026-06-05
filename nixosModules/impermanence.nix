@@ -126,7 +126,9 @@ in
         type = types.str;
       };
     };
-    enable = mkEnableOption "impermanence";
+    enable = mkEnableOption "impermanence" // {
+      default = true;
+    };
     encrypted.name = mkOption {
       default = "encrypted";
       type = types.str;

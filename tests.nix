@@ -15,6 +15,7 @@ forEachSystem (
   {
     auto-upgrade = callTest ./tests/auto-upgrade.nix;
     avahi = callTest ./tests/avahi.nix;
+    default = callTest ./tests/default.nix;
     dev = callTest ./tests/dev.nix;
     github-token = callTest ./tests/github-token.nix;
     graphical = callTest ./tests/graphical.nix;

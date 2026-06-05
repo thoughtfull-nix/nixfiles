@@ -77,22 +77,8 @@ nixpkgs.testers.nixosTest {
     enabled.wait_for_unit("multi-user.target")
     disabled.wait_for_unit("multi-user.target")
 
-    with subtest("graphical enabled: gh is in PATH"):
-        enabled.succeed("which gh")
-
     with subtest("graphical enabled: NetworkManager is configured"):
         enabled.succeed("systemctl cat NetworkManager.service")
-
-    with subtest("graphical enabled: sshd is running"):
-        enabled.wait_for_unit("sshd.service")
-
-    with subtest("graphical enabled: networking domain is set"):
-        hosts = enabled.succeed("cat /etc/hosts")
-        print(f"/etc/hosts:\n{hosts}")
-        assert "thoughtfull.systems" in hosts, "networking.domain should appear in /etc/hosts"
-
-    with subtest("graphical disabled: gh is not in PATH"):
-        disabled.fail("which gh")
 
     with subtest("graphical disabled: NetworkManager is not configured"):
         disabled.fail("systemctl cat NetworkManager.service")

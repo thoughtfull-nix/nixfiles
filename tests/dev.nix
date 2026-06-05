@@ -45,9 +45,6 @@ nixpkgs.testers.nixosTest {
     with subtest("enabled: devenv is in PATH"):
         enabled.succeed("which devenv")
 
-    with subtest("enabled: git is in PATH"):
-        enabled.succeed("which git")
-
     with subtest("enabled: java is in PATH and is JDK 25"):
         result = enabled.succeed("java -version 2>&1")
         print(f"java -version: {result}")

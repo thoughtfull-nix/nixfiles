@@ -6,8 +6,6 @@
   ...
 }:
 let
-  inherit (lib) mkDefault mkForce;
-  cfgImpermanence = config.thoughtfull.impermanence;
   inherit (inputs)
     agenix
     disko
@@ -15,16 +13,22 @@ let
     kryptonix
     self
     ;
+  inherit (lib) mkDefault mkForce;
+  inherit (pkgs) gh;
+  inherit (pkgs.thoughtfull) nixfiles pins uns;
+  cfgImpermanence = config.thoughtfull.impermanence;
   system = config.nixpkgs.localSystem.system;
 in
 {
   boot.loader.timeout = mkForce 2;
-
   environment.systemPackages = [
-    pkgs.thoughtfull.nixfiles
+    gh
+    nixfiles
+    pins
+    uns
   ]
   ++ lib.optional cfgImpermanence.disko.enable disko.packages.${system}.disko;
-
+  hardware.bluetooth.enable = mkDefault true;
   # Import all flake input modules
   imports = [
     agenix.nixosModules.default
@@ -90,14 +94,13 @@ in
     ./zoom-us.nix
     ./zsh.nix
   ];
-
+  networking.domain = "thoughtfull.systems";
   nix = {
     settings.trusted-users = [ "@wheel" ];
     extraOptions = ''
       experimental-features = nix-command flakes
     '';
   };
-
   nixpkgs = {
     config.allowUnfree = mkDefault true;
     overlays = [
@@ -105,5 +108,26 @@ in
       self.overlays.thoughtfull
       self.overlays.unstable
     ];
+  };
+  programs = {
+    git.enable = mkDefault true;
+    zsh.enable = mkDefault true;
+  };
+  services = {
+    openssh.enable = mkDefault true;
+    restic.thoughtfull.enable = mkDefault true;
+    syncthing.enable = mkDefault true;
+  };
+  thoughtfull = {
+    monitoring = {
+      enable = mkDefault true;
+      services = [
+        "restic-backups-default"
+        "sshd"
+        "syncthing"
+        "system-pull"
+      ];
+    };
+    user.extraGroups = [ "wheel" ];
   };
 }
