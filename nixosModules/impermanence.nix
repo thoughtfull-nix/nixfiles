@@ -64,7 +64,7 @@ in
           type = types.listOf types.str;
         };
         size = mkOption {
-          default = "512M";
+          description = "Size of the EFI system partition. Use 1G for a laptop or desktop; 512M if space is tight.";
           type = types.str;
         };
       };
@@ -72,8 +72,8 @@ in
         default = impermanence.enable;
       };
       encrypted.device = mkOption {
-        default = null;
-        type = types.nullOr types.str;
+        description = "Block device to partition and encrypt. Run `lsblk` or `ls /dev/disk/by-id/` to identify the target drive, e.g. \"/dev/nvme0n1\".";
+        type = types.str;
       };
       nix.mountOptions = mkOption {
         default = [
@@ -122,7 +122,7 @@ in
         };
       };
       swap.size = mkOption {
-        default = "4G";
+        description = "Size of the swap file. Match RAM size to support hibernation (suspend-to-disk); half RAM is sufficient for suspend-to-RAM only. E.g. \"64G\" for a 64 GB machine that needs hibernation.";
         type = types.str;
       };
     };

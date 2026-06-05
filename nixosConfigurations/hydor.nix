@@ -26,9 +26,9 @@
           dev.enable = true;
           graphical.enable = true;
           impermanence.disko = {
-            # boot.size = "1G";
+            boot.size = "512M";
             encrypted.device = "/dev/nvme0n1";
-            # swap.size = "64G";
+            swap.size = "4G";
           };
           user.hashedPasswordFile = ./hydor/secrets/hashed-user-passphrase.age;
         };

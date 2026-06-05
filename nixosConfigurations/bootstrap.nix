@@ -15,7 +15,7 @@
           impermanence.disko = {
             # boot.size = "1G";
             # encrypted.device = "/dev/nvme0n1";
-            # swap.size = "64G";
+            # swap.size = "4G";
           };
           user.hashedPasswordFile = ./BOOTSTRAP/secrets/hashed-user-passphrase.age;
         };

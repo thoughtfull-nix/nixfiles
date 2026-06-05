@@ -17,12 +17,6 @@ let
     ;
 in
 {
-  assertions = [
-    {
-      assertion = !enable || encrypted.device != null;
-      message = "thoughtfull.impermanence.disko.encrypted.device is not configured";
-    }
-  ];
   disko.devices.disk.main = mkIf enable {
     content = {
       partitions = {

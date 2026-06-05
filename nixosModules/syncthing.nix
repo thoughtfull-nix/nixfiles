@@ -29,12 +29,6 @@ let
 in
 {
   config = {
-    assertions = [
-      {
-        assertion = !syncthing.enable || passwordFile != null;
-        message = "services.syncthing.thoughtfull.passwordFile must be set when syncthing is enabled";
-      }
-    ];
     age.secrets = mkIf syncthing.enable {
       syncthing-cert = mkIf hasCert {
         file = certFile;
@@ -178,8 +172,8 @@ in
       type = types.nullOr types.path;
     };
     passwordFile = mkOption {
-      default = null;
-      type = types.nullOr types.path;
+      description = "Age-encrypted file whose plaintext content is the Syncthing GUI password. Create with `nixfiles secret <HOST> syncthing-passphrase`.";
+      type = types.path;
     };
   };
 }
