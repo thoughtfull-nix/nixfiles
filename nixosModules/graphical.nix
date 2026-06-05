@@ -10,6 +10,7 @@ in
 {
   config = mkIf graphical.enable {
     gtk.iconCache.enable = mkDefault true;
+    hardware.bluetooth.enable = mkDefault true;
     networking.networkmanager.enable = mkDefault true;
     programs = {
       firefox.enable = mkDefault true;

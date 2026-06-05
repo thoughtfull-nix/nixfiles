@@ -28,7 +28,6 @@ in
     uns
   ]
   ++ lib.optional cfgImpermanence.disko.enable disko.packages.${system}.disko;
-  hardware.bluetooth.enable = mkDefault true;
   # Import all flake input modules
   imports = [
     agenix.nixosModules.default
@@ -94,7 +93,7 @@ in
     ./zoom-us.nix
     ./zsh.nix
   ];
-  networking.domain = "thoughtfull.systems";
+  networking.domain = mkDefault "thoughtfull.systems";
   nix = {
     settings.trusted-users = [ "@wheel" ];
     extraOptions = ''
