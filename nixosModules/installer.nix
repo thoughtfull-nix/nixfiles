@@ -35,10 +35,6 @@ in
     # empty hostname doesn't produce an invalid FQDN
     networking.domain = mkOverride 900 null;
     networking.hostName = mkDefault "";
-    programs = {
-      git.enable = mkDefault true;
-      zsh.enable = mkDefault true;
-    };
     security = {
       # among other things, this is necessary to set the hostname from dhcp
       polkit.enable = mkDefault true;
@@ -75,7 +71,6 @@ in
       monitoring.enable = mkOverride 900 false;
       systemPull.enable = mkDefault false;
       user = {
-        extraGroups = [ "wheel" ];
         name = mkDefault "technosophist";
         password = mkDefault "nixos";
       };
