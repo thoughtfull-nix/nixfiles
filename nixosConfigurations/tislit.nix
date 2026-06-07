@@ -10,14 +10,7 @@
         imports = [
           ./tislit/hardware-configuration.nix
         ];
-        networking = {
-          domain = "thoughtfull.systems";
-          hostName = "tislit";
-        };
-        programs = {
-          git.enable = true;
-          zsh.enable = true;
-        };
+        networking.hostName = "tislit";
         services = {
           emacs.enable = true;
           openssh.enable = true;
@@ -37,11 +30,9 @@
           impermanence = {
             disko = {
               boot.size = "1G";
-              enable = true;
               encrypted.device = "/dev/sda";
               swap.size = "16G";
             };
-            enable = true;
           };
           rpi4.enable = true;
           user = {

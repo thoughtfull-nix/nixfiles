@@ -13,7 +13,6 @@ in
   config = mkIf dev.enable {
     environment.systemPackages = [ devenv ];
     programs = {
-      git.enable = mkDefault true;
       java.package = mkDefault pkgs.javaPackages.compiler.temurin-bin.jdk-25;
     };
     thoughtfull = {

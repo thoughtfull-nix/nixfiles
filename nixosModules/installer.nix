@@ -31,12 +31,10 @@ in
         unzip
         usbutils
       ];
-    # set the hostname from dhcp (or default to "nixos")
+    # set the hostname from dhcp (or default to "nixos"); clear domain so the
+    # empty hostname doesn't produce an invalid FQDN
+    networking.domain = mkOverride 900 null;
     networking.hostName = mkDefault "";
-    programs = {
-      git.enable = mkDefault true;
-      zsh.enable = mkDefault true;
-    };
     security = {
       # among other things, this is necessary to set the hostname from dhcp
       polkit.enable = mkDefault true;
@@ -56,6 +54,7 @@ in
       emacs.enable = mkDefault true;
       openssh.enable = mkDefault true;
       pcscd.enable = mkDefault true;
+      syncthing.enable = mkOverride 900 false;
       xremap.enable = mkDefault true;
     };
     system.stateVersion = mkDefault lib.trivial.release;
@@ -69,9 +68,9 @@ in
       # The installer evaluates the flake locally instead.
       binaryCache.enable = mkDefault false;
       impermanence.enable = mkDefault false;
+      monitoring.enable = mkOverride 900 false;
       systemPull.enable = mkDefault false;
       user = {
-        extraGroups = [ "wheel" ];
         name = mkDefault "technosophist";
         password = mkDefault "nixos";
       };
