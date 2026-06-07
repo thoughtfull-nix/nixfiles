@@ -58,5 +58,17 @@ extendedNixpkgs.testers.nixosTest {
         hosts = machine.succeed("cat /etc/hosts")
         print(f"/etc/hosts:\n{hosts}")
         assert "thoughtfull.systems" in hosts, "networking.domain should appear in /etc/hosts"
+
+    with subtest("nixfiles is in PATH"):
+        machine.succeed("which nixfiles")
+
+    with subtest("pins is in PATH"):
+        machine.succeed("which pins")
+
+    with subtest("uns is in PATH"):
+        machine.succeed("which uns")
+
+    with subtest("zsh is available"):
+        machine.succeed("which zsh")
   '';
 }
