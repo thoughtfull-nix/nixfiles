@@ -45,10 +45,18 @@ jobs:
       - name: Build system closure
         id: build
         run: |
-          out=$(nix build --no-link --print-out-paths \
-            --override-input nixpkgs github:NixOS/nixpkgs/nixos-25.11 \
-            ".#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel")
-          echo "out=$out" >>"$GITHUB_OUTPUT"
+          for attempt in 1 2 3; do
+            if out=$(nix build --no-link --print-out-paths \
+              --override-input nixpkgs github:NixOS/nixpkgs/nixos-25.11 \
+              ".#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel"); then
+              echo "out=$out" >>"$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep "$((attempt * 15))"
+          done
       - name: Sign and push closure to S3
         run: |
           umask 077
