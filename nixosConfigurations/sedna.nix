@@ -8,7 +8,11 @@
           ./sedna/hardware-configuration.nix
         ];
         networking.hostName = "sedna";
-        services.syncthing.thoughtfull.passwordFile = ./sedna/secrets/syncthing-passphrase.age;
+        services.syncthing.thoughtfull = {
+          certFile = ./sedna/secrets/syncthing-cert.age;
+          keyFile = ./sedna/secrets/syncthing-key.age;
+          passwordFile = ./sedna/secrets/syncthing-passphrase.age;
+        };
         system.stateVersion = "25.05";
         thoughtfull = {
           dev.enable = true;
