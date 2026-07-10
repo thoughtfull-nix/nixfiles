@@ -46,7 +46,7 @@ in
     ./binary-cache.nix
     ./bluetooth.nix
     ./boot.nix
-    ./claude.nix
+    ./claude-desktop.nix
     ./clojure.nix
     ./dev.nix
     ./dictation.nix
@@ -95,7 +95,17 @@ in
   ];
   networking.domain = mkDefault "thoughtfull.systems";
   nix = {
-    settings.trusted-users = [ "@wheel" ];
+    settings = {
+      extra-substituters = [
+        "https://cache.numtide.com"
+        "https://devenv.cachix.org"
+      ];
+      extra-trusted-public-keys = [
+        "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
+        "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
+      ];
+      trusted-users = [ "@wheel" ];
+    };
     extraOptions = ''
       experimental-features = nix-command flakes
     '';
@@ -103,6 +113,8 @@ in
   nixpkgs = {
     config.allowUnfree = mkDefault true;
     overlays = [
+      inputs.claude-desktop.overlays.default
+      inputs.llm-agents.overlays.default
       self.overlays.emacs
       self.overlays.thoughtfull
       self.overlays.unstable

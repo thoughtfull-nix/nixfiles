@@ -23,6 +23,7 @@
         };
         system.stateVersion = "25.11";
         thoughtfull = {
+          claudeDesktop.enable = true;
           dev.enable = true;
           graphical.enable = true;
           impermanence.disko = {

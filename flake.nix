@@ -1,8 +1,14 @@
 {
   description = "Thoughtfull Systems nixfiles";
   nixConfig = {
-    extra-substituters = "https://devenv.cachix.org";
-    extra-trusted-public-keys = "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=";
+    extra-substituters = [
+      "https://cache.numtide.com"
+      "https://devenv.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
+      "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
+    ];
   };
   inputs = {
     agenix = {
@@ -13,6 +19,10 @@
         systems.follows = "systems";
       };
       url = "github:ryantm/agenix";
+    };
+    claude-desktop = {
+      inputs.nixpkgs.follows = "unstable";
+      url = "github:aaddrick/claude-desktop-debian";
     };
     devenv = {
       inputs = {
@@ -43,6 +53,10 @@
       url = "github:nix-community/impermanence";
     };
     kryptonix.url = "github:technosophist/kryptonix";
+    llm-agents = {
+      inputs.nixpkgs.follows = "unstable";
+      url = "github:numtide/llm-agents.nix";
+    };
     nixos-hardware.url = "github:NixOS/nixos-hardware";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     systems.url = "github:nix-systems/default";
@@ -51,6 +65,7 @@
   outputs =
     inputs@{
       self,
+      devenv,
       nixpkgs,
       ...
     }:
@@ -117,7 +132,7 @@
           pkgs = import nixpkgs { inherit system; };
         in
         {
-          default = inputs.devenv.lib.mkShell {
+          default = devenv.lib.mkShell {
             inherit inputs pkgs;
             modules = [ ./devenv.nix ];
           };
