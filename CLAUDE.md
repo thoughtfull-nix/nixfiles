@@ -28,7 +28,7 @@ nixfmt-rfc-style <file.nix>
 
 ## Architecture Overview
 
-This is a NixOS flake-based system configuration framework using nixpkgs 25.11 with these key integrations:
+This is a NixOS flake-based system configuration framework using nixpkgs 26.05 with these key integrations:
 - **agenix**: Secret management (encrypted files in repo)
 - **disko**: Declarative disk partitioning
 - **impermanence**: Stateless root filesystem with persistent `/persistent` mount

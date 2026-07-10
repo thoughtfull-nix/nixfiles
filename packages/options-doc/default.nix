@@ -51,7 +51,7 @@ let
           }
         else if isNixpkgs then
           {
-            url = "https://github.com/NixOS/nixpkgs/blob/nixos-25.11/${relativePath}";
+            url = "https://github.com/NixOS/nixpkgs/blob/nixos-26.05/${relativePath}";
             source = "nixpkgs";
           }
         else

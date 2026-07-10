@@ -3,6 +3,11 @@
 To install git hooks run:
 : devenv tasks run devenv:git-hooks:install
 
+If ~flake-checker~ is stale and complains about the ~nixpkgs~ version (e.g.
+rejecting a release branch it doesn't recognize yet), run:
+: devenv update
+: devenv tasks run devenv:git-hooks:install
+
 ** nixos
 An installation/rescue ISO file based on the NixOS installation ISO file, but preconfigured with my
 user accounts and modules.
