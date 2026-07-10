@@ -12,6 +12,7 @@ let
     mkIf
     mkOption
     types
+    unique
     ;
 in
 {
@@ -29,12 +30,15 @@ in
           mode = "u=rwx,g=x,o=x";
         }
       ]
-      ++ impermanence.directories;
+      ++ (unique impermanence.directories);
       files = [
         "/etc/machine-id"
       ]
-      ++ impermanence.files;
-      users.${user.name} = (impermanence.user);
+      ++ (unique impermanence.files);
+      users.${user.name} = {
+        directories = unique impermanence.user.directories;
+        files = unique impermanence.user.files;
+      };
     };
     fileSystems."/${impermanence.persistent.name}".neededForBoot = mkDefault true;
     services.btrfs.autoScrub.enable = mkDefault true;
