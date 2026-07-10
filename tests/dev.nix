@@ -1,17 +1,30 @@
-{ nixpkgs, ... }:
+{ self, nixpkgs, ... }:
 let
+  # dev.nix pulls llm-agents packages from pkgs; module-set nixpkgs.overlays is
+  # ignored with external pkgs, so apply the overlay here (see tests/default.nix).
+  extendedNixpkgs = nixpkgs.extend self.inputs.llm-agents.overlays.default;
+
   # Stub the thoughtfull sub-module options that dev.nix sets via mkDefault
   thoughtfullSubModuleStub =
     { lib, ... }:
     {
       options.thoughtfull = {
-        claude.enable = lib.mkEnableOption "claude (stub)";
         clojure.enable = lib.mkEnableOption "clojure (stub)";
         rust.enable = lib.mkEnableOption "rust (stub)";
+        impermanence.user = {
+          files = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            default = [ ];
+          };
+          directories = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            default = [ ];
+          };
+        };
       };
     };
 in
-nixpkgs.testers.nixosTest {
+extendedNixpkgs.testers.nixosTest {
   name = "dev";
 
   skipTypeCheck = true;
@@ -50,7 +63,19 @@ nixpkgs.testers.nixosTest {
         print(f"java -version: {result}")
         assert "25" in result, f"expected JDK 25 (temurin-bin.jdk-25), got: {result}"
 
+    with subtest("enabled default: claude is in PATH"):
+        enabled.succeed("which claude")
+
+    with subtest("enabled default: opencode is in PATH"):
+        enabled.succeed("which opencode")
+
     with subtest("disabled default: devenv is not available"):
         disabled.fail("which devenv")
+
+    with subtest("disabled default: claude is not available"):
+        disabled.fail("which claude")
+
+    with subtest("disabled default: opencode is not available"):
+        disabled.fail("which opencode")
   '';
 }
