@@ -38,10 +38,8 @@ jobs:
             trusted-users = root runner
             access-tokens = github.com=${{ secrets.KRYPTONIX_ACCESS_TOKEN }}
             experimental-features = nix-command flakes
-            extra-substituters = s3://thoughtfull-nix-cache?region=us-east-1
-            extra-trusted-public-keys = nix-cache.thoughtfull.systems:kN4M+h0QLcDpQksBsFNtE9t6+bLa/s4axEWYpDmz2ag=
-      - name: Setup Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
+            extra-substituters = s3://thoughtfull-nix-cache?region=us-east-1 https://cache.numtide.com https://devenv.cachix.org
+            extra-trusted-public-keys = nix-cache.thoughtfull.systems:kN4M+h0QLcDpQksBsFNtE9t6+bLa/s4axEWYpDmz2ag= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=
       - name: Build system closure
         id: build
         run: |
