@@ -1,4 +1,7 @@
 ---
+# Lines inside the `extra-conf:` block include cache signing public keys,
+# which push them past the default 100-char limit.
+# yamllint disable rule:line-length
 name: Deploy Options Docs to GitHub Pages
 on:
   push:
@@ -23,14 +26,38 @@ jobs:
           extra-conf: |
             trusted-users = root runner
             access-tokens = github.com=${{ secrets.KRYPTONIX_ACCESS_TOKEN }}
-      - name: Setup Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@v13
+            extra-substituters = s3://thoughtfull-nix-cache?region=us-east-1 https://cache.numtide.com https://devenv.cachix.org
+            extra-trusted-public-keys = nix-cache.thoughtfull.systems-1:kN4M+h0QLcDpQksBsFNtE9t6+bLa/s4axEWYpDmz2ag= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::481411455398:role/nixfiles-cache-reader
+          aws-region: us-east-1
+          aws-profile: default
+          overwrite-aws-profile: true
+      - name: Configure Nix daemon AWS credentials
+        run: |
+          sudo mkdir -p /etc/systemd/system/nix-daemon.service.d
+          sudo install -m 600 \
+            "$HOME/.aws/credentials" \
+            /run/nix-daemon-aws-credentials
+          printf '%s\n' \
+            '[Service]' \
+            'Environment=AWS_SHARED_CREDENTIALS_FILE=/run/nix-daemon-aws-credentials' \
+            | sudo tee /etc/systemd/system/nix-daemon.service.d/aws.conf >/dev/null
+          sudo systemctl daemon-reload
+          sudo systemctl restart nix-daemon.service
       - name: Build options-doc
         run: nix build .#options-doc
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: result
+      - name: Remove AWS credential files
+        if: always()
+        run: |
+          rm -f "$HOME/.aws/credentials" "$HOME/.aws/config"
+          sudo rm -f /run/nix-daemon-aws-credentials
   deploy:
     environment:
       name: github-pages
