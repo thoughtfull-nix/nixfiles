@@ -33,18 +33,17 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::481411455398:role/nixfiles-cache-reader
           aws-region: us-east-1
+          aws-profile: default
+          overwrite-aws-profile: true
       - name: Configure Nix daemon AWS credentials
         run: |
           sudo mkdir -p /etc/systemd/system/nix-daemon.service.d
-          printf '%s\n' \
-            "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" \
-            "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" \
-            "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN" \
-            | sudo tee /run/nix-daemon-aws.env >/dev/null
-          sudo chmod 600 /run/nix-daemon-aws.env
+          sudo install -m 600 \
+            "$HOME/.aws/credentials" \
+            /run/nix-daemon-aws-credentials
           printf '%s\n' \
             '[Service]' \
-            'EnvironmentFile=/run/nix-daemon-aws.env' \
+            'Environment=AWS_SHARED_CREDENTIALS_FILE=/run/nix-daemon-aws-credentials' \
             | sudo tee /etc/systemd/system/nix-daemon.service.d/aws.conf >/dev/null
           sudo systemctl daemon-reload
           sudo systemctl restart nix-daemon.service
@@ -54,6 +53,11 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: result
+      - name: Remove AWS credential files
+        if: always()
+        run: |
+          rm -f "$HOME/.aws/credentials" "$HOME/.aws/config"
+          sudo rm -f /run/nix-daemon-aws-credentials
   deploy:
     environment:
       name: github-pages

@@ -85,12 +85,14 @@ OIDC token using `id-token: write`, exchange it with AWS STS, and receive
 temporary role credentials for that job. The publisher and reader role
 identifiers are non-secret workflow configuration.
 
-The credentials action exports the temporary session to subsequent workflow
-steps, but the systemd-managed Nix daemon doesn't inherit that environment.
-Each workflow writes the session to a root-only file under `/run`, configures
-`nix-daemon.service` to read it, and restarts the daemon. Build and Push
-refreshes both the OIDC session and daemon environment after the build so an
-ARM build longer than the default one-hour STS session can still upload.
+The credentials action writes the temporary session to the runner's
+mode-`0600` default AWS profile without exporting credential environment
+variables. Each workflow copies that profile to a root-only file under
+`/run`, points `nix-daemon.service` at it with
+`AWS_SHARED_CREDENTIALS_FILE`, and restarts the daemon. Build and Push
+refreshes both copies after the build so an ARM build longer than the default
+one-hour STS session can still upload. An `always()` cleanup step removes both
+credential files when the job finishes.
 
 The reader trust policy deliberately authorizes the repository's
 `pull_request` subject. PR jobs can therefore read the private cache but
