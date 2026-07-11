@@ -47,7 +47,7 @@ jobs:
         run: |
           for attempt in 1 2 3; do
             if out=$(nix build --no-link --print-out-paths \
-              --override-input nixpkgs github:NixOS/nixpkgs/nixos-25.11 \
+              --override-input nixpkgs github:NixOS/nixpkgs/nixos-26.05 \
               ".#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel"); then
               echo "out=$out" >>"$GITHUB_OUTPUT"
               exit 0

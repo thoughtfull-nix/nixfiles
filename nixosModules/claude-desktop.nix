@@ -11,7 +11,7 @@ in
 {
   config = mkIf cfg.enable {
     environment.systemPackages = with pkgs; [
-      claude-desktop
+      claude-desktop-fhs
     ];
     thoughtfull.impermanence.user.directories = [
       ".config/Claude"

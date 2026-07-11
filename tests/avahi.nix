@@ -21,8 +21,8 @@ nixpkgs.testers.nixosTest {
     start_all()
 
     # Wait for avahi-daemon to be running on both nodes
-    testserver.wait_for_unit("avahi-daemon.service")
-    testclient.wait_for_unit("avahi-daemon.service")
+    server.wait_for_unit("avahi-daemon.service")
+    client.wait_for_unit("avahi-daemon.service")
 
     # Wait for network to settle and allow mDNS to propagate
     import time
@@ -32,21 +32,21 @@ nixpkgs.testers.nixosTest {
     with subtest("default: NSS mDNS integration is enabled"):
         # Verify NSS mDNS integration works by using getent (uses NSS, not avahi directly)
         # This will only succeed if nssmdns4 is properly configured
-        result = testclient.succeed("getent hosts testserver.local", timeout=10)
+        result = client.succeed("getent hosts testserver.local", timeout=10)
         print(f"NSS lookup result: {result}")
         assert "testserver" in result.lower(), "NSS should resolve .local hostnames"
 
     with subtest("default: address publishing is enabled"):
         # Forward lookup should work
-        result = testclient.succeed("avahi-resolve -n testserver.local", timeout=10)
+        result = client.succeed("avahi-resolve -n testserver.local", timeout=10)
         print(f"Forward lookup result: {result}")
 
         # Get the IP address from forward lookup
-        server_ip = testclient.succeed("avahi-resolve -n testserver.local | awk '{print $2}'").strip()
+        server_ip = client.succeed("avahi-resolve -n testserver.local | awk '{print $2}'").strip()
         print(f"Server IP: {server_ip}")
 
         # Reverse lookup should work
-        reverse_result = testclient.succeed(f"avahi-resolve -a {server_ip}", timeout=10)
+        reverse_result = client.succeed(f"avahi-resolve -a {server_ip}", timeout=10)
         print(f"Reverse lookup result: {reverse_result}")
         assert "testserver.local" in reverse_result, "Reverse lookup should return hostname"
 
@@ -54,18 +54,18 @@ nixpkgs.testers.nixosTest {
         # Note: Domain publishing relates to wide-area DNS-SD domain announcements
         # and doesn't have an easily testable functional aspect via avahi-browse -D
         # (which shows "+  n/a  n/a" regardless). Verify the config setting instead.
-        config_path = testserver.succeed("systemctl cat avahi-daemon | grep ExecStart | sed 's/.*-f //;s/ .*//'").strip()
-        result = testserver.succeed(f"grep -E '^publish-domain=' {config_path}")
+        config_path = server.succeed("systemctl cat avahi-daemon | grep ExecStart | sed 's/.*-f //;s/ .*//'").strip()
+        result = server.succeed(f"grep -E '^publish-domain=' {config_path}")
         print(f"Domain publish config: {result}")
         assert "publish-domain=yes" in result, "publish-domain should be 'yes' by default"
 
     with subtest("default: basic avahi functionality"):
         # Check that avahi binaries are available
-        testserver.succeed("which avahi-browse")
-        testclient.succeed("which avahi-browse")
+        server.succeed("which avahi-browse")
+        client.succeed("which avahi-browse")
 
         # Test that avahi can browse services
-        testserver.succeed("avahi-browse -a -t", timeout=10)
-        testclient.succeed("avahi-browse -a -t", timeout=10)
+        server.succeed("avahi-browse -a -t", timeout=10)
+        client.succeed("avahi-browse -a -t", timeout=10)
   '';
 }

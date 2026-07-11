@@ -89,7 +89,7 @@ The public half is committed in cleartext as the default value of the
 1. GitHub Actions matrix triggers at 02:00 UTC (and on every push to `main`).
 2. Each matrix job builds
    `.#nixosConfigurations.<host>.config.system.build.toplevel`, with
-   `--override-input nixpkgs github:NixOS/nixpkgs/nixos-25.11` so the daily
+   `--override-input nixpkgs github:NixOS/nixpkgs/nixos-26.05` so the daily
    build picks up the latest tip of the release branch.
 3. The build step uses the S3 cache itself as an additional substituter
    (`extra-substituters` in the installer config), so already-pushed paths
