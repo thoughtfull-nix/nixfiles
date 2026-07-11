@@ -45,10 +45,6 @@ jobs:
             | sudo tee /etc/systemd/system/nix-daemon.service.d/aws.conf >/dev/null
           sudo systemctl daemon-reload
           sudo systemctl restart nix-daemon.service
-      - name: Setup Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@v14
-        with:
-          use-flakehub: false
       - name: Run devenv test
         run: nix develop --no-pure-eval --command devenv test
       - name: Run flake check
