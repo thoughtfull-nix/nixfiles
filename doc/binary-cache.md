@@ -23,17 +23,18 @@ from S3 once a day.
 ┌───────────────────────────────────────────────────────────────────┐
 │ GitHub Actions  (.github/workflows/build-and-push.yml)            │
 │   daily cron, push-to-main, workflow_dispatch                     │
-│   matrix: {sedna, ubuntu-24.04} {tislit, ubuntu-24.04-arm}        │
+│   matrix: hydor + sedna (x86_64), tislit (aarch64)                │
 │                                                                    │
-│   1. nix-installer-action with KRYPTONIX_ACCESS_TOKEN              │
+│   1. Assume nixfiles-cache-publisher via GitHub OIDC               │
+│   2. nix-installer-action with KRYPTONIX_ACCESS_TOKEN              │
 │      + extra-substituters s3://… (incremental builds)              │
-│   2. nix build --override-input nixpkgs <branch tip>               │
+│   3. nix build --override-input nixpkgs <branch tip>               │
 │        .#nixosConfigurations.${host}.config.system.build.toplevel  │
-│   3. nix store sign --recursive --key-file (CACHE_SIGNING_KEY)     │
-│   4. nix copy --to "s3://bucket?…&secret-key=…" $out               │
-│   5. write latest.json + aws s3 cp to hosts/${host}/latest.json    │
+│   4. nix store sign --recursive --key-file (CACHE_SIGNING_KEY)     │
+│   5. nix copy --to "s3://bucket?…&secret-key=…" $out               │
+│   6. write latest.json + aws s3 cp to hosts/${host}/latest.json    │
 └───────────────────────────────────────────────────────────────────┘
-                              │ HTTPS (IAM user nixfiles-ci, write+read)
+                              │ HTTPS (OIDC role, write+read)
                               ▼
                   ┌─────────────────────────┐
                   │ AWS S3: thoughtfull-    │
@@ -44,7 +45,7 @@ from S3 once a day.
                   │   /hosts/${host}/       │
                   │       latest.json       │
                   └─────────────────────────┘
-                              │ HTTPS (IAM user nixfiles-host, read-only)
+                              │ HTTPS (IAM user nix-cache-host, read-only)
                               ▼
                   ┌─────────────────────────┐
                   │ sedna, tislit (clients) │  daily systemd timer
@@ -63,16 +64,30 @@ by every host. The bucket being private is only a *confidentiality* control
 safe to *trust* but would leak hostnames, software versions, and config
 shape.
 
-Two IAM users:
+Three least-privilege AWS identities:
 
-- `nixfiles-ci`: write access (`s3:PutObject`, `s3:GetObject`,
-  `s3:ListBucket`). Credentials live in GitHub Actions secrets
-  `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
-- `nixfiles-host`: read-only (`s3:GetObject`, `s3:ListBucket`).
-  Credentials live in
+- `nixfiles-cache-publisher`: IAM role with `s3:PutObject`, `s3:GetObject`,
+  and `s3:ListBucket`. Its OIDC trust policy only accepts GitHub Actions
+  tokens for this repository's `main` branch. `build-and-push.yml` assumes it
+  through `aws-actions/configure-aws-credentials`.
+- `nixfiles-cache-reader`: IAM role with `s3:GetObject` and `s3:ListBucket`.
+  `flake-check.yml` and the Pages build assume it through GitHub OIDC. Its
+  trust policy accepts this repository's `main` and `pull_request` subjects.
+- `nix-cache-host`: read-only IAM user with `s3:GetObject` and
+  `s3:ListBucket`. Its long-lived credentials live in
   `nixosConfigurations/shared/secrets/nix-cache-host-credentials.age`,
   decrypted by agenix into `EnvironmentFile`-format and supplied to
   `nix-daemon` and to the `system-pull` systemd unit.
+
+GitHub Actions stores no long-lived AWS access keys. Jobs request a GitHub
+OIDC token using `id-token: write`, exchange it with AWS STS, and receive
+temporary role credentials for that job. The publisher and reader role
+identifiers are non-secret workflow configuration.
+
+The reader trust policy deliberately authorizes the repository's
+`pull_request` subject. PR jobs can therefore read the private cache but
+cannot modify it. Keep the publisher role restricted to `main`; broadening
+its subject would allow proposed workflow code to obtain `s3:PutObject`.
 
 The signing key lives in two places:
 
@@ -87,22 +102,24 @@ The public half is committed in cleartext as the default value of the
 ## Data flow per daily run
 
 1. GitHub Actions matrix triggers at 02:00 UTC (and on every push to `main`).
-2. Each matrix job builds
+2. Each matrix job exchanges its GitHub OIDC token for temporary credentials
+   from the `nixfiles-cache-publisher` role.
+3. Each matrix job builds
    `.#nixosConfigurations.<host>.config.system.build.toplevel`, with
    `--override-input nixpkgs github:NixOS/nixpkgs/nixos-26.05` so the daily
    build picks up the latest tip of the release branch.
-3. The build step uses the S3 cache itself as an additional substituter
+4. The build step uses the S3 cache itself as an additional substituter
    (`extra-substituters` in the installer config), so already-pushed paths
-   are downloaded instead of rebuilt. Magic Nix Cache handles build-time
-   intermediates that never end up in the system closure.
-4. `nix store sign --recursive` signs the closure with the private signing
+   are downloaded instead of rebuilt. The configured upstream caches provide
+   their respective build products.
+5. `nix store sign --recursive` signs the closure with the private signing
    key.
-5. `nix copy --to s3://bucket?…` uploads any newly built NARs + narinfos
+6. `nix copy --to s3://bucket?…` uploads any newly built NARs + narinfos
    (existing paths are no-ops).
-6. `aws s3 cp` atomically writes
+7. `aws s3 cp` atomically writes
    `hosts/<host>/latest.json = {storePath, gitRev, builtAt}` with
    `Cache-Control: no-cache`.
-7. At 03:00 UTC (headless) / 12:00 local (graphical), the `system-pull.timer`
+8. At 03:00 UTC (headless) / 12:00 local (graphical), the `system-pull.timer`
    on each host fires. The script `pkgs.thoughtfull.system-pull`:
    - Fetches `hosts/<hostname>/latest.json` with `aws s3 cp`.
    - Compares the target `storePath` with `readlink /run/current-system`;
@@ -159,5 +176,6 @@ design costs ~$5–7/month (storage + egress only) and removes:
 - A long-running daemon (`harmonia` / `nginx`) to monitor.
 - An EBS volume to size + grow + snapshot.
 
-Tradeoff: every host needs an AWS IAM credential. Rotation requires
-agenix re-encryption and a deploy to every host (see runbook).
+Tradeoff: every host still needs a long-lived AWS IAM credential. Rotation
+requires agenix re-encryption and a deploy to every host (see runbook). CI
+uses short-lived OIDC role sessions and has no AWS key rotation procedure.

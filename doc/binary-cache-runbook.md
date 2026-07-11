@@ -25,9 +25,9 @@ the dev shell.
    ```
 
 2. **Commit the public half** as the default value of `publicKey` in
-   `nixosModules/binary-cache.nix` and as the `extra-trusted-public-keys`
-   value in `.github/workflows/build-and-push.yml`. Replace
-   `REPLACE_WITH_BASE64_PUBLIC_KEY` in both places.
+   `nixosModules/binary-cache.nix` and in the
+   `extra-trusted-public-keys` values in `.github/workflows/`. Replace
+   `REPLACE_WITH_BASE64_PUBLIC_KEY` in each place.
 
 3. **Encrypt and commit the signing-key backup.** No host needs it at
    runtime, but this is the disaster-recovery copy.
@@ -54,29 +54,74 @@ the dev shell.
    ```
    Add a lifecycle rule: expire objects under prefix `nar/` after 60 days.
 
-6. **Create two IAM users.** `nix-cache-ci` (write) and `nix-cache-host`
-   (read-only), with policies scoped to
-   `arn:aws:s3:::thoughtfull-nix-cache` and `/*`.
+6. **Create the AWS identities.** CI uses short-lived GitHub OIDC roles;
+   hosts use a long-lived read-only IAM user.
 
-   Policy for `nix-cache-ci`:
+   Create the `nix-cache-host` IAM user with this policy:
    ```json
    {
      "Version": "2012-10-17",
-     "Statement": [{
-       "Effect": "Allow",
-       "Action": ["s3:PutObject", "s3:GetObject", "s3:ListBucket"],
-       "Resource": [
-         "arn:aws:s3:::thoughtfull-nix-cache",
-         "arn:aws:s3:::thoughtfull-nix-cache/*"
-       ]
-     }]
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": "s3:ListBucket",
+         "Resource": "arn:aws:s3:::thoughtfull-nix-cache"
+       },
+       {
+         "Effect": "Allow",
+         "Action": "s3:GetObject",
+         "Resource": "arn:aws:s3:::thoughtfull-nix-cache/*"
+       }
+     ]
    }
    ```
 
-   Policy for `nix-cache-host`: same but without `s3:PutObject`.
+   Add `https://token.actions.githubusercontent.com` as an IAM OIDC
+   provider with audience `sts.amazonaws.com`. Then create these roles:
 
-7. **Paste `nix-cache-ci` credentials into GitHub Actions** as
-   `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+   - `nixfiles-cache-reader`: the policy above; used by Flake Check and
+     Pages.
+   - `nixfiles-cache-publisher`: the policy above plus `s3:PutObject` on
+     `arn:aws:s3:::thoughtfull-nix-cache/*`; used by Build and Push.
+
+   Use this trust-policy condition for `nixfiles-cache-reader`:
+   ```json
+   "Condition": {
+     "StringEquals": {
+       "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+       "token.actions.githubusercontent.com:sub": [
+         "repo:thoughtfull-nix/nixfiles:ref:refs/heads/main",
+         "repo:thoughtfull-nix/nixfiles:pull_request"
+       ]
+     }
+   }
+   ```
+
+   Restrict `nixfiles-cache-publisher` to `main`:
+   ```json
+   "Condition": {
+     "StringEquals": {
+       "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+       "token.actions.githubusercontent.com:sub": "repo:thoughtfull-nix/nixfiles:ref:refs/heads/main"
+     }
+   }
+   ```
+
+   Both trust policies use the federated principal:
+   `arn:aws:iam::481411455398:oidc-provider/token.actions.githubusercontent.com`
+   and action `sts:AssumeRoleWithWebIdentity`.
+
+7. **Verify the workflow role identifiers.** They're non-secret configuration
+   committed in `.github/workflows/`:
+   ```text
+   arn:aws:iam::481411455398:role/nixfiles-cache-reader
+   arn:aws:iam::481411455398:role/nixfiles-cache-publisher
+   ```
+   Do not create `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` GitHub
+   Actions secrets. The workflows use `id-token: write` and
+   `aws-actions/configure-aws-credentials` to obtain temporary credentials.
+   When migrating an existing repository, delete those legacy secrets after
+   a successful OIDC-authenticated run.
 
 8. **Encrypt the `nix-cache-host` credentials.** Write the file in
    `EnvironmentFile` format:
@@ -105,7 +150,7 @@ the dev shell.
     gh workflow run build-and-push.yml
     gh run watch
     ```
-    Both matrix jobs should land. Then:
+    All matrix jobs should land. Then:
     ```bash
     AWS_PROFILE=<host-profile> aws s3 cp \
       s3://thoughtfull-nix-cache/hosts/sedna/latest.json -
@@ -187,7 +232,10 @@ nixos-rebuild --rollback switch
 Open the run on the GitHub Actions UI. Common causes:
 
 - **`KRYPTONIX_ACCESS_TOKEN` expired.** Rotate per section 9.
-- **AWS credentials expired.** Rotate per section 7.
+- **OIDC role assumption failed.** Verify the provider, trust policy, and
+  workflow subject per section 7.
+- **S3 returned `AccessDenied` after role assumption.** Verify the assumed
+  role's S3 policy and bucket ARN.
 - **Transient nixpkgs eval failure**—re-run the job: `gh run rerun <id>`.
 - **An aarch64 build genuinely too slow for the 6-hour limit.** Re-trigger
   off-hours after the cache has warmed up from related builds; the second
@@ -215,14 +263,35 @@ systemctl start system-pull.service
 
 ---
 
-## 7. Rotating CI AWS credentials
+## 7. Maintaining CI OIDC access
 
-1. In AWS IAM, generate a new access key for `nix-cache-ci`.
-2. Update GitHub Actions secrets `AWS_ACCESS_KEY_ID` and
-   `AWS_SECRET_ACCESS_KEY`.
-3. Trigger the workflow to confirm:
-   `gh workflow run build-and-push.yml`.
-4. Delete the old access key in IAM.
+There are no long-lived CI AWS credentials to rotate. AWS STS issues a new
+short-lived session for each job.
+
+For `Not authorized to perform sts:AssumeRoleWithWebIdentity`:
+
+1. Confirm the AWS account has the GitHub provider
+   `https://token.actions.githubusercontent.com` with audience
+   `sts.amazonaws.com`.
+2. Confirm the role trust policy's `sub` matches the workflow context:
+   `repo:thoughtfull-nix/nixfiles:ref:refs/heads/main` for main or
+   `repo:thoughtfull-nix/nixfiles:pull_request` for a PR.
+3. Confirm the job grants `id-token: write` and `contents: read`.
+4. Confirm `role-to-assume` names the correct reader or publisher role.
+
+For an unexpected `AccessDenied` from S3 after assumption succeeds, inspect
+the role's S3 permissions rather than its trust policy. Reader jobs need
+`s3:GetObject` and `s3:ListBucket`; Build and Push additionally needs
+`s3:PutObject`.
+
+After changing a trust or permissions policy, trigger
+`gh workflow run build-and-push.yml` and verify the role session in the job
+log. To revoke CI access immediately, remove the matching GitHub subject from
+the role trust policy; there are no access keys to delete.
+
+If the repository still has legacy `AWS_ACCESS_KEY_ID` or
+`AWS_SECRET_ACCESS_KEY` Actions secrets from the pre-OIDC setup, delete them
+after confirming all workflows use role assumption.
 
 ---
 
