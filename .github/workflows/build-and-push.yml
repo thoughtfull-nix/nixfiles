@@ -37,25 +37,10 @@ jobs:
             experimental-features = nix-command flakes
             extra-substituters = s3://thoughtfull-nix-cache?region=us-east-1 https://cache.numtide.com https://devenv.cachix.org
             extra-trusted-public-keys = nix-cache.thoughtfull.systems-1:kN4M+h0QLcDpQksBsFNtE9t6+bLa/s4axEWYpDmz2ag= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
+      - name: Configure Nix daemon AWS credentials
+        uses: ./.github/actions/configure-nix-daemon-aws-creds
         with:
           role-to-assume: arn:aws:iam::481411455398:role/nixfiles-cache-publisher
-          aws-region: us-east-1
-          aws-profile: default
-          overwrite-aws-profile: true
-      - name: Configure Nix daemon AWS credentials
-        run: |
-          sudo mkdir -p /etc/systemd/system/nix-daemon.service.d
-          sudo install -m 600 \
-            "$HOME/.aws/credentials" \
-            /run/nix-daemon-aws-credentials
-          printf '%s\n' \
-            '[Service]' \
-            'Environment=AWS_SHARED_CREDENTIALS_FILE=/run/nix-daemon-aws-credentials' \
-            | sudo tee /etc/systemd/system/nix-daemon.service.d/aws.conf >/dev/null
-          sudo systemctl daemon-reload
-          sudo systemctl restart nix-daemon.service
       - name: Build system closure
         id: build
         run: |
@@ -71,19 +56,14 @@ jobs:
             fi
             sleep "$((attempt * 15))"
           done
-      - name: Refresh AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
+      - name: Refresh Nix daemon AWS credentials
+        # The default 1-hour STS session can expire during a long aarch64 build; refresh before
+        # uploading. The x86_64 legs build well within that window, so skip the extra assume-role
+        # round trip and daemon restart for them.
+        if: matrix.runner == 'ubuntu-24.04-arm'
+        uses: ./.github/actions/configure-nix-daemon-aws-creds
         with:
           role-to-assume: arn:aws:iam::481411455398:role/nixfiles-cache-publisher
-          aws-region: us-east-1
-          aws-profile: default
-          overwrite-aws-profile: true
-      - name: Refresh Nix daemon AWS credentials
-        run: |
-          sudo install -m 600 \
-            "$HOME/.aws/credentials" \
-            /run/nix-daemon-aws-credentials
-          sudo systemctl restart nix-daemon.service
       - name: Sign and push closure to S3
         run: |
           umask 077
@@ -105,6 +85,4 @@ jobs:
             --cache-control "no-cache"
       - name: Remove AWS credential files
         if: always()
-        run: |
-          rm -f "$HOME/.aws/credentials" "$HOME/.aws/config"
-          sudo rm -f /run/nix-daemon-aws-credentials
+        uses: ./.github/actions/cleanup-nix-daemon-aws-creds

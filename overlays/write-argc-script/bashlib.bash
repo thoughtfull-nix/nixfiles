@@ -174,11 +174,14 @@ find-dominating-file() {
 ## Arguments:
 ## n :: number of lines before the cursor position to clear, defaults to 1
 clear-lines() {
-  tput cr
-  tput el
+  # tput fails (and, under `set -e`, would otherwise abort the whole script) when there's no
+  # terminal, e.g. under non-interactive/scripted invocation; clearing lines is cosmetic, so skip
+  # it silently in that case rather than aborting.
+  tput cr || return 0
+  tput el || return 0
   for ((i = 1; i < ${1:-1}; i++)); do
-    tput cuu1
-    tput el
+    tput cuu1 || return 0
+    tput el || return 0
   done
   return 0
 }

@@ -27,8 +27,17 @@ let
     name = "mako-toggle-dnd";
     src = ./mako/toggle-dnd.bash;
   };
+  # `builtins.path` forces an independent, content-addressed copy of just this file into the
+  # store -- without it, this path literal instead resolves to a subpath of the flake's own
+  # whole-source checkout, which is never registered as a declared input anywhere it gets
+  # substituted in as text, so `makoConfig`'s embedded path ends up pointing at a path absent from
+  # `mako.package`'s actual runtime closure on any machine that doesn't separately already have
+  # this flake's source in its store.
   makoConfig = replaceVars ./mako/config {
-    notify = ./mako/notify.ogg;
+    notify = builtins.path {
+      path = ./mako/notify.ogg;
+      name = "notify.ogg";
+    };
   };
 in
 {

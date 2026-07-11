@@ -55,7 +55,16 @@ let
   writeArgcScript =
     name: src: replacements:
     let
-      bashlib = ./write-argc-script/bashlib.bash;
+      # `builtins.path` forces an independent, content-addressed copy of just this file. Without
+      # it, this path literal instead resolves to a subpath of the flake's own whole-source
+      # checkout, which is never registered as a declared input anywhere it gets substituted in
+      # as text -- so the built script's `source` line ends up pointing at a path that's absent
+      # from the package's actual runtime closure on any machine that doesn't separately already
+      # have this flake's source in its store.
+      bashlib = builtins.path {
+        path = ./write-argc-script/bashlib.bash;
+        name = "bashlib.bash";
+      };
       prefix = replaceVars ./write-argc-script/prefix.bash {
         bash = getExe bash;
         bashlib = bashlib;
