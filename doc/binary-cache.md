@@ -107,7 +107,10 @@ The signing key lives in two places:
   disaster-recovery backup. No host needs the private key at runtime.
 
 The public half is committed in cleartext as the default value of the
-`publicKey` option in `nixosModules/binary-cache.nix`.
+`publicKey` option in `nixosModules/binary-cache.nix`. Its key name is
+`nix-cache.thoughtfull.systems-1`; every `trusted-public-keys` entry must use
+that exact name because Nix matches signatures by name as well as key
+material.
 
 ## Data flow per daily run
 

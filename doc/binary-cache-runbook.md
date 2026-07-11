@@ -27,7 +27,10 @@ the dev shell.
 2. **Commit the public half** as the default value of `publicKey` in
    `nixosModules/binary-cache.nix` and in the
    `extra-trusted-public-keys` values in `.github/workflows/`. Replace
-   `REPLACE_WITH_BASE64_PUBLIC_KEY` in each place.
+   `REPLACE_WITH_BASE64_PUBLIC_KEY` in each place. Keep the exact
+   `nix-cache.thoughtfull.systems-1` name in every location; Nix rejects a
+   signature when the trusted key has a different name, even if its base64 key
+   material matches.
 
 3. **Encrypt and commit the signing-key backup.** No host needs it at
    runtime, but this is the disaster-recovery copy.
