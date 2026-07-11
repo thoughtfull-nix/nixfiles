@@ -26,7 +26,7 @@ in
     settings = {
       main.font = mkDefault "FiraCode Nerd Font:size=11";
       # Adwaita light theme (applied via SIGUSR1 signal for runtime switching)
-      colors = {
+      colors-dark = {
         background = mkDefault "ffffff";
         foreground = mkDefault "1e1e1e";
         regular0 = mkDefault "1e1e1e";
@@ -47,7 +47,7 @@ in
         bright7 = mkDefault "ffffff";
       };
       # Adwaita dark theme (applied via SIGUSR2 signal for runtime switching)
-      colors2 = {
+      colors-light = {
         background = mkDefault "1e1e1e";
         foreground = mkDefault "ffffff";
         regular0 = mkDefault "1e1e1e";
