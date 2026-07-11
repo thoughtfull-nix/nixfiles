@@ -120,6 +120,10 @@ the dev shell.
    Do not create `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` GitHub
    Actions secrets. The workflows use `id-token: write` and
    `aws-actions/configure-aws-credentials` to obtain temporary credentials.
+   Because `nix-daemon` runs under systemd, the workflows copy each session
+   into a root-only `/run/nix-daemon-aws.env` and restart the daemon with an
+   `EnvironmentFile` drop-in. Build and Push refreshes the session after the
+   build so long ARM builds don't upload with expired credentials.
    When migrating an existing repository, delete those legacy secrets after
    a successful OIDC-authenticated run.
 
@@ -278,11 +282,20 @@ For `Not authorized to perform sts:AssumeRoleWithWebIdentity`:
    `repo:thoughtfull-nix/nixfiles:pull_request` for a PR.
 3. Confirm the job grants `id-token: write` and `contents: read`.
 4. Confirm `role-to-assume` names the correct reader or publisher role.
+5. Confirm `/run/nix-daemon-aws.env` exists with mode `0600`, the
+   `nix-daemon.service` drop-in references it, and the daemon restarted after
+   role assumption.
 
 For an unexpected `AccessDenied` from S3 after assumption succeeds, inspect
 the role's S3 permissions rather than its trust policy. Reader jobs need
 `s3:GetObject` and `s3:ListBucket`; Build and Push additionally needs
 `s3:PutObject`.
+
+If the AWS CLI succeeds but Nix reports `Path is invalid` followed by an S3
+403, the runner has credentials but `nix-daemon` does not. Check the root-only
+environment file and daemon restart. If upload fails only after a long build,
+check that the workflow refreshed both the OIDC session and daemon credentials
+immediately before `nix copy`.
 
 After changing a trust or permissions policy, trigger
 `gh workflow run build-and-push.yml` and verify the role session in the job

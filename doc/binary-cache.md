@@ -25,9 +25,10 @@ from S3 once a day.
 │   daily cron, push-to-main, workflow_dispatch                     │
 │   matrix: hydor + sedna (x86_64), tislit (aarch64)                │
 │                                                                    │
-│   1. Assume nixfiles-cache-publisher via GitHub OIDC               │
-│   2. nix-installer-action with KRYPTONIX_ACCESS_TOKEN              │
+│   1. nix-installer-action with KRYPTONIX_ACCESS_TOKEN              │
 │      + extra-substituters s3://… (incremental builds)              │
+│   2. Assume nixfiles-cache-publisher via GitHub OIDC               │
+│      + pass the session to nix-daemon                              │
 │   3. nix build --override-input nixpkgs <branch tip>               │
 │        .#nixosConfigurations.${host}.config.system.build.toplevel  │
 │   4. nix store sign --recursive --key-file (CACHE_SIGNING_KEY)     │
@@ -84,6 +85,13 @@ OIDC token using `id-token: write`, exchange it with AWS STS, and receive
 temporary role credentials for that job. The publisher and reader role
 identifiers are non-secret workflow configuration.
 
+The credentials action exports the temporary session to subsequent workflow
+steps, but the systemd-managed Nix daemon doesn't inherit that environment.
+Each workflow writes the session to a root-only file under `/run`, configures
+`nix-daemon.service` to read it, and restarts the daemon. Build and Push
+refreshes both the OIDC session and daemon environment after the build so an
+ARM build longer than the default one-hour STS session can still upload.
+
 The reader trust policy deliberately authorizes the repository's
 `pull_request` subject. PR jobs can therefore read the private cache but
 cannot modify it. Keep the publisher role restricted to `main`; broadening
@@ -103,7 +111,7 @@ The public half is committed in cleartext as the default value of the
 
 1. GitHub Actions matrix triggers at 02:00 UTC (and on every push to `main`).
 2. Each matrix job exchanges its GitHub OIDC token for temporary credentials
-   from the `nixfiles-cache-publisher` role.
+   from the `nixfiles-cache-publisher` role and passes them to the Nix daemon.
 3. Each matrix job builds
    `.#nixosConfigurations.<host>.config.system.build.toplevel`, with
    `--override-input nixpkgs github:NixOS/nixpkgs/nixos-26.05` so the daily
@@ -112,14 +120,16 @@ The public half is committed in cleartext as the default value of the
    (`extra-substituters` in the installer config), so already-pushed paths
    are downloaded instead of rebuilt. The configured upstream caches provide
    their respective build products.
-5. `nix store sign --recursive` signs the closure with the private signing
+5. The job refreshes its OIDC session and the daemon's credentials after the
+   build.
+6. `nix store sign --recursive` signs the closure with the private signing
    key.
-6. `nix copy --to s3://bucket?…` uploads any newly built NARs + narinfos
+7. `nix copy --to s3://bucket?…` uploads any newly built NARs + narinfos
    (existing paths are no-ops).
-7. `aws s3 cp` atomically writes
+8. `aws s3 cp` atomically writes
    `hosts/<host>/latest.json = {storePath, gitRev, builtAt}` with
    `Cache-Control: no-cache`.
-8. At 03:00 UTC (headless) / 12:00 local (graphical), the `system-pull.timer`
+9. At 03:00 UTC (headless) / 12:00 local (graphical), the `system-pull.timer`
    on each host fires. The script `pkgs.thoughtfull.system-pull`:
    - Fetches `hosts/<hostname>/latest.json` with `aws s3 cp`.
    - Compares the target `storePath` with `readlink /run/current-system`;

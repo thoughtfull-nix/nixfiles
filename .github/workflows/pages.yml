@@ -20,11 +20,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: arn:aws:iam::481411455398:role/nixfiles-cache-reader
-          aws-region: us-east-1
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v22
         with:
@@ -33,6 +28,26 @@ jobs:
             access-tokens = github.com=${{ secrets.KRYPTONIX_ACCESS_TOKEN }}
             extra-substituters = s3://thoughtfull-nix-cache?region=us-east-1 https://cache.numtide.com https://devenv.cachix.org
             extra-trusted-public-keys = nix-cache.thoughtfull.systems:kN4M+h0QLcDpQksBsFNtE9t6+bLa/s4axEWYpDmz2ag= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::481411455398:role/nixfiles-cache-reader
+          aws-region: us-east-1
+      - name: Configure Nix daemon AWS credentials
+        run: |
+          sudo mkdir -p /etc/systemd/system/nix-daemon.service.d
+          printf '%s\n' \
+            "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" \
+            "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" \
+            "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN" \
+            | sudo tee /run/nix-daemon-aws.env >/dev/null
+          sudo chmod 600 /run/nix-daemon-aws.env
+          printf '%s\n' \
+            '[Service]' \
+            'EnvironmentFile=/run/nix-daemon-aws.env' \
+            | sudo tee /etc/systemd/system/nix-daemon.service.d/aws.conf >/dev/null
+          sudo systemctl daemon-reload
+          sudo systemctl restart nix-daemon.service
       - name: Build options-doc
         run: nix build .#options-doc
       - name: Upload artifact
