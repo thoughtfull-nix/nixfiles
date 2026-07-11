@@ -1,0 +1,14 @@
+---
+name: Remove AWS credential files
+description: >
+  Deletes the runner- and nix-daemon-side credential files written by the
+  `configure-nix-daemon-aws-creds` action. Run this as a final `if: always()` step in any job that
+  used it.
+runs:
+  using: composite
+  steps:
+    - name: Remove AWS credential files
+      shell: bash
+      run: |
+        rm -f "$HOME/.aws/credentials" "$HOME/.aws/config"
+        sudo rm -f /run/nix-daemon-aws-credentials

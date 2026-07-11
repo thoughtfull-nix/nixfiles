@@ -90,9 +90,10 @@ mode-`0600` default AWS profile without exporting credential environment
 variables. Each workflow copies that profile to a root-only file under
 `/run`, points `nix-daemon.service` at it with
 `AWS_SHARED_CREDENTIALS_FILE`, and restarts the daemon. Build and Push
-refreshes both copies after the build so an ARM build longer than the default
-one-hour STS session can still upload. An `always()` cleanup step removes both
-credential files when the job finishes.
+refreshes both copies after the build, but only on the aarch64 matrix leg,
+since that's the one long enough to occasionally outlast the default one-hour
+STS session; the x86_64 hosts build well within it. An `always()` cleanup
+step removes both credential files when the job finishes.
 
 The reader trust policy deliberately authorizes the repository's
 `pull_request` subject. PR jobs can therefore read the private cache but

@@ -29,6 +29,11 @@
     detect-private-keys.enable = true;
     eclint = {
       enable = true;
+      excludes = [
+        # .age secrets are raw binary ciphertext with no meaningful "final newline" or charset --
+        # eclint's fix mode would otherwise append a byte and corrupt them.
+        "\.age$"
+      ];
       settings.fix = true;
     };
     elisp-indent = {

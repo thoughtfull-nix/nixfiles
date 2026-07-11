@@ -1,0 +1,37 @@
+---
+name: Configure Nix daemon AWS credentials
+description: >
+  Assumes an AWS IAM role via GitHub OIDC and wires the resulting temporary credentials into the
+  system nix-daemon, so S3 substituters/`nix copy` authenticate as that role. Requires the caller's
+  job to set `permissions: id-token: write`. Pair with the `cleanup-nix-daemon-aws-creds` action in
+  an `if: always()` step.
+inputs:
+  role-to-assume:
+    description: ARN of the IAM role to assume via GitHub OIDC.
+    required: true
+  aws-region:
+    description: AWS region to assume the role in.
+    default: us-east-1
+runs:
+  using: composite
+  steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: ${{ inputs.role-to-assume }}
+        aws-region: ${{ inputs.aws-region }}
+        aws-profile: default
+        overwrite-aws-profile: true
+    - name: Configure Nix daemon AWS credentials
+      shell: bash
+      run: |
+        sudo mkdir -p /etc/systemd/system/nix-daemon.service.d
+        sudo install -m 600 \
+          "$HOME/.aws/credentials" \
+          /run/nix-daemon-aws-credentials
+        printf '%s\n' \
+          '[Service]' \
+          'Environment=AWS_SHARED_CREDENTIALS_FILE=/run/nix-daemon-aws-credentials' \
+          | sudo tee /etc/systemd/system/nix-daemon.service.d/aws.conf >/dev/null
+        sudo systemctl daemon-reload
+        sudo systemctl restart nix-daemon.service

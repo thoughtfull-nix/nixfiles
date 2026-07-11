@@ -25,7 +25,7 @@
         thoughtfull = {
           claudeDesktop.enable = true;
           dev.enable = true;
-          githubToken.tokenFile = ../nixosConfigurations/shared/secrets/github-access-token.age;
+          githubToken.tokenFile = ./shared/secrets/github-access-token.age;
           graphical.enable = true;
           impermanence.disko = {
             boot.size = "512M";
