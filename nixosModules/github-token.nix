@@ -20,7 +20,10 @@ let
 in
 {
   config = mkIf (githubToken.tokenFile != null) {
-    age.secrets.github-access-token.file = githubToken.tokenFile;
+    age.secrets.github-access-token = {
+      mode = "0644";
+      file = githubToken.tokenFile;
+    };
     nix.extraOptions = ''
       !include ${config.age.secrets.github-access-token.path}
     '';
