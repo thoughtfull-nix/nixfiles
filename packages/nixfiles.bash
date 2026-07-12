@@ -283,6 +283,12 @@ remote-provision() {
   rekey "${argc_hostname}" ||
     die "Failed to rekey secrets"
 
+  log "Evaluating NixOS configuration"
+  nix eval --raw --no-write-lock-file \
+    "path:${argc_nixfiles_path}#nixosConfigurations.${argc_hostname}.config.system.build.toplevel.drvPath" \
+    >/dev/null ||
+    die "Failed to evaluate NixOS configuration: ${argc_hostname}"
+
   commit-and-push
 
   # == Print the exact command to finish provisioning on the target's own console

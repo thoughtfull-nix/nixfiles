@@ -151,6 +151,13 @@ let
       echo "/dev/vdb2"
     ''
   );
+
+  stubNix = lib.hiPrio (
+    pkgs.writeShellScriptBin "nix" ''
+      echo "nix $*" >>/tmp/stub-calls.log
+      echo /nix/store/test-host-system.drv
+    ''
+  );
 in
 pkgs.testers.nixosTest {
   name = "nixfiles";
@@ -167,6 +174,7 @@ pkgs.testers.nixosTest {
         environment.systemPackages = [
           testNixfiles
           pkgs.git
+          stubNix
           pkgs.whois # mkpasswd, used by ensure-secret for the hashed user passphrase
         ];
         services.openssh.enable = true;
@@ -285,6 +293,13 @@ pkgs.testers.nixosTest {
             "2>&1"
         )
         print(f"remote-provision output:\n{log}")
+
+    with subtest("remote-provision evaluates the generated host configuration"):
+        personal.succeed(
+            "grep -Fx 'nix eval --raw --no-write-lock-file "
+            "path:/root/nixfiles-fixture#nixosConfigurations.test-host.config.system.build.toplevel.drvPath' "
+            "/tmp/stub-calls.log"
+        )
 
     with subtest("a real (stubbed) hardware-configuration.nix was generated over ssh, not locally"):
         hwconfig = personal.succeed(
