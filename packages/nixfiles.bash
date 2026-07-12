@@ -145,6 +145,8 @@ provision() {
   # == Ensure passphrases
   ensure-luks-recovery-passphrase-file
   ensure-hashed-user-passphrase
+  ensure-secret "Syncthing passphrase"
+  unset syncthing_passphrase
   # == Ensure partitions
   log "Ensure partitions"
   ensure-partitions
@@ -270,6 +272,8 @@ remote-provision() {
   ensure-secret "LUKS recovery passphrase"
   unset luks_recovery_passphrase
   ensure-hashed-user-passphrase
+  ensure-secret "Syncthing passphrase"
+  unset syncthing_passphrase
 
   git add -- "${host_path}.nix" "${host_path}" ||
     die "Failed to stage generated host configuration"

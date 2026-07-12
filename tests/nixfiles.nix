@@ -320,6 +320,7 @@ pkgs.testers.nixosTest {
         hostnix = personal.succeed(
             "cat /root/nixfiles-fixture/nixosConfigurations/test-host.nix"
         )
+        normalized_hostnix = " ".join(hostnix.split())
         print(f"test-host.nix:\n{hostnix}")
         assert '"/dev/vdb"' in hostnix
         assert '"512M"' in hostnix
@@ -327,6 +328,10 @@ pkgs.testers.nixosTest {
         assert "# encrypted.device" not in hostnix, (
             "the disko block should no longer be a commented-out placeholder"
         )
+        assert (
+            "services.syncthing.thoughtfull.passwordFile = "
+            "./test-host/secrets/syncthing-passphrase.age;"
+        ) in normalized_hostnix
 
     with subtest("the private ssh host key was delivered directly to target, not via a repo secret"):
         target.succeed("test -f /tmp/ssh_host_ed25519_key")
@@ -340,7 +345,11 @@ pkgs.testers.nixosTest {
     # clone of its own yet, so read fixture contents straight out of the bare repo via
     # `git show`, exactly as `finish-remote-provision`'s own clone will see them.
     with subtest("host-specific secrets are decryptable with the new host's own transferred key"):
-        for secret in ["luks-recovery-passphrase", "hashed-user-passphrase"]:
+        for secret in [
+            "luks-recovery-passphrase",
+            "hashed-user-passphrase",
+            "syncthing-passphrase",
+        ]:
             target.succeed(
                 f"git --git-dir=/srv/git/nixfiles.git show "
                 f"main:nixosConfigurations/test-host/secrets/{secret}.age "
@@ -440,9 +449,14 @@ pkgs.testers.nixosTest {
         hostnix = standalone.succeed(
             "cat /root/nixfiles-standalone/nixosConfigurations/provision-host.nix"
         )
+        normalized_hostnix = " ".join(hostnix.split())
         print(f"provision-host.nix:\n{hostnix}")
         assert 'networking.hostName = "provision-host"' in hostnix
         assert "./provision-host/hardware-configuration.nix" in hostnix
+        assert (
+            "services.syncthing.thoughtfull.passwordFile = "
+            "./provision-host/secrets/syncthing-passphrase.age;"
+        ) in normalized_hostnix
 
     with subtest("provision generated its own ssh host key after mounting persistent"):
         standalone.succeed("test -f /mnt/persistent/etc/ssh/ssh_host_ed25519_key")
@@ -451,7 +465,11 @@ pkgs.testers.nixosTest {
         )
 
     with subtest("provision's secrets are decryptable with its own just-generated host key"):
-        for secret in ["luks-recovery-passphrase", "hashed-user-passphrase"]:
+        for secret in [
+            "luks-recovery-passphrase",
+            "hashed-user-passphrase",
+            "syncthing-passphrase",
+        ]:
             standalone.succeed(
                 f"age -d -i /mnt/persistent/etc/ssh/ssh_host_ed25519_key "
                 f"/root/nixfiles-standalone/nixosConfigurations/provision-host/secrets/{secret}.age"
