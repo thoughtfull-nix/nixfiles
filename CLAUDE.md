@@ -24,7 +24,9 @@ devenv tasks run devenv:git-hooks:run
 nixfmt-rfc-style <file.nix>
 ```
 
-**Verifying Changes:** Always run `devenv tasks run devenv:git-hooks:run` to verify changes before committing. This runs all configured hooks including: `nixfmt-rfc-style`, `deadnix`, `statix`, `shellcheck`, `shfmt`, `eclint`, `gitlint`, and others configured in `devenv.nix`.
+**Verifying Changes:** Always run `devenv tasks run devenv:git-hooks:run` to verify changes before pushing to the remote repository. This runs all configured hooks including: `nixfmt-rfc-style`, `deadnix`, `statix`, `shellcheck`, `shfmt`, `eclint`, `gitlint`, and others configured in `devenv.nix`.
+
+**Reviewing changes:** Also before pushing to the remote repository, run a code review of the branch and work with the user to resolve any issues.  Once the issues have been resolved and the changes committed, then wait for the user's final approval before pushing to remote.
 
 ## Architecture Overview
 
