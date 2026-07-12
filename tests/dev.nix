@@ -31,16 +31,31 @@ extendedNixpkgs.testers.nixosTest {
   skipLint = true;
 
   nodes = {
-    enabled = {
-      imports = [
-        ../nixosModules/dev.nix
-        thoughtfullSubModuleStub
-      ];
-      thoughtfull.dev.enable = true;
-      # nixosModules/java.nix sets programs.java.enable = mkDefault true in the
-      # full system; mirror that here so the package selection is exercised.
-      programs.java.enable = true;
-    };
+    enabled =
+      { config, ... }:
+      {
+        imports = [
+          ../nixosModules/dev.nix
+          thoughtfullSubModuleStub
+        ];
+        thoughtfull.dev.enable = true;
+        # nixosModules/java.nix sets programs.java.enable = mkDefault true in the
+        # full system; mirror that here so the package selection is exercised.
+        programs.java.enable = true;
+        assertions =
+          let
+            opencodeDirectories = [
+              ".cache/opencode"
+              ".config/opencode"
+              ".local/share/opencode"
+              ".local/state/opencode"
+            ];
+          in
+          map (directory: {
+            assertion = builtins.elem directory config.thoughtfull.impermanence.user.directories;
+            message = "expected opencode persistence directory ${directory}";
+          }) opencodeDirectories;
+      };
 
     disabled = {
       imports = [
