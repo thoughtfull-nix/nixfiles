@@ -4,6 +4,13 @@ let
   # ignored with external pkgs, so apply the overlay here (see tests/default.nix).
   extendedNixpkgs = nixpkgs.extend self.inputs.llm-agents.overlays.default;
 
+  opencodeDirectories = [
+    ".cache/opencode"
+    ".config/opencode"
+    ".local/share/opencode"
+    ".local/state/opencode"
+  ];
+
   # Stub the thoughtfull sub-module options that dev.nix sets via mkDefault
   thoughtfullSubModuleStub =
     { lib, ... }:
@@ -42,19 +49,28 @@ extendedNixpkgs.testers.nixosTest {
         # nixosModules/java.nix sets programs.java.enable = mkDefault true in the
         # full system; mirror that here so the package selection is exercised.
         programs.java.enable = true;
-        assertions =
-          let
-            opencodeDirectories = [
-              ".cache/opencode"
-              ".config/opencode"
-              ".local/share/opencode"
-              ".local/state/opencode"
-            ];
-          in
-          map (directory: {
-            assertion = builtins.elem directory config.thoughtfull.impermanence.user.directories;
-            message = "expected opencode persistence directory ${directory}";
-          }) opencodeDirectories;
+        assertions = map (directory: {
+          assertion = builtins.elem directory config.thoughtfull.impermanence.user.directories;
+          message = "expected opencode persistence directory ${directory}";
+        }) opencodeDirectories;
+      };
+
+    opencodeDisabled =
+      { config, ... }:
+      {
+        imports = [
+          ../nixosModules/dev.nix
+          thoughtfullSubModuleStub
+        ];
+        thoughtfull.dev = {
+          enable = true;
+          agents.opencode.enable = false;
+        };
+        programs.java.enable = true;
+        assertions = map (directory: {
+          assertion = !(builtins.elem directory config.thoughtfull.impermanence.user.directories);
+          message = "unexpected opencode persistence directory ${directory}";
+        }) opencodeDirectories;
       };
 
     disabled = {
@@ -68,6 +84,7 @@ extendedNixpkgs.testers.nixosTest {
   testScript = ''
     start_all()
     enabled.wait_for_unit("multi-user.target")
+    opencodeDisabled.wait_for_unit("multi-user.target")
     disabled.wait_for_unit("multi-user.target")
 
     with subtest("enabled: devenv is in PATH"):
@@ -83,6 +100,9 @@ extendedNixpkgs.testers.nixosTest {
 
     with subtest("enabled default: opencode is in PATH"):
         enabled.succeed("which opencode")
+
+    with subtest("opencode disabled: opencode is not available"):
+        opencodeDisabled.fail("which opencode")
 
     with subtest("disabled default: devenv is not available"):
         disabled.fail("which devenv")
