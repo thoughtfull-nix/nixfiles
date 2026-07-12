@@ -14,6 +14,10 @@ let
             {
               options = {
                 file = lib.mkOption { type = lib.types.path; };
+                mode = lib.mkOption {
+                  type = lib.types.str;
+                  default = "0400";
+                };
                 path = lib.mkOption {
                   type = lib.types.str;
                   default = "/run/agenix/${name}";
