@@ -278,6 +278,9 @@ remote-provision() {
     ensure-secret "${extra_secret}" prompt
   done
 
+  git add -- "${host_path}.nix" "${host_path}" ||
+    die "Failed to stage generated host configuration"
+
   # == Extend shared secrets (e.g. the github access token) to include the new host
   log "Rekeying shared secrets for the new host"
   rekey "${argc_hostname}" ||
@@ -285,7 +288,7 @@ remote-provision() {
 
   log "Evaluating NixOS configuration"
   nix eval --raw --no-write-lock-file \
-    "path:${argc_nixfiles_path}#nixosConfigurations.${argc_hostname}.config.system.build.toplevel.drvPath" \
+    "${argc_nixfiles_path}#nixosConfigurations.${argc_hostname}.config.system.build.toplevel.drvPath" \
     >/dev/null ||
     die "Failed to evaluate NixOS configuration: ${argc_hostname}"
 

@@ -154,7 +154,12 @@ let
 
   stubNix = lib.hiPrio (
     pkgs.writeShellScriptBin "nix" ''
+      set -euo pipefail
       echo "nix $*" >>/tmp/stub-calls.log
+      git -C /root/nixfiles-fixture diff --cached --name-only |
+        grep -Fx nixosConfigurations/test-host.nix
+      git -C /root/nixfiles-fixture diff --cached --name-only |
+        grep -Fx nixosConfigurations/test-host/hardware-configuration.nix
       echo /nix/store/test-host-system.drv
     ''
   );
@@ -297,7 +302,7 @@ pkgs.testers.nixosTest {
     with subtest("remote-provision evaluates the generated host configuration"):
         personal.succeed(
             "grep -Fx 'nix eval --raw --no-write-lock-file "
-            "path:/root/nixfiles-fixture#nixosConfigurations.test-host.config.system.build.toplevel.drvPath' "
+            "/root/nixfiles-fixture#nixosConfigurations.test-host.config.system.build.toplevel.drvPath' "
             "/tmp/stub-calls.log"
         )
 
