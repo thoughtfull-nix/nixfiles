@@ -27,6 +27,12 @@ I ended up generating the key with
 ssh-keygen -t ed25519-sk -O resident -O "application=ssh:technosophist@ypa766" -C "technosophist@ypa766"
 #+END_EXAMPLE
 
+And my sudo key with
+
+#+BEGIN_EXAMPLE
+ssh-keygen -t ed25519-sk -O resident -O verify-required -O "application=ssh:technosophist@ypa766" -C "technosophist@ypa766"
+#+END_EXAMPLE
+
 I can add the key to the ssh-agent on another computer using
 
 #+BEGIN_EXAMPLE
