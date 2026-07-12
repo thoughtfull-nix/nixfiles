@@ -34,7 +34,12 @@ in
         ".config/gh"
       ]
       ++ (optionals claude.enable [ ".claude" ])
-      ++ (optionals opencode.enable [ ".config/opencode" ]);
+      ++ (optionals opencode.enable [
+        ".cache/opencode"
+        ".config/opencode"
+        ".local/share/opencode"
+        ".local/state/opencode"
+      ]);
       files = optionals claude.enable [ ".claude.json" ];
     };
   };
