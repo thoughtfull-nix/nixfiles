@@ -8,6 +8,7 @@
           ./BOOTSTRAP/hardware-configuration.nix
         ];
         networking.hostName = "BOOTSTRAP";
+        services.syncthing.thoughtfull.passwordFile = ./BOOTSTRAP/secrets/syncthing-passphrase.age;
         system.stateVersion = "25.11";
         thoughtfull = {
           dev.enable = true;

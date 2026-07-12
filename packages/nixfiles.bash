@@ -145,6 +145,8 @@ provision() {
   # == Ensure passphrases
   ensure-luks-recovery-passphrase-file
   ensure-hashed-user-passphrase
+  ensure-secret "Syncthing passphrase"
+  unset syncthing_passphrase
   # == Ensure partitions
   log "Ensure partitions"
   ensure-partitions
@@ -202,9 +204,6 @@ provision() {
 ##
 ## @option --swap-size $$
 ## size of the swap file -- prompted for if unset
-##
-## @option --extra-secret* $$
-## additional secret name(s) to prompt for and encrypt now (e.g. an aws-secret-key)
 remote-provision() {
   argc_age_identity=${argc_age_identity:-${argc_nixfiles_path}/master-identities.txt}
   master_recipients="${argc_nixfiles_path}/master-recipients.txt"
@@ -273,10 +272,8 @@ remote-provision() {
   ensure-secret "LUKS recovery passphrase"
   unset luks_recovery_passphrase
   ensure-hashed-user-passphrase
-  for extra_secret in "${argc_extra_secret[@]:-}"; do
-    [[ -n ${extra_secret} ]] || continue
-    ensure-secret "${extra_secret}" prompt
-  done
+  ensure-secret "Syncthing passphrase"
+  unset syncthing_passphrase
 
   git add -- "${host_path}.nix" "${host_path}" ||
     die "Failed to stage generated host configuration"
