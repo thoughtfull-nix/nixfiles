@@ -10,10 +10,10 @@ MESSAGE="${DESCRIPTION} failed on ${HOST}
 $(SYSTEMD_COLORS=0 @systemctl@ --no-pager status "${UNIT}" 2>&1 || true)
 \`\`\`"
 
-@curl@ \
-  -H "Title: ${DESCRIPTION} failed" \
-  -H "Priority: high" \
-  -H "Tags: x" \
-  -H "Markdown: yes" \
-  -d "${MESSAGE}" \
-  @ntfyServer@/@ntfyTopic@
+@ntfy@ publish \
+  --title "${DESCRIPTION} failed" \
+  --priority high \
+  --tags x \
+  --markdown \
+  "@ntfyServer@/@ntfyTopic@" \
+  "${MESSAGE}"
