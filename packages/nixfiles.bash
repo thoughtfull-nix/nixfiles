@@ -428,10 +428,10 @@ ensure-hashed-user-passphrase() {
 ## operator with AWS console access to create an IAM user and access key for this host first (see
 ## doc/binary-cache-runbook.md section 2), so this is a reminder rather than an `ensure-*` step.
 warn-missing-binary-cache-credentials() {
-  if [[ ! -r "${secrets_path}/nix-cache-host-credentials.age" ]]; then
+  if [[ ! -r "${secrets_path}/nix-cache-credentials.age" ]]; then
     warn "No binary-cache AWS credentials for ${argc_hostname} yet -- it will build/evaluate \
 locally until you create an IAM user for it and run:
-  nixfiles secret encrypt ${argc_hostname} nix-cache-host-credentials
+  nixfiles secret encrypt ${argc_hostname} nix-cache-credentials
 then set thoughtfull.binaryCache.awsCredentialsFile in ${argc_hostname}.nix \
 (see doc/binary-cache-runbook.md section 2)."
   fi

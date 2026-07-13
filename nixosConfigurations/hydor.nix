@@ -21,7 +21,7 @@
         };
         system.stateVersion = "25.11";
         thoughtfull = {
-          binaryCache.awsCredentialsFile = ./hydor/secrets/nix-cache-host-credentials.age;
+          binaryCache.awsCredentialsFile = ./hydor/secrets/nix-cache-credentials.age;
           claudeDesktop.enable = true;
           dev.enable = true;
           githubToken.tokenFile = ./shared/secrets/github-access-token.age;

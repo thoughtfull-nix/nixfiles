@@ -13,7 +13,7 @@
         thoughtfull = {
           # Create an IAM user + key for BOOTSTRAP and uncomment once encrypted (see
           # doc/binary-cache-runbook.md section 2):
-          # binaryCache.awsCredentialsFile = ./BOOTSTRAP/secrets/nix-cache-host-credentials.age;
+          # binaryCache.awsCredentialsFile = ./BOOTSTRAP/secrets/nix-cache-credentials.age;
           dev.enable = true;
           graphical.enable = true;
           impermanence.disko = {

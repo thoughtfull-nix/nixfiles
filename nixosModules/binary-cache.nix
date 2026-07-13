@@ -10,7 +10,7 @@ let
 in
 {
   config = mkIf (cfg.enable && hasCredentials) {
-    age.secrets.nix-cache-host-credentials = {
+    age.secrets.nix-cache-credentials = {
       file = cfg.awsCredentialsFile;
       mode = "0440";
     };
@@ -21,7 +21,7 @@ in
       extra-trusted-public-keys = [ cfg.publicKey ];
     };
     systemd.services.nix-daemon.serviceConfig.EnvironmentFile =
-      config.age.secrets.nix-cache-host-credentials.path;
+      config.age.secrets.nix-cache-credentials.path;
   };
 
   options.thoughtfull.binaryCache = {
@@ -39,11 +39,11 @@ in
         ```
 
         Each host has its own IAM access key and its own encrypted file
-        (typically `./<host>/secrets/nix-cache-host-credentials.age`), so
+        (typically `./<host>/secrets/nix-cache-credentials.age`), so
         that revoking or rotating one host's key doesn't affect the others.
-        Set this once the operator has generated a `nix-cache-host` IAM
+        Set this once the operator has generated a `<host>` IAM
         access key for this host and run `nixfiles secret encrypt <host>
-        nix-cache-host-credentials`.
+        nix-cache-credentials`.
       '';
       type = types.nullOr types.path;
     };

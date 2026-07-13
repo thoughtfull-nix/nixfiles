@@ -59,10 +59,9 @@ the dev shell.
 
 6. **Create the CI AWS identities.** CI uses short-lived GitHub OIDC roles;
    hosts each use their own long-lived read-only IAM user, created
-   individually per host in section 2 (there is no single shared
-   `nix-cache-host` user—see issue #215).
+   individually per host in section 2.
 
-   The reader and publisher roles below share this read-only policy:
+   The reader and writer roles below share this read-only policy:
    ```json
    {
      "Version": "2012-10-17",
@@ -84,12 +83,12 @@ the dev shell.
    Add `https://token.actions.githubusercontent.com` as an IAM OIDC
    provider with audience `sts.amazonaws.com`. Then create these roles:
 
-   - `nixfiles-cache-reader`: the policy above; used by Flake Check and
+   - `NixCacheReader`: the policy above; used by Flake Check and
      Pages.
-   - `nixfiles-cache-publisher`: the policy above plus `s3:PutObject` on
+   - `NixCacheWriter`: the policy above plus `s3:PutObject` on
      `arn:aws:s3:::thoughtfull-nix-cache/*`; used by Build and Push.
 
-   Use this trust-policy condition for `nixfiles-cache-reader`:
+   Use this trust-policy condition for `NixCacheReader`:
    ```json
    "Condition": {
      "StringEquals": {
@@ -102,7 +101,7 @@ the dev shell.
    }
    ```
 
-   Restrict `nixfiles-cache-publisher` to `main`:
+   Restrict `NixCacheWriter` to `main`:
    ```json
    "Condition": {
      "StringEquals": {
@@ -119,8 +118,8 @@ the dev shell.
 7. **Verify the workflow role identifiers.** They're non-secret configuration
    committed in `.github/workflows/`:
    ```text
-   arn:aws:iam::481411455398:role/nixfiles-cache-reader
-   arn:aws:iam::481411455398:role/nixfiles-cache-publisher
+   arn:aws:iam::481411455398:role/NixCacheReader
+   arn:aws:iam::481411455398:role/NixCacheWriter
    ```
    Do not create `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` GitHub
    Actions secrets. The workflows use `id-token: write` and
@@ -135,7 +134,7 @@ the dev shell.
    When migrating an existing repository, delete those legacy secrets after
    a successful OIDC-authenticated run.
 
-8. **Create and wire each host's own `nix-cache-host` IAM user and
+8. **Create and wire each host's own IAM user and
    credentials**—see section 2, steps 3-4. Do this once per host in the
    initial fleet.
 
@@ -169,8 +168,8 @@ specific secrets are committed.
 2. Trigger the workflow: `gh workflow run build-and-push.yml`. Wait for
    the host's build to push its closure and write
    `hosts/<host>/latest.json`.
-3. **Create this host's own `nix-cache-host` IAM user.** In AWS IAM, create
-   a user named `nix-cache-host-<host>` with the read-only policy from
+3. **Create this host's own IAM user.** In AWS IAM, create
+   a user named `<host>` with the read-only policy from
    section 1 step 6, and generate an access key for it. Each host gets its
    own IAM user and key so that revoking or rotating one host's access
    never affects another host.
@@ -182,13 +181,13 @@ specific secrets are committed.
    AWS_SECRET_ACCESS_KEY=...
    AWS_DEFAULT_REGION=us-east-1
    EOF
-   nixfiles secret encrypt <host> nix-cache-host-credentials < /tmp/creds
+   nixfiles secret encrypt <host> nix-cache-credentials < /tmp/creds
    shred -u /tmp/creds
    ```
    Then point that host's config at its own encrypted file:
    ```nix
    thoughtfull.binaryCache.awsCredentialsFile =
-     ./<host>/secrets/nix-cache-host-credentials.age;
+     ./<host>/secrets/nix-cache-credentials.age;
    ```
 5. Bootstrap the host with `nixos-anywhere` or the installer image. During
    the first deploy, the operator's environment must have the GitHub PAT
@@ -213,7 +212,7 @@ specific secrets are committed.
    ```
 3. Archive the `nixosConfigurations/<host>.nix` and `<host>/` directory
    (delete or move).
-4. Delete the host's `nix-cache-host-<host>` IAM user and access key in
+4. Delete the host's `<host>` IAM user and access key in
    AWS IAM—it's no longer referenced by any other host's config.
 5. Run `nixfiles` re-encrypt step if the host's SSH key was one of the
    recipients on any `.age` file.
@@ -294,7 +293,7 @@ For `Not authorized to perform sts:AssumeRoleWithWebIdentity`:
    `repo:thoughtfull-nix/nixfiles:ref:refs/heads/main` for main or
    `repo:thoughtfull-nix/nixfiles:pull_request` for a PR.
 3. Confirm the job grants `id-token: write` and `contents: read`.
-4. Confirm `role-to-assume` names the correct reader or publisher role.
+4. Confirm `role-to-assume` names the correct reader or writer role.
 5. Confirm `$HOME/.aws/credentials` and
    `/run/nix-daemon-aws-credentials` exist with mode `0600`, the
    `nix-daemon.service` drop-in sets `AWS_SHARED_CREDENTIALS_FILE` to the
@@ -327,7 +326,7 @@ after confirming all workflows use role assumption.
 Each host has its own IAM user and key (section 2, step 3), so rotation is
 per host and never touches other hosts' credentials.
 
-1. In AWS IAM, generate a new access key for `nix-cache-host-<host>`.
+1. In AWS IAM, generate a new access key for `<host>`.
 2. Write the new credentials as `EnvironmentFile` format and re-encrypt to
    that host alone:
    ```bash
@@ -336,7 +335,7 @@ per host and never touches other hosts' credentials.
    AWS_SECRET_ACCESS_KEY=...
    AWS_DEFAULT_REGION=us-east-1
    EOF
-   nixfiles secret encrypt <host> nix-cache-host-credentials < /tmp/creds
+   nixfiles secret encrypt <host> nix-cache-credentials < /tmp/creds
    shred -u /tmp/creds
    git commit -am "Rotate <host> cache host AWS credentials"
    git push

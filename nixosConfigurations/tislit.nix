@@ -27,7 +27,7 @@
         };
         system.stateVersion = "25.11";
         thoughtfull = {
-          binaryCache.awsCredentialsFile = ./tislit/secrets/nix-cache-host-credentials.age;
+          binaryCache.awsCredentialsFile = ./tislit/secrets/nix-cache-credentials.age;
           impermanence = {
             disko = {
               boot.size = "1G";
