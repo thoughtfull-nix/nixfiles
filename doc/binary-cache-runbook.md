@@ -466,7 +466,7 @@ via the legacy local-evaluation path:
 thoughtfull = {
   systemPull.enable = false;
   binaryCache.enable = false;
-  githubToken.tokenFile = ../nixosConfigurations/shared/secrets/github-access-token.age;
+  githubToken.tokenFile = ../nixosConfigurations/<host>/secrets/github-access-token.age;
 };
 system.autoUpgrade.enable = true;
 ```
