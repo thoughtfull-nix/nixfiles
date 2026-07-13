@@ -12,6 +12,7 @@
         system.stateVersion = "25.11";
         thoughtfull = {
           dev.enable = true;
+          githubToken.tokenFile = ./shared/secrets/github-access-token.age;
           graphical.enable = true;
           impermanence.disko = {
             boot.size = "1G";
