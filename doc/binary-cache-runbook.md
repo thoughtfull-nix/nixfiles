@@ -84,12 +84,12 @@ the dev shell.
    Add `https://token.actions.githubusercontent.com` as an IAM OIDC
    provider with audience `sts.amazonaws.com`. Then create these roles:
 
-   - `nixfiles-cache-reader`: the policy above; used by Flake Check and
+   - `NixfilesCacheReader`: the policy above; used by Flake Check and
      Pages.
-   - `nixfiles-cache-publisher`: the policy above plus `s3:PutObject` on
+   - `NixfilesCacheWriter`: the policy above plus `s3:PutObject` on
      `arn:aws:s3:::thoughtfull-nix-cache/*`; used by Build and Push.
 
-   Use this trust-policy condition for `nixfiles-cache-reader`:
+   Use this trust-policy condition for `NixfilesCacheReader`:
    ```json
    "Condition": {
      "StringEquals": {
@@ -102,7 +102,7 @@ the dev shell.
    }
    ```
 
-   Restrict `nixfiles-cache-publisher` to `main`:
+   Restrict `NixfilesCacheWriter` to `main`:
    ```json
    "Condition": {
      "StringEquals": {
@@ -119,8 +119,8 @@ the dev shell.
 7. **Verify the workflow role identifiers.** They're non-secret configuration
    committed in `.github/workflows/`:
    ```text
-   arn:aws:iam::481411455398:role/nixfiles-cache-reader
-   arn:aws:iam::481411455398:role/nixfiles-cache-publisher
+   arn:aws:iam::481411455398:role/NixfilesCacheReader
+   arn:aws:iam::481411455398:role/NixfilesCacheWriter
    ```
    Do not create `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` GitHub
    Actions secrets. The workflows use `id-token: write` and

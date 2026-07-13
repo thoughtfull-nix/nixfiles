@@ -28,7 +28,7 @@ jobs:
       - name: Configure Nix daemon AWS credentials
         uses: ./.github/actions/configure-nix-daemon-aws-creds
         with:
-          role-to-assume: arn:aws:iam::481411455398:role/nixfiles-cache-reader
+          role-to-assume: arn:aws:iam::481411455398:role/NixfilesCacheReader
       - name: Run devenv test
         run: nix develop --no-pure-eval --command devenv test
       - name: Run flake check

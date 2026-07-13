@@ -27,7 +27,7 @@ from S3 once a day.
 │                                                                    │
 │   1. nix-installer-action with KRYPTONIX_ACCESS_TOKEN              │
 │      + extra-substituters s3://… (incremental builds)              │
-│   2. Assume nixfiles-cache-publisher via GitHub OIDC               │
+│   2. Assume NixfilesCacheWriter via GitHub OIDC               │
 │      + pass the session to nix-daemon                              │
 │   3. nix build --override-input nixpkgs <branch tip>               │
 │        .#nixosConfigurations.${host}.config.system.build.toplevel  │
@@ -67,14 +67,14 @@ shape.
 
 Three least-privilege AWS identities:
 
-- `nixfiles-cache-publisher`: IAM role with `s3:PutObject`, `s3:GetObject`,
+- `NixfilesCacheWriter`: IAM role with `s3:PutObject`, `s3:GetObject`,
   and `s3:ListBucket`. Its OIDC trust policy only accepts GitHub Actions
   tokens for this repository's `main` branch. `build-and-push.yml` assumes it
   through `aws-actions/configure-aws-credentials`.
-- `nixfiles-cache-reader`: IAM role with `s3:GetObject` and `s3:ListBucket`.
+- `NixfilesCacheReader`: IAM role with `s3:GetObject` and `s3:ListBucket`.
   `flake-check.yml` and the Pages build assume it through GitHub OIDC. Its
   trust policy accepts this repository's `main` and `pull_request` subjects.
-- `nix-cache-host`: read-only IAM user, with `s3:GetObject` and
+- `<host>`: read-only IAM user, with `s3:GetObject` and
   `s3:ListBucket`, created **once per host** rather than shared. Each host's
   long-lived credentials live in its own
   `nixosConfigurations/<host>/secrets/nix-cache-host-credentials.age`,
@@ -121,7 +121,7 @@ material.
 
 1. GitHub Actions matrix triggers at 02:00 UTC (and on every push to `main`).
 2. Each matrix job exchanges its GitHub OIDC token for temporary credentials
-   from the `nixfiles-cache-publisher` role and passes them to the Nix daemon.
+   from the `NixfilesCacheWriter` role and passes them to the Nix daemon.
 3. Each matrix job builds
    `.#nixosConfigurations.<host>.config.system.build.toplevel`, with
    `--override-input nixpkgs github:NixOS/nixpkgs/nixos-26.05` so the daily
