@@ -13,7 +13,7 @@
         thoughtfull = {
           binaryCache.awsCredentialsFile = ./aegle/secrets/nix-cache-credentials.age;
           dev.enable = true;
-          githubToken.tokenFile = ./shared/secrets/github-access-token.age;
+          githubToken.tokenFile = ./aegle/secrets/github-access-token.age;
           graphical.enable = true;
           impermanence.disko = {
             boot.size = "1G";

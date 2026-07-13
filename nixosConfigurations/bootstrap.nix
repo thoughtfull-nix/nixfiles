@@ -15,6 +15,10 @@
           # doc/binary-cache-runbook.md section 2):
           # binaryCache.awsCredentialsFile = ./BOOTSTRAP/secrets/nix-cache-credentials.age;
           dev.enable = true;
+          # Only needed for manual `nixos-rebuild` or installer/bootstrap flows that evaluate the
+          # flake locally (see nixosModules/github-token.nix); run
+          # `nixfiles secret encrypt BOOTSTRAP github-access-token` and uncomment once encrypted:
+          # githubToken.tokenFile = ./BOOTSTRAP/secrets/github-access-token.age;
           graphical.enable = true;
           impermanence.disko = {
             # boot.size = "1G";
