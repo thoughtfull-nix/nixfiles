@@ -26,11 +26,11 @@ in
 
   options.thoughtfull.binaryCache = {
     awsCredentialsFile = mkOption {
-      default = ../nixosConfigurations/shared/secrets/nix-cache-host-credentials.age;
+      default = null;
       description = ''
         Path to an age-encrypted file in `EnvironmentFile` format (one
-        `KEY=value` pair per line) containing read-only AWS credentials
-        for the cache bucket:
+        `KEY=value` pair per line) containing this host's own read-only AWS
+        credentials for the cache bucket:
 
         ```
         AWS_ACCESS_KEY_ID=AKIA...
@@ -38,10 +38,12 @@ in
         AWS_DEFAULT_REGION=us-east-1
         ```
 
-        Set this to the encrypted file path (typically
-        `../nixosConfigurations/shared/secrets/nix-cache-host-credentials.age`)
-        once the operator has generated the `nixfiles-host` IAM access key
-        and run `nixfiles secret encrypt shared nix-cache-host-credentials`.
+        Each host has its own IAM access key and its own encrypted file
+        (typically `./<host>/secrets/nix-cache-host-credentials.age`), so
+        that revoking or rotating one host's key doesn't affect the others.
+        Set this once the operator has generated a `nix-cache-host` IAM
+        access key for this host and run `nixfiles secret encrypt <host>
+        nix-cache-host-credentials`.
       '';
       type = types.nullOr types.path;
     };

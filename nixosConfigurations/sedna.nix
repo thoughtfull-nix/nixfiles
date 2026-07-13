@@ -15,6 +15,7 @@
         };
         system.stateVersion = "25.05";
         thoughtfull = {
+          binaryCache.awsCredentialsFile = ./sedna/secrets/nix-cache-host-credentials.age;
           dev.enable = true;
           graphical.enable = true;
           impermanence.disko = {

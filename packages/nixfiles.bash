@@ -147,6 +147,8 @@ provision() {
   ensure-hashed-user-passphrase
   ensure-secret "Syncthing passphrase"
   unset syncthing_passphrase
+  # == Warn if the binary cache credential still needs to be set up
+  warn-missing-binary-cache-credentials
   # == Ensure partitions
   log "Ensure partitions"
   ensure-partitions
@@ -274,6 +276,7 @@ remote-provision() {
   ensure-hashed-user-passphrase
   ensure-secret "Syncthing passphrase"
   unset syncthing_passphrase
+  warn-missing-binary-cache-credentials
 
   git add -- "${host_path}.nix" "${host_path}" ||
     die "Failed to stage generated host configuration"
@@ -417,6 +420,20 @@ ensure-hashed-user-passphrase() {
     clear-lines 2
     printf "Generated user passphrase: %s\n" "${user_passphrase//?/*}"
     unset user_passphrase
+  fi
+}
+
+## Warn (without failing provisioning) if this host has no binary-cache AWS credentials yet.
+## Unlike the other per-host secrets above, these can't be generated locally -- they require an
+## operator with AWS console access to create an IAM user and access key for this host first (see
+## doc/binary-cache-runbook.md section 2), so this is a reminder rather than an `ensure-*` step.
+warn-missing-binary-cache-credentials() {
+  if [[ ! -r "${secrets_path}/nix-cache-host-credentials.age" ]]; then
+    warn "No binary-cache AWS credentials for ${argc_hostname} yet -- it will build/evaluate \
+locally until you create an IAM user for it and run:
+  nixfiles secret encrypt ${argc_hostname} nix-cache-host-credentials
+then set thoughtfull.binaryCache.awsCredentialsFile in ${argc_hostname}.nix \
+(see doc/binary-cache-runbook.md section 2)."
   fi
 }
 
