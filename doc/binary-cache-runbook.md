@@ -136,7 +136,7 @@ the dev shell.
    a successful OIDC-authenticated run.
 
 8. **Create and wire each host's own `nix-cache-host` IAM user and
-   credentials**—see section 2, steps 5-6. Do this once per host in the
+   credentials**—see section 2, steps 3-4. Do this once per host in the
    initial fleet.
 
 9. **Smoke-test the workflow.**
@@ -338,7 +338,7 @@ per host and never touches other hosts' credentials.
    EOF
    nixfiles secret encrypt <host> nix-cache-host-credentials < /tmp/creds
    shred -u /tmp/creds
-   git commit -am "Rotate ${host} cache host AWS credentials"
+   git commit -am "Rotate <host> cache host AWS credentials"
    git push
    ```
 3. Trigger the workflow so the next pull-from-S3 source is the just-committed
