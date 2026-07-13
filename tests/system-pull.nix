@@ -112,7 +112,7 @@ nixpkgs.testers.nixosTest {
     with subtest("service uses agenix-decrypted EnvironmentFile"):
         unit = headless.succeed("systemctl cat system-pull.service")
         print(f"headless service:\n{unit}")
-        assert "EnvironmentFile=/run/agenix/nix-cache-host-credentials" in unit, (
+        assert "EnvironmentFile=/run/agenix/nix-cache-credentials" in unit, (
             "service should source AWS credentials from agenix path"
         )
         assert "ExecStart=" in unit and "/bin/system-pull thoughtfull-nix-cache us-east-1" in unit, (

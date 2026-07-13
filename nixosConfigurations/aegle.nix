@@ -11,7 +11,7 @@
         services.syncthing.thoughtfull.passwordFile = ./aegle/secrets/syncthing-passphrase.age;
         system.stateVersion = "25.11";
         thoughtfull = {
-          binaryCache.awsCredentialsFile = ./aegle/secrets/nix-cache-host-credentials.age;
+          binaryCache.awsCredentialsFile = ./aegle/secrets/nix-cache-credentials.age;
           dev.enable = true;
           githubToken.tokenFile = ./shared/secrets/github-access-token.age;
           graphical.enable = true;

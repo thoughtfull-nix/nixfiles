@@ -27,7 +27,7 @@ from S3 once a day.
 │                                                                    │
 │   1. nix-installer-action with KRYPTONIX_ACCESS_TOKEN              │
 │      + extra-substituters s3://… (incremental builds)              │
-│   2. Assume NixfilesCacheWriter via GitHub OIDC               │
+│   2. Assume NixCacheWriter via GitHub OIDC                         │
 │      + pass the session to nix-daemon                              │
 │   3. nix build --override-input nixpkgs <branch tip>               │
 │        .#nixosConfigurations.${host}.config.system.build.toplevel  │
@@ -46,7 +46,7 @@ from S3 once a day.
                   │   /hosts/${host}/       │
                   │       latest.json       │
                   └─────────────────────────┘
-                              │ HTTPS (IAM user nix-cache-host, read-only)
+                              │ HTTPS (IAM user <host>, read-only)
                               ▼
                   ┌─────────────────────────┐
                   │ sedna, tislit (clients) │  daily systemd timer
@@ -67,17 +67,17 @@ shape.
 
 Three least-privilege AWS identities:
 
-- `NixfilesCacheWriter`: IAM role with `s3:PutObject`, `s3:GetObject`,
+- `NixCacheWriter`: IAM role with `s3:PutObject`, `s3:GetObject`,
   and `s3:ListBucket`. Its OIDC trust policy only accepts GitHub Actions
   tokens for this repository's `main` branch. `build-and-push.yml` assumes it
   through `aws-actions/configure-aws-credentials`.
-- `NixfilesCacheReader`: IAM role with `s3:GetObject` and `s3:ListBucket`.
+- `NixCacheReader`: IAM role with `s3:GetObject` and `s3:ListBucket`.
   `flake-check.yml` and the Pages build assume it through GitHub OIDC. Its
   trust policy accepts this repository's `main` and `pull_request` subjects.
 - `<host>`: read-only IAM user, with `s3:GetObject` and
   `s3:ListBucket`, created **once per host** rather than shared. Each host's
   long-lived credentials live in its own
-  `nixosConfigurations/<host>/secrets/nix-cache-host-credentials.age`,
+  `nixosConfigurations/<host>/secrets/nix-cache-credentials.age`,
   encrypted so only that host's own SSH key (plus the master keys) can
   decrypt it, then decrypted by agenix into `EnvironmentFile`-format and
   supplied to `nix-daemon` and to the `system-pull` systemd unit. Because
@@ -86,7 +86,7 @@ Three least-privilege AWS identities:
 
 GitHub Actions stores no long-lived AWS access keys. Jobs request a GitHub
 OIDC token using `id-token: write`, exchange it with AWS STS, and receive
-temporary role credentials for that job. The publisher and reader role
+temporary role credentials for that job. The writer and reader role
 identifiers are non-secret workflow configuration.
 
 The credentials action writes the temporary session to the runner's
@@ -101,7 +101,7 @@ step removes both credential files when the job finishes.
 
 The reader trust policy deliberately authorizes the repository's
 `pull_request` subject. PR jobs can therefore read the private cache but
-cannot modify it. Keep the publisher role restricted to `main`; broadening
+cannot modify it. Keep the writer role restricted to `main`; broadening
 its subject would allow proposed workflow code to obtain `s3:PutObject`.
 
 The signing key lives in two places:
@@ -121,7 +121,7 @@ material.
 
 1. GitHub Actions matrix triggers at 02:00 UTC (and on every push to `main`).
 2. Each matrix job exchanges its GitHub OIDC token for temporary credentials
-   from the `NixfilesCacheWriter` role and passes them to the Nix daemon.
+   from the `NixCacheWriter` role and passes them to the Nix daemon.
 3. Each matrix job builds
    `.#nixosConfigurations.<host>.config.system.build.toplevel`, with
    `--override-input nixpkgs github:NixOS/nixpkgs/nixos-26.05` so the daily
@@ -163,7 +163,7 @@ material.
 - `/etc/ssh/ssh_host_ed25519_key` (or `/persistent/etc/ssh/ssh_host_ed25519_key`
   on impermanence-enabled hosts)—agenix identity for decrypting `.age`
   files at activation.
-- `/run/agenix/nix-cache-host-credentials`—decrypted IAM credentials,
+- `/run/agenix/nix-cache-credentials`—decrypted IAM credentials,
   referenced as `EnvironmentFile` by `nix-daemon` and `system-pull`.
 - `/nix/var/nix/profiles/system`—generation pointer updated by `system-pull`.
 - `/run/current-system`—symlink to the active generation.

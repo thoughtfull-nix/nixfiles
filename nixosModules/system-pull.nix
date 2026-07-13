@@ -38,7 +38,7 @@ in
       serviceConfig = {
         Type = mkDefault "oneshot";
         User = mkDefault "root";
-        EnvironmentFile = mkDefault config.age.secrets.nix-cache-host-credentials.path;
+        EnvironmentFile = mkDefault config.age.secrets.nix-cache-credentials.path;
         ExecStart = mkDefault "${pkgs.thoughtfull.system-pull}/bin/system-pull ${binaryCache.bucket} ${binaryCache.region}";
       };
     };
