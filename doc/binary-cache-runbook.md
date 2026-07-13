@@ -57,10 +57,12 @@ the dev shell.
    ```
    Add a lifecycle rule: expire objects under prefix `nar/` after 60 days.
 
-6. **Create the AWS identities.** CI uses short-lived GitHub OIDC roles;
-   hosts use a long-lived read-only IAM user.
+6. **Create the CI AWS identities.** CI uses short-lived GitHub OIDC roles;
+   hosts each use their own long-lived read-only IAM user, created
+   individually per host in section 2 (there is no single shared
+   `nix-cache-host` user—see issue #215).
 
-   Create the `nix-cache-host` IAM user with this policy:
+   The reader and publisher roles below share this read-only policy:
    ```json
    {
      "Version": "2012-10-17",
@@ -133,29 +135,11 @@ the dev shell.
    When migrating an existing repository, delete those legacy secrets after
    a successful OIDC-authenticated run.
 
-8. **Encrypt the `nix-cache-host` credentials.** Write the file in
-   `EnvironmentFile` format:
-   ```bash
-   cat > /tmp/creds <<EOF
-   AWS_ACCESS_KEY_ID=AKIA...
-   AWS_SECRET_ACCESS_KEY=...
-   AWS_DEFAULT_REGION=us-east-1
-   EOF
-   nixfiles secret encrypt shared nix-cache-host-credentials < /tmp/creds
-   shred -u /tmp/creds
-   ```
+8. **Create and wire each host's own `nix-cache-host` IAM user and
+   credentials**—see section 2, steps 3-4. Do this once per host in the
+   initial fleet.
 
-9. **Point the modules at the encrypted file.** In each host config that
-   should pull from the cache (typically all of them after provisioning),
-   set:
-   ```nix
-   thoughtfull.binaryCache.awsCredentialsFile =
-     ../nixosConfigurations/shared/secrets/nix-cache-host-credentials.age;
-   ```
-   Or, to flip it for all hosts at once, change the default in
-   `nixosModules/binary-cache.nix`.
-
-10. **Smoke-test the workflow.**
+9. **Smoke-test the workflow.**
     ```bash
     gh workflow run build-and-push.yml
     gh run watch
@@ -167,7 +151,7 @@ the dev shell.
     ```
     Returns a `{storePath, gitRev, builtAt}` JSON object.
 
-11. **Roll out the credentials option to hosts** by `nixos-rebuild
+10. **Roll out the credentials option to hosts** by `nixos-rebuild
     --target-host` from a workstation (operator still has the GitHub PAT
     in their env). After the first switch, the host's `system-pull.timer`
     is wired up and takes over.
@@ -185,10 +169,31 @@ specific secrets are committed.
 2. Trigger the workflow: `gh workflow run build-and-push.yml`. Wait for
    the host's build to push its closure and write
    `hosts/<host>/latest.json`.
-3. Bootstrap the host with `nixos-anywhere` or the installer image. During
+3. **Create this host's own `nix-cache-host` IAM user.** In AWS IAM, create
+   a user named `nix-cache-host-<host>` with the read-only policy from
+   section 1 step 6, and generate an access key for it. Each host gets its
+   own IAM user and key so that revoking or rotating one host's access
+   never affects another host.
+4. **Encrypt and wire this host's credentials.** Write the file in
+   `EnvironmentFile` format and encrypt it to this host alone:
+   ```bash
+   cat > /tmp/creds <<EOF
+   AWS_ACCESS_KEY_ID=AKIA...
+   AWS_SECRET_ACCESS_KEY=...
+   AWS_DEFAULT_REGION=us-east-1
+   EOF
+   nixfiles secret encrypt <host> nix-cache-host-credentials < /tmp/creds
+   shred -u /tmp/creds
+   ```
+   Then point that host's config at its own encrypted file:
+   ```nix
+   thoughtfull.binaryCache.awsCredentialsFile =
+     ./<host>/secrets/nix-cache-host-credentials.age;
+   ```
+5. Bootstrap the host with `nixos-anywhere` or the installer image. During
    the first deploy, the operator's environment must have the GitHub PAT
    so the flake fetches private inputs.
-4. After first boot, the host's daily `system-pull.timer` is the
+6. After first boot, the host's daily `system-pull.timer` is the
    self-updating mechanism. Confirm:
    ```bash
    systemctl start system-pull.service
@@ -208,7 +213,9 @@ specific secrets are committed.
    ```
 3. Archive the `nixosConfigurations/<host>.nix` and `<host>/` directory
    (delete or move).
-4. Run `nixfiles` re-encrypt step if the host's SSH key was one of the
+4. Delete the host's `nix-cache-host-<host>` IAM user and access key in
+   AWS IAM—it's no longer referenced by any other host's config.
+5. Run `nixfiles` re-encrypt step if the host's SSH key was one of the
    recipients on any `.age` file.
 
 ---
@@ -317,28 +324,32 @@ after confirming all workflows use role assumption.
 
 ## 8. Rotating host AWS credentials
 
-1. In AWS IAM, generate a new access key for `nix-cache-host`.
-2. Write the new credentials as `EnvironmentFile` format and re-encrypt:
+Each host has its own IAM user and key (section 2, step 3), so rotation is
+per host and never touches other hosts' credentials.
+
+1. In AWS IAM, generate a new access key for `nix-cache-host-<host>`.
+2. Write the new credentials as `EnvironmentFile` format and re-encrypt to
+   that host alone:
    ```bash
    cat > /tmp/creds <<EOF
    AWS_ACCESS_KEY_ID=AKIA...
    AWS_SECRET_ACCESS_KEY=...
    AWS_DEFAULT_REGION=us-east-1
    EOF
-   nixfiles secret encrypt shared nix-cache-host-credentials < /tmp/creds
+   nixfiles secret encrypt <host> nix-cache-host-credentials < /tmp/creds
    shred -u /tmp/creds
-   git commit -am "Rotate cache host AWS credentials"
+   git commit -am "Rotate <host> cache host AWS credentials"
    git push
    ```
 3. Trigger the workflow so the next pull-from-S3 source is the just-committed
    `main`.
-4. On each host, run `systemctl start system-pull.service`. (Or wait one
-   day for the timer.)
-5. Once every host has switched generations, delete the old access key in
+4. On `<host>`, run `systemctl start system-pull.service`. (Or wait one day
+   for the timer.)
+5. Once that host has switched generations, delete its old access key in
    IAM.
 
-If a host can't pull (e.g., it was offline during rotation), keep the old
-key alive temporarily and rotate that host out-of-band with
+If the host can't pull (e.g., it was offline during rotation), keep the old
+key alive temporarily and rotate it out-of-band with
 `nixos-rebuild --target-host`.
 
 ---

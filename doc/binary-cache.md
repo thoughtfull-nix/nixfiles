@@ -74,11 +74,15 @@ Three least-privilege AWS identities:
 - `nixfiles-cache-reader`: IAM role with `s3:GetObject` and `s3:ListBucket`.
   `flake-check.yml` and the Pages build assume it through GitHub OIDC. Its
   trust policy accepts this repository's `main` and `pull_request` subjects.
-- `nix-cache-host`: read-only IAM user with `s3:GetObject` and
-  `s3:ListBucket`. Its long-lived credentials live in
-  `nixosConfigurations/shared/secrets/nix-cache-host-credentials.age`,
-  decrypted by agenix into `EnvironmentFile`-format and supplied to
-  `nix-daemon` and to the `system-pull` systemd unit.
+- `nix-cache-host`: read-only IAM user, with `s3:GetObject` and
+  `s3:ListBucket`, created **once per host** rather than shared. Each host's
+  long-lived credentials live in its own
+  `nixosConfigurations/<host>/secrets/nix-cache-host-credentials.age`,
+  encrypted so only that host's own SSH key (plus the master keys) can
+  decrypt it, then decrypted by agenix into `EnvironmentFile`-format and
+  supplied to `nix-daemon` and to the `system-pull` systemd unit. Because
+  each host holds a distinct access key, revoking or rotating one host's
+  credentials has no effect on the others.
 
 GitHub Actions stores no long-lived AWS access keys. Jobs request a GitHub
 OIDC token using `id-token: write`, exchange it with AWS STS, and receive
@@ -192,6 +196,7 @@ design costs ~$5–7/month (storage + egress only) and removes:
 - A long-running daemon (`harmonia` / `nginx`) to monitor.
 - An EBS volume to size + grow + snapshot.
 
-Tradeoff: every host still needs a long-lived AWS IAM credential. Rotation
-requires agenix re-encryption and a deploy to every host (see runbook). CI
-uses short-lived OIDC role sessions and has no AWS key rotation procedure.
+Tradeoff: every host still needs its own long-lived AWS IAM credential.
+Rotating one host's key requires agenix re-encryption and a deploy to that
+host only (see runbook); other hosts are unaffected. CI uses short-lived
+OIDC role sessions and has no AWS key rotation procedure.
