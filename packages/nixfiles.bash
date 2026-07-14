@@ -14,10 +14,20 @@
 ## path of the clone of the nixfiles repository
 [[ -v TRACE ]] && set -x
 
-export TMPDIR
-TMPDIR="$(mktemp -d)"
-addtrap "log \"Recursively deleting ${TMPDIR}\""
-log "Using temporary directory ${TMPDIR}"
+## Lazily create a scratch directory and register it for cleanup on exit, the first time it's
+## actually needed -- not on every invocation (e.g. `--help`, or commands that don't need one).
+## Idempotent, so commands that need it can call it directly and other commands can call it just by
+## virtue of calling those (`rekey`, for instance, is called by both `provision` and
+## `remote-provision`).  Exported as $TMPDIR so plain `mktemp` calls elsewhere nest inside it and get
+## cleaned up by this same trap, without each needing their own.
+ensure-tmpdir() {
+  [[ -v nixfiles_tmpdir ]] && return 0
+  export TMPDIR
+  TMPDIR="$(mktemp -d)"
+  nixfiles_tmpdir="${TMPDIR}"
+  addtrap "log \"Recursively deleting ${TMPDIR}\"; rm -rf \"${TMPDIR}\""
+  log "Using temporary directory ${TMPDIR}"
+}
 
 # `tty` fails (and, under `set -e`, would otherwise abort the whole script) when there's no
 # controlling terminal, e.g. under non-interactive/scripted invocation.  GPG_TTY is only needed
@@ -620,6 +630,7 @@ age-decrypt() {
 ## @option --age-identity $$
 ## private key used to decrypt secrets
 secret() {
+  ensure-tmpdir
   [[ -e ${argc_nixfiles_path} ]] ||
     die "nixfiles path does not exist: ${argc_nixfiles_path}"
   [[ -d ${argc_nixfiles_path} ]] ||
@@ -678,6 +689,7 @@ secret() {
 ## @option --age-identity $$
 ## private key used to decrypt secrets
 rekey() {
+  ensure-tmpdir
   [[ -e ${argc_nixfiles_path} ]] ||
     die "nixfiles path does not exist: ${argc_nixfiles_path}"
   [[ -d ${argc_nixfiles_path} ]] ||
