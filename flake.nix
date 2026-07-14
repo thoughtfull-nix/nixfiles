@@ -52,7 +52,10 @@
       };
       url = "github:nix-community/impermanence";
     };
-    kryptonix.url = "github:technosophist/kryptonix";
+    kryptonix = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:technosophist/kryptonix";
+    };
     llm-agents = {
       inputs.nixpkgs.follows = "unstable";
       url = "github:numtide/llm-agents.nix";
