@@ -6,7 +6,7 @@
 
   "modules-left": ["sway/workspaces", "sway/scratchpad" ],
   "modules-center": [],
-  "modules-right": ["sway/mode", "custom/yubikey", "custom/weather", "clock", "clock#utc", "battery", "tray", "custom/theme", "custom/lock", "custom/power"],
+  "modules-right": ["sway/mode", "custom/yubikey", "custom/weather", "clock", "clock#utc", "battery", "tray", "custom/displays", "custom/theme", "custom/lock", "custom/power"],
 
   "sway/workspaces": {
     "disable-scroll": false,
@@ -96,5 +96,15 @@
     "format": "<span font=\"20px\">󰐥</span>",
     "tooltip-format": "Power menu",
     "on-click": "power-menu --no-lock"
+  },
+
+  "custom/displays": {
+    "format": "<span font=\"20px\">{}</span>",
+    "exec": "waybar-displays",
+    "interval": 60,
+    "signal": 4,
+    "on-click": "wdisplays",
+    "on-click-right": "kanshi-toggle",
+    "tooltip-format": "Display settings"
   }
 }

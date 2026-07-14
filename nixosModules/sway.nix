@@ -68,6 +68,7 @@ in
   };
   imports = [
     ./sway/idle.nix
+    ./sway/kanshi.nix
     ./sway/notify.nix
     ./sway/waybar.nix
   ];

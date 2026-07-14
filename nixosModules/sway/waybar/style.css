@@ -48,6 +48,7 @@ window#waybar {
 #clock,
 #custom-weather,
 #custom-yubikey,
+#custom-displays,
 #custom-theme,
 #custom-lock,
 #custom-power,
@@ -99,6 +100,7 @@ window#waybar {
   margin: 0 6pt 0 0;
 }
 
+#custom-displays:hover,
 #custom-theme:hover,
 #custom-lock:hover,
 #custom-power:hover {

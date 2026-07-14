@@ -7,7 +7,7 @@ nixpkgs.testers.nixosTest {
 
   nodes = {
     machine =
-      { lib, ... }:
+      { lib, pkgs, ... }:
       {
         imports = [
           # Import the sway/waybar module and its direct dependencies
@@ -31,6 +31,9 @@ nixpkgs.testers.nixosTest {
         programs.sway.enable = true;
         programs.waybar.enable = true;
         programs.yubikey-touch-detector.enable = true;
+
+        # Make the displays widget's scripts callable from the test script.
+        environment.systemPackages = [ pkgs.thoughtfull.waybar-displays ];
 
         # Create a test user for user services
         users.users.testuser = {
@@ -84,5 +87,54 @@ nixpkgs.testers.nixosTest {
         # Verify the service completed successfully
         machine.succeed("journalctl -u restart-yubikey-touch-detector.service --no-pager | grep -q 'Starting Restart YubiKey touch detector after resume'")
         machine.succeed("journalctl -u restart-yubikey-touch-detector.service --no-pager | grep -q 'Finished Restart YubiKey touch detector after resume'")
+
+    with subtest("waybar config wires up the displays widget"):
+        # The displays module is present and placed after the tray.
+        config = machine.succeed("cat /etc/xdg/waybar/config.jsonc")
+        assert '"custom/displays"' in config, "custom/displays module missing"
+        assert config.index('"tray"') < config.index('"custom/displays"'), (
+            "custom/displays should come after tray in modules-right"
+        )
+        # It refreshes on a signal and, as a signal-driven module, also has a
+        # polling interval so a missed signal self-heals.
+        machine.succeed("grep -q '\"exec\": \"waybar-displays\"' /etc/xdg/waybar/config.jsonc")
+        machine.succeed("grep -q '\"signal\": 4' /etc/xdg/waybar/config.jsonc")
+        machine.succeed("grep -q '\"interval\": 60' /etc/xdg/waybar/config.jsonc")
+
+    with subtest("waybar service PATH provides the widget's tooling"):
+        # on-click launches wdisplays; exec runs waybar-displays (which also
+        # bundles kanshi-toggle for on-click-right). NixOS renders the service
+        # `path` into a PATH= line in a drop-in override, not the main unit.
+        dropin = machine.succeed("cat /etc/systemd/user/waybar.service.d/*.conf")
+        assert "waybar-displays" in dropin, "waybar-displays missing from waybar PATH"
+        assert "wdisplays" in dropin, "wdisplays missing from waybar PATH"
+
+    with subtest("waybar-displays reflects the active kanshi profile"):
+        machine.succeed("mkdir -p /run/user/1000/kanshi")
+
+        def displays_icon():
+            return machine.succeed(
+                "XDG_RUNTIME_DIR=/run/user/1000 waybar-displays"
+            ).strip()
+
+        machine.succeed("echo undocked > /run/user/1000/kanshi/active-profile")
+        undocked = displays_icon()
+
+        machine.succeed("echo docked > /run/user/1000/kanshi/active-profile")
+        docked = displays_icon()
+
+        assert undocked != docked, (
+            f"docked and undocked should show different icons (got {undocked!r} / {docked!r})"
+        )
+
+        # An unknown/absent profile falls back to the docked (monitor) icon.
+        machine.succeed("rm -f /run/user/1000/kanshi/active-profile")
+        assert displays_icon() == docked, "missing profile should fall back to the docked icon"
+
+    with subtest("kanshi-active records the applied profile"):
+        # pkill of a non-running waybar is tolerated (|| true), so this still
+        # writes the state file that waybar-displays reads.
+        machine.succeed("XDG_RUNTIME_DIR=/run/user/1000 kanshi-active undocked")
+        machine.succeed("grep -qx undocked /run/user/1000/kanshi/active-profile")
   '';
 }

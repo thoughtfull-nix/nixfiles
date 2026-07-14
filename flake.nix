@@ -123,6 +123,7 @@
             theme-toggle
             uns
             usb-menu
+            waybar-displays
             waybar-weather
             waybar-yubikey
             yubikey-totp

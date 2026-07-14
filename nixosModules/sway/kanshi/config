@@ -1,0 +1,18 @@
+# kanshi output profiles.
+#
+# Each profile calls `kanshi-active` so the Waybar displays widget shows the
+# right icon (laptop = undocked, monitor = docked), and the widget's right-click
+# toggles between the two. Run `swaymsg -t get_outputs` to inspect outputs; the
+# external monitor is matched by its `make model serial` identifier so it keeps
+# working across connector renumbering, the laptop panel by its stable eDP-1 name.
+
+profile docked {
+    output "ICB HDMI ICB UHD 60" enable mode 3840x2160@59.996Hz position 0,0 scale 1.3
+    output eDP-1 enable mode 1920x1200@59.999Hz position 2953,0 scale 1.0
+    exec kanshi-active docked
+}
+
+profile undocked {
+    output eDP-1 enable mode 1920x1200@59.999Hz position 0,0 scale 1.0
+    exec kanshi-active undocked
+}
