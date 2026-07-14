@@ -15,8 +15,9 @@ let
     networkmanagerapplet
     pasystray
     waybar
+    wdisplays
     ;
-  inherit (pkgs.thoughtfull) theme-toggle waybar-yubikey;
+  inherit (pkgs.thoughtfull) theme-toggle waybar-displays waybar-yubikey;
   power-menu = pkgs.thoughtfull.power-menu.override { gtklock = gtklock.package; };
   cfg = config.programs.waybar;
 in
@@ -81,7 +82,9 @@ in
         gtklock.package
         power-menu
         theme-toggle
+        waybar-displays
         waybar-yubikey
+        wdisplays
       ];
     };
   };

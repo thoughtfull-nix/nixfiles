@@ -201,6 +201,12 @@ in
       };
       pkgs = final;
     };
+    waybar-displays = import ../packages/waybar-displays.nix {
+      lib = {
+        inherit writeFileScriptBin;
+      };
+      pkgs = final;
+    };
     waybar-weather = import ../packages/waybar-weather.nix {
       lib = {
         inherit writeFileScriptBin;
