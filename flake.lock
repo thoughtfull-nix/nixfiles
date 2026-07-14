@@ -396,6 +396,22 @@
         "type": "github"
       }
     },
+    "flake-compat_4": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1767039857,
+        "narHash": "sha256-vNpUSpF5Nuw8xvDLj2KCwwksIbjua2LZCqhV1LNRDns=",
+        "owner": "NixOS",
+        "repo": "flake-compat",
+        "rev": "5edf11c44bc78a0d334f6334cdaf7d60d732daab",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "flake-compat",
+        "type": "github"
+      }
+    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": "nixpkgs-lib"
@@ -746,13 +762,41 @@
         "type": "github"
       }
     },
-    "kryptonix": {
+    "kolide-nix-agent": {
+      "inputs": {
+        "flake-compat": "flake-compat_4",
+        "nixpkgs": [
+          "kryptonix",
+          "nixpkgs"
+        ]
+      },
       "locked": {
-        "lastModified": 1783977767,
-        "narHash": "sha256-nW7IDUJ/ouVpJv3q/FOqKyB6z+9d8fFdRghJCt3WS6Q=",
+        "lastModified": 1783603725,
+        "narHash": "sha256-kizljBI5qxalPLQuEDxm9OtmAvZVOkFMYWScuKgzxF0=",
+        "owner": "kolide",
+        "repo": "nix-agent",
+        "rev": "43efb63200f1bb7fac5d5e1d8bb226a8cda0ec4b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "kolide",
+        "repo": "nix-agent",
+        "type": "github"
+      }
+    },
+    "kryptonix": {
+      "inputs": {
+        "kolide-nix-agent": "kolide-nix-agent",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1784026844,
+        "narHash": "sha256-PtC2vbHw3Y/F28vcb3LGydborkKZLF9gLOrN+z6/TLw=",
         "owner": "technosophist",
         "repo": "kryptonix",
-        "rev": "4b342ce1380e1f1835bd5de74f7ba060041826b9",
+        "rev": "ffbbaaac68592773907a9933c1e1a5a589a700bb",
         "type": "github"
       },
       "original": {
