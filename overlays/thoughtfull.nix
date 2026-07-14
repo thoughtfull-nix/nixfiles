@@ -70,12 +70,16 @@ let
         bashlib = bashlib;
       };
       outFile = "$out/bin/${name}";
+      manDir = "$out/share/man/man1";
     in
     runCommandLocal name { } ''
       mkdir -p $(dirname "${outFile}")
       cat "${prefix}" >"${name}"
       cat "${replaceVars src replacements}" >>"${name}"
       ${argc}/bin/argc --argc-build "${name}" "${outFile}"
+
+      mkdir -p "${manDir}"
+      ${argc}/bin/argc --argc-mangen "${name}" "${manDir}"
     '';
 in
 {
@@ -91,7 +95,6 @@ in
 
     # Custom packages (keep alphabetized)
     attach-yubikey = writeArgcScript "attach-yubikey" ../packages/attach-yubikey.bash {
-      bash = "${bash}/bin/bash";
       nc = "${netcat}/bin/nc";
     };
     brightness = import ../packages/brightness.nix {
