@@ -9,7 +9,13 @@ let
   inherit (lib) mkDefault mkIf;
 in
 {
-  environment.systemPackages = mkIf zsh.enable [ pkgs.tldr ];
+  environment.systemPackages = mkIf zsh.enable [
+    pkgs.tldr
+    # Needed at completion time by scripts built with `writeArgcScript`: their sourced
+    # `share/zsh/argc-completions/*` files shell out to `argc --argc-compgen` to compute
+    # candidates.
+    pkgs.argc
+  ];
   programs.zsh = {
     autosuggestions.enable = mkDefault true;
     histFile = "$HOME/.config/zsh/history";
@@ -25,6 +31,14 @@ in
       help() {
         { ${pkgs.tldr}/bin/tldr "$@" || man "$@" || "$@" --help || run-help "$@" } 2>/dev/null
       }
+
+      # Completions for scripts built with `writeArgcScript`. These must be sourced directly
+      # (after compinit, which has already run by this point) rather than relying on fpath
+      # autoloading -- see the comment on `zshCompletionsDir` in overlays/thoughtfull.nix.
+      for _argc_completion in /run/current-system/sw/share/zsh/argc-completions/*(N); do
+        source "$_argc_completion"
+      done
+      unset _argc_completion
     '';
     # zprofile
     loginShellInit = "";

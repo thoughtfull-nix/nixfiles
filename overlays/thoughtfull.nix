@@ -71,6 +71,12 @@ let
       };
       outFile = "$out/bin/${name}";
       manDir = "$out/share/man/man1";
+      # `/share/zsh` is already in `environment.pathsToLink`'s default, so files placed here get
+      # merged into the system profile with no further NixOS config needed. Not named `_${name}`
+      # / placed under `site-functions`: argc's generated completer isn't a normal
+      # fpath-autoloadable completion function (it has no `#compdef` tag and calls `compdef`
+      # itself), so it must be `source`d directly by absolute path rather than autoloaded.
+      zshCompletionsDir = "$out/share/zsh/argc-completions";
     in
     runCommandLocal name { } ''
       mkdir -p $(dirname "${outFile}")
@@ -80,6 +86,9 @@ let
 
       mkdir -p "${manDir}"
       ${argc}/bin/argc --argc-mangen "${name}" "${manDir}"
+
+      mkdir -p "${zshCompletionsDir}"
+      ${argc}/bin/argc --argc-completions zsh "${name}" >"${zshCompletionsDir}/${name}"
     '';
 in
 {
