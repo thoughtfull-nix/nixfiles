@@ -130,6 +130,7 @@ in
     syncthing.enable = mkDefault true;
   };
   thoughtfull = {
+    impermanence.user.directories = [ ".local/share/nix" ];
     monitoring = {
       enable = mkDefault true;
       services = [

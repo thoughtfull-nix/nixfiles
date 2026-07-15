@@ -22,7 +22,7 @@ extendedNixpkgs.testers.nixosTest {
 
   nodes = {
     machine =
-      { lib, ... }:
+      { config, lib, ... }:
       {
         imports = [ defaultModule ];
         # name must match the default keysHash so githubKeys hits the Nix store
@@ -38,6 +38,14 @@ extendedNixpkgs.testers.nixosTest {
           impermanence.enable = lib.mkForce false;
           monitoring.enable = lib.mkForce false;
         };
+        assertions = [
+          {
+            assertion = builtins.any (
+              d: (d.directory or d) == ".local/share/nix"
+            ) config.thoughtfull.impermanence.user.directories;
+            message = "expected nix trusted-settings persistence directory .local/share/nix";
+          }
+        ];
       };
   };
 
