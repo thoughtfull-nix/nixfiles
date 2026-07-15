@@ -56,6 +56,9 @@ in
       settings = {
         # device ids & external addresses are defined in kryptonix
         devices = {
+          aegle.addresses = [
+            "tcp://aegle.lan:22000"
+          ];
           bennu.addresses = [
             "tcp://bennu.lan:22000"
           ];
@@ -108,6 +111,7 @@ in
           };
           obsidian-work = folderDefaults // {
             devices = [
+              "aegle"
               "bennu"
               "gemariah"
               "hydor"
@@ -131,6 +135,7 @@ in
           };
           org-work = folderDefaults // {
             devices = [
+              "aegle"
               "bennu"
               "gemariah"
               "hydor"
