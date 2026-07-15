@@ -8,7 +8,13 @@
           ./aegle/hardware-configuration.nix
         ];
         networking.hostName = "aegle";
-        services.syncthing.thoughtfull.passwordFile = ./aegle/secrets/syncthing-passphrase.age;
+        services.syncthing = {
+          settings.folders = {
+            obsidian-work.enable = true;
+            org-work.enable = true;
+          };
+          thoughtfull.passwordFile = ./aegle/secrets/syncthing-passphrase.age;
+        };
         system.stateVersion = "25.11";
         thoughtfull = {
           binaryCache.awsCredentialsFile = ./aegle/secrets/nix-cache-credentials.age;
