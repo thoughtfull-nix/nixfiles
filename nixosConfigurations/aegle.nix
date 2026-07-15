@@ -7,6 +7,12 @@
         imports = [
           ./aegle/hardware-configuration.nix
         ];
+        # The external "USB 2.0 Camera" (Sonix, USB ID 1410:1410) reuses Novatel
+        # Wireless's vendor ID, so the `option` USB-modem driver hijacks its
+        # video/audio interfaces before uvcvideo/snd-usb-audio can bind, leaving
+        # no /dev/video node. This machine uses no USB cellular modem, so
+        # blacklisting `option` lets the camera bind correctly.
+        boot.blacklistedKernelModules = [ "option" ];
         networking.hostName = "aegle";
         services.syncthing = {
           settings.folders = {
