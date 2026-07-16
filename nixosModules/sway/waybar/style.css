@@ -48,8 +48,6 @@ window#waybar {
 #clock,
 #custom-weather,
 #custom-yubikey,
-#custom-displays,
-#custom-theme,
 #custom-lock,
 #custom-power,
 #mode,
@@ -61,6 +59,14 @@ window#waybar {
   padding-right: 10pt;
   color: @theme_selected_fg_color;
   background-color: @error_color;
+}
+
+#custom-displays {
+  padding: 0 12pt 0 6pt;
+}
+
+#custom-theme {
+  padding: 0 8pt 0 6pt;
 }
 
 #clock.utc {

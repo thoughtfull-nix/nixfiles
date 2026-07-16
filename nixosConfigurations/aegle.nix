@@ -32,6 +32,7 @@
             encrypted.device = "/dev/nvme0n1";
             swap.size = "64G";
           };
+          programs.sway.kanshi.configFile = ./aegle/kanshi/config;
           user.hashedPasswordFile = ./aegle/secrets/hashed-user-passphrase.age;
         };
       }
