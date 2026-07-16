@@ -15,14 +15,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - host: aegle
-            runner: ubuntu-24.04
-          - host: hydor
-            runner: ubuntu-24.04
-          - host: sedna
-            runner: ubuntu-24.04
-          - host: tislit
-            runner: ubuntu-24.04-arm
+          # Hosts of the same architecture build together on one runner so they
+          # share a single local /nix/store; the large common closure is realised
+          # once instead of once per host. Different architectures still run in
+          # parallel on their own runners.
+          - runner: ubuntu-24.04
+            hosts: aegle hydor sedna
+          - runner: ubuntu-24.04-arm
+            hosts: tislit
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -43,14 +43,20 @@ jobs:
         uses: ./.github/actions/configure-nix-daemon-aws-creds
         with:
           role-to-assume: arn:aws:iam::481411455398:role/NixCacheWriter
-      - name: Build system closure
-        id: build
+      - name: Build system closures
         run: |
+          set -euo pipefail
+          read -ra hosts <<<"${{ matrix.hosts }}"
+          installables=()
+          for host in "${hosts[@]}"; do
+            installables+=(".#nixosConfigurations.$host.config.system.build.toplevel")
+          done
+          # One build invocation for all hosts of this architecture: Nix realises
+          # each shared derivation once and parallelises the independent parts.
           for attempt in 1 2 3; do
-            if out=$(nix build --no-link --print-out-paths \
+            if nix build --no-link \
               --override-input nixpkgs github:NixOS/nixpkgs/nixos-26.05 \
-              ".#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel"); then
-              echo "out=$out" >>"$GITHUB_OUTPUT"
+              "${installables[@]}"; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
@@ -58,33 +64,32 @@ jobs:
             fi
             sleep "$((attempt * 15))"
           done
-      - name: Refresh Nix daemon AWS credentials
-        # The default 1-hour STS session can expire during a long aarch64 build; refresh before
-        # uploading. The x86_64 legs build well within that window, so skip the extra assume-role
-        # round trip and daemon restart for them.
-        if: matrix.runner == 'ubuntu-24.04-arm'
-        uses: ./.github/actions/configure-nix-daemon-aws-creds
-        with:
-          role-to-assume: arn:aws:iam::481411455398:role/NixCacheWriter
-      - name: Sign and push closure to S3
+      - name: Sign, push, and publish closures
         run: |
+          set -euo pipefail
           umask 077
           printf '%s\n' "${{ secrets.CACHE_SIGNING_KEY }}" >/tmp/sign.key
-          nix copy --to \
-            "s3://thoughtfull-nix-cache?region=us-east-1&secret-key=/tmp/sign.key" \
-            "${{ steps.build.outputs.out }}"
-          shred -u /tmp/sign.key
-      - name: Publish pointer
-        run: |
-          jq -n \
-            --arg p "${{ steps.build.outputs.out }}" \
-            --arg r "${{ github.sha }}" \
-            --arg t "$(date -u +%FT%TZ)" \
-            '{storePath:$p, gitRev:$r, builtAt:$t}' \
-            >latest.json
-          aws s3 cp latest.json \
-            "s3://thoughtfull-nix-cache/hosts/${{ matrix.host }}/latest.json" \
-            --cache-control "no-cache"
+          trap 'shred -u /tmp/sign.key' EXIT
+          read -ra hosts <<<"${{ matrix.hosts }}"
+          for host in "${hosts[@]}"; do
+            # Resolve the host's toplevel; the build step already realised it, so
+            # this only evaluates and returns the store path.
+            out=$(nix build --no-link --print-out-paths \
+              --override-input nixpkgs github:NixOS/nixpkgs/nixos-26.05 \
+              ".#nixosConfigurations.$host.config.system.build.toplevel")
+            nix copy --to \
+              "s3://thoughtfull-nix-cache?region=us-east-1&secret-key=/tmp/sign.key" \
+              "$out"
+            jq -n \
+              --arg p "$out" \
+              --arg r "${{ github.sha }}" \
+              --arg t "$(date -u +%FT%TZ)" \
+              '{storePath:$p, gitRev:$r, builtAt:$t}' \
+              >latest.json
+            aws s3 cp latest.json \
+              "s3://thoughtfull-nix-cache/hosts/$host/latest.json" \
+              --cache-control "no-cache"
+          done
       - name: Remove AWS credential files
         if: always()
         uses: ./.github/actions/cleanup-nix-daemon-aws-creds
