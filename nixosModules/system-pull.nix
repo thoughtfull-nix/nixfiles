@@ -14,6 +14,12 @@ let
     types
     ;
   hasCredentials = binaryCache.enable && binaryCache.awsCredentialsFile != null;
+  # Bake the host's bucket, region, and credentials path into the script so it
+  # runs with no arguments.
+  system-pull = pkgs.thoughtfull.system-pull.override {
+    inherit (binaryCache) bucket region;
+    credentialsFile = config.age.secrets.nix-cache-credentials.path;
+  };
 in
 {
   config = mkIf cfg.enable {
@@ -30,16 +36,34 @@ in
       }
     ];
 
+    environment.systemPackages = [ system-pull ];
+
     systemd.services.system-pull = {
       description = mkDefault "Pull the latest system closure from the binary cache";
       after = [ "network-online.target" ];
       wants = [ "network-online.target" ];
       restartIfChanged = mkDefault false;
+      # Keep the running instance alive if a pulled generation removes this
+      # unit: otherwise activation would stop it (X-StopOnRemoval defaults to
+      # true) and kill the switch it is running in-process.
+      unitConfig.X-StopOnRemoval = mkDefault false;
       serviceConfig = {
         Type = mkDefault "oneshot";
         User = mkDefault "root";
-        EnvironmentFile = mkDefault config.age.secrets.nix-cache-credentials.path;
-        ExecStart = mkDefault "${pkgs.thoughtfull.system-pull}/bin/system-pull ${binaryCache.bucket} ${binaryCache.region}";
+        # Deliberately no EnvironmentFile: the AWS credentials are only needed
+        # for the pointer fetch, so the script loads them (via dotenvy) scoped
+        # to just that command. Putting them in the unit environment would
+        # expose them to switch-to-configuration and every activation script it
+        # runs in-process. nix-daemon still gets its own EnvironmentFile (see
+        # binary-cache.nix) to substitute the closure from the cache.
+        #
+        # Reference system-pull through /run/current-system so the ExecStart is
+        # a stable path that does not change on every rebuild. This keeps the
+        # unit byte-identical across generations, so switch-to-configuration
+        # leaves it untouched during activation and does not kill the in-flight
+        # switch the script runs in-process. The script takes no arguments; its
+        # bucket, region, and credentials path are baked in above.
+        ExecStart = mkDefault "/run/current-system/sw/bin/system-pull";
       };
     };
 

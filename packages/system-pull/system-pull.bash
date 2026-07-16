@@ -2,27 +2,29 @@
 set -euo pipefail
 
 # Pull the latest signed system closure for this host from the S3 binary
-# cache and switch to it. Intended to run as root from a systemd timer.
+# cache and switch to it. Intended to run as root from a systemd timer, but
+# also runnable by hand with sudo. Takes no arguments: the bucket, region, and
+# credentials-file path are baked in at build time by the system-pull module.
 #
-# Usage: system-pull <bucket> <region>
-#
-# Reads AWS credentials from the environment (the systemd unit sets
-# EnvironmentFile to the agenix-decrypted credentials file). Falls back to
-# the early exit if /run/current-system already points at the target.
+# The credentials file is an agenix-decrypted EnvironmentFile (KEY=value)
+# holding this host's read-only AWS credentials. It is loaded into the
+# environment of only the pointer fetch, via dotenvy, so the credentials never
+# reach switch-to-configuration or the activation scripts it runs. dotenvy
+# parses the file rather than sourcing it; note it expands $VAR references
+# (systemd's EnvironmentFile does not), which is harmless for base64 AWS keys.
+# The file is root-only, so an unprivileged run fails at the fetch. Realising
+# the closure needs no credentials here: nix-daemon substitutes it using its
+# own EnvironmentFile (see binary-cache.nix).
 
-if [[ $# -ne 2 ]]; then
-  echo "usage: system-pull <bucket> <region>" >&2
-  exit 64
-fi
-
-bucket=$1
-region=$2
+bucket="@bucket@"
+region="@region@"
+creds_file="@credentials_file@"
 hostname=$(@hostname@)
 
 pointer_url="s3://${bucket}/hosts/${hostname}/latest.json"
 echo "system-pull: fetching ${pointer_url}"
 
-pointer=$(@aws@ s3 cp "${pointer_url}" - --region "${region}")
+pointer=$(@dotenvy@ -f "${creds_file}" @aws@ s3 cp "${pointer_url}" - --region "${region}")
 target=$(printf '%s\n' "${pointer}" | @jq@ -r '.storePath')
 
 if [[ -z ${target} || ${target} == "null" ]]; then
@@ -44,17 +46,13 @@ echo "system-pull: registering system profile generation"
 @nix_env@ -p /nix/var/nix/profiles/system --set "${target}"
 
 echo "system-pull: switching configuration"
-# Run switch-to-configuration in a transient unit so the switch survives
-# activation-time stop/restart of system-pull.service itself.
-@systemd_run@ \
-  -E LOCALE_ARCHIVE \
-  --collect \
-  --no-ask-password \
-  --pipe \
-  --quiet \
-  --service-type=exec \
-  --unit=system-pull-switch-to-configuration \
-  -- \
-  "${target}/bin/switch-to-configuration" switch
+# Run switch-to-configuration directly, in-process, so its output is captured
+# in system-pull.service's own journal. This relies on the service being
+# shielded from activation stopping it out from under the switch: a stable
+# ExecStart (/run/current-system/sw/bin/system-pull) keeps the unit
+# byte-identical across generations (so it isn't restarted), restartIfChanged
+# skips it if it does change, and X-StopOnRemoval=false keeps it running if a
+# generation removes it.
+"${target}/bin/switch-to-configuration" switch
 
 echo "system-pull: switched to ${target}"
