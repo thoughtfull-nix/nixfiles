@@ -127,9 +127,9 @@ nixpkgs.testers.nixosTest {
             f"docked and undocked should show different icons (got {undocked!r} / {docked!r})"
         )
 
-        # An unknown/absent profile falls back to the docked (monitor) icon.
+        # An unknown/absent profile falls back to the undocked (laptop) icon.
         machine.succeed("rm -f /run/user/1000/kanshi/active-profile")
-        assert displays_icon() == docked, "missing profile should fall back to the docked icon"
+        assert displays_icon() == undocked, "missing profile should fall back to the undocked icon"
 
     with subtest("kanshi-active records the applied profile"):
         # pkill of a non-running waybar is tolerated (|| true), so this still
