@@ -14,6 +14,12 @@ let
     types
     ;
   hasCredentials = binaryCache.enable && binaryCache.awsCredentialsFile != null;
+  # Bake the host's bucket, region, and credentials path into the script so it
+  # runs with no arguments.
+  system-pull = pkgs.thoughtfull.system-pull.override {
+    inherit (binaryCache) bucket region;
+    credentialsFile = config.age.secrets.nix-cache-credentials.path;
+  };
 in
 {
   config = mkIf cfg.enable {
@@ -30,7 +36,7 @@ in
       }
     ];
 
-    environment.systemPackages = [ pkgs.thoughtfull.system-pull ];
+    environment.systemPackages = [ system-pull ];
 
     systemd.services.system-pull = {
       description = mkDefault "Pull the latest system closure from the binary cache";
@@ -44,13 +50,20 @@ in
       serviceConfig = {
         Type = mkDefault "oneshot";
         User = mkDefault "root";
-        EnvironmentFile = mkDefault config.age.secrets.nix-cache-credentials.path;
+        # Deliberately no EnvironmentFile: the AWS credentials are only needed
+        # for the pointer fetch, so the script loads them (via dotenvy) scoped
+        # to just that command. Putting them in the unit environment would
+        # expose them to switch-to-configuration and every activation script it
+        # runs in-process. nix-daemon still gets its own EnvironmentFile (see
+        # binary-cache.nix) to substitute the closure from the cache.
+        #
         # Reference system-pull through /run/current-system so the ExecStart is
         # a stable path that does not change on every rebuild. This keeps the
         # unit byte-identical across generations, so switch-to-configuration
         # leaves it untouched during activation and does not kill the in-flight
-        # switch the script runs in-process.
-        ExecStart = mkDefault "/run/current-system/sw/bin/system-pull ${binaryCache.bucket} ${binaryCache.region}";
+        # switch the script runs in-process. The script takes no arguments; its
+        # bucket, region, and credentials path are baked in above.
+        ExecStart = mkDefault "/run/current-system/sw/bin/system-pull";
       };
     };
 

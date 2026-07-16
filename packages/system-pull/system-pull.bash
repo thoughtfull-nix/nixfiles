@@ -2,27 +2,29 @@
 set -euo pipefail
 
 # Pull the latest signed system closure for this host from the S3 binary
-# cache and switch to it. Intended to run as root from a systemd timer.
+# cache and switch to it. Intended to run as root from a systemd timer, but
+# also runnable by hand with sudo. Takes no arguments: the bucket, region, and
+# credentials-file path are baked in at build time by the system-pull module.
 #
-# Usage: system-pull <bucket> <region>
-#
-# Reads AWS credentials from the environment (the systemd unit sets
-# EnvironmentFile to the agenix-decrypted credentials file). Falls back to
-# the early exit if /run/current-system already points at the target.
+# The credentials file is an agenix-decrypted EnvironmentFile (KEY=value)
+# holding this host's read-only AWS credentials. It is loaded into the
+# environment of only the pointer fetch, via dotenvy, so the credentials never
+# reach switch-to-configuration or the activation scripts it runs. dotenvy
+# parses the file rather than sourcing it; note it expands $VAR references
+# (systemd's EnvironmentFile does not), which is harmless for base64 AWS keys.
+# The file is root-only, so an unprivileged run fails at the fetch. Realising
+# the closure needs no credentials here: nix-daemon substitutes it using its
+# own EnvironmentFile (see binary-cache.nix).
 
-if [[ $# -ne 2 ]]; then
-  echo "usage: system-pull <bucket> <region>" >&2
-  exit 64
-fi
-
-bucket=$1
-region=$2
+bucket="@bucket@"
+region="@region@"
+creds_file="@credentials_file@"
 hostname=$(@hostname@)
 
 pointer_url="s3://${bucket}/hosts/${hostname}/latest.json"
 echo "system-pull: fetching ${pointer_url}"
 
-pointer=$(@aws@ s3 cp "${pointer_url}" - --region "${region}")
+pointer=$(@dotenvy@ -f "${creds_file}" @aws@ s3 cp "${pointer_url}" - --region "${region}")
 target=$(printf '%s\n' "${pointer}" | @jq@ -r '.storePath')
 
 if [[ -z ${target} || ${target} == "null" ]]; then

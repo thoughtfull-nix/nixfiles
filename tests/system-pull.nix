@@ -109,19 +109,22 @@ nixpkgs.testers.nixosTest {
             "graphical host should fire at noon"
         )
 
-    with subtest("service uses agenix-decrypted EnvironmentFile and a stable ExecStart"):
+    with subtest("service invokes system-pull with no arguments and keeps creds out of its environment"):
         unit = headless.succeed("systemctl cat system-pull.service")
         print(f"headless service:\n{unit}")
-        assert "EnvironmentFile=/run/agenix/nix-cache-credentials" in unit, (
-            "service should source AWS credentials from agenix path"
+        assert "EnvironmentFile=" not in unit, (
+            "AWS credentials must not be loaded into system-pull.service's "
+            "environment: they would leak into switch-to-configuration and the "
+            "activation scripts it runs. The script loads them scoped to the "
+            "pointer fetch instead."
         )
         exec_line = next(
             line for line in unit.splitlines() if line.startswith("ExecStart=")
         )
-        assert exec_line == (
-            "ExecStart=/run/current-system/sw/bin/system-pull "
-            "thoughtfull-nix-cache us-east-1"
-        ), f"ExecStart should be the stable current-system path; got:\n{exec_line}"
+        assert exec_line == "ExecStart=/run/current-system/sw/bin/system-pull", (
+            "ExecStart should invoke system-pull with no arguments (bucket, "
+            f"region, and creds path are baked in); got:\n{exec_line}"
+        )
         assert "/nix/store/" not in exec_line, (
             "ExecStart must not embed a store path, or activation would "
             "stop system-pull.service mid-switch"
@@ -159,6 +162,43 @@ nixpkgs.testers.nixosTest {
             "system-pull must invoke switch-to-configuration in-process; the "
             "stable ExecStart means activation won't kill it, so the "
             "systemd-run transient-unit wrapper is no longer needed"
+        )
+
+    with subtest("credentials are loaded scoped via dotenvy, not sourced"):
+        # AWS creds are only needed for the pointer fetch, so load them into the
+        # environment of just that command with dotenvy (which parses the file
+        # rather than executing it) instead of sourcing the file or exporting
+        # the creds process-wide via EnvironmentFile.
+        exec_start = headless.succeed(
+            "systemctl show system-pull.service -p ExecStart --value"
+        )
+        script_path = exec_start.split("argv[]=")[1].split()[0]
+        script = headless.succeed(f"cat {script_path}")
+        code = "\n".join(
+            line for line in script.splitlines() if not line.lstrip().startswith("#")
+        )
+        assert "dotenvy -f" in code, (
+            "system-pull must load AWS credentials with 'dotenvy -f <file>' "
+            "scoped to the command that needs them"
+        )
+        assert "source " not in code, (
+            "system-pull must not source the credentials file"
+        )
+
+    with subtest("bucket, region, and credentials path are baked into the script"):
+        exec_start = headless.succeed(
+            "systemctl show system-pull.service -p ExecStart --value"
+        )
+        script_path = exec_start.split("argv[]=")[1].split()[0]
+        script = headless.succeed(f"cat {script_path}")
+        assert 'bucket="thoughtfull-nix-cache"' in script, (
+            f"bucket should be baked in; got:\n{script}"
+        )
+        assert 'region="us-east-1"' in script, (
+            f"region should be baked in; got:\n{script}"
+        )
+        assert 'creds_file="/run/agenix/nix-cache-credentials"' in script, (
+            f"credentials path should be baked in; got:\n{script}"
         )
 
     with subtest("nix.conf gets s3:// substituter and trusted public key"):
