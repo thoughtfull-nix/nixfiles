@@ -44,17 +44,13 @@ echo "system-pull: registering system profile generation"
 @nix_env@ -p /nix/var/nix/profiles/system --set "${target}"
 
 echo "system-pull: switching configuration"
-# Run switch-to-configuration in a transient unit so the switch survives
-# activation-time stop/restart of system-pull.service itself.
-@systemd_run@ \
-  -E LOCALE_ARCHIVE \
-  --collect \
-  --no-ask-password \
-  --pipe \
-  --quiet \
-  --service-type=exec \
-  --unit=system-pull-switch-to-configuration \
-  -- \
-  "${target}/bin/switch-to-configuration" switch
+# Run switch-to-configuration directly, in-process, so its output is captured
+# in system-pull.service's own journal. This relies on the service being
+# shielded from activation stopping it out from under the switch: a stable
+# ExecStart (/run/current-system/sw/bin/system-pull) keeps the unit
+# byte-identical across generations (so it isn't restarted), restartIfChanged
+# skips it if it does change, and X-StopOnRemoval=false keeps it running if a
+# generation removes it.
+"${target}/bin/switch-to-configuration" switch
 
 echo "system-pull: switched to ${target}"

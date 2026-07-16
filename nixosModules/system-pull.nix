@@ -30,16 +30,27 @@ in
       }
     ];
 
+    environment.systemPackages = [ pkgs.thoughtfull.system-pull ];
+
     systemd.services.system-pull = {
       description = mkDefault "Pull the latest system closure from the binary cache";
       after = [ "network-online.target" ];
       wants = [ "network-online.target" ];
       restartIfChanged = mkDefault false;
+      # Keep the running instance alive if a pulled generation removes this
+      # unit: otherwise activation would stop it (X-StopOnRemoval defaults to
+      # true) and kill the switch it is running in-process.
+      unitConfig.X-StopOnRemoval = mkDefault false;
       serviceConfig = {
         Type = mkDefault "oneshot";
         User = mkDefault "root";
         EnvironmentFile = mkDefault config.age.secrets.nix-cache-credentials.path;
-        ExecStart = mkDefault "${pkgs.thoughtfull.system-pull}/bin/system-pull ${binaryCache.bucket} ${binaryCache.region}";
+        # Reference system-pull through /run/current-system so the ExecStart is
+        # a stable path that does not change on every rebuild. This keeps the
+        # unit byte-identical across generations, so switch-to-configuration
+        # leaves it untouched during activation and does not kill the in-flight
+        # switch the script runs in-process.
+        ExecStart = mkDefault "/run/current-system/sw/bin/system-pull ${binaryCache.bucket} ${binaryCache.region}";
       };
     };
 

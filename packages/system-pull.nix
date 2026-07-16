@@ -7,7 +7,6 @@ let
     hostname-debian
     jq
     nix
-    systemd
     ;
   inherit (lib) writeFileScriptBin;
 in
@@ -21,7 +20,6 @@ writeFileScriptBin {
     nix_env = "${nix}/bin/nix-env";
     nix_store = "${nix}/bin/nix-store";
     readlink = "${coreutils}/bin/readlink";
-    systemd_run = "${systemd}/bin/systemd-run";
   };
   src = ./system-pull/system-pull.bash;
 }

@@ -109,39 +109,56 @@ nixpkgs.testers.nixosTest {
             "graphical host should fire at noon"
         )
 
-    with subtest("service uses agenix-decrypted EnvironmentFile"):
+    with subtest("service uses agenix-decrypted EnvironmentFile and a stable ExecStart"):
         unit = headless.succeed("systemctl cat system-pull.service")
         print(f"headless service:\n{unit}")
         assert "EnvironmentFile=/run/agenix/nix-cache-credentials" in unit, (
             "service should source AWS credentials from agenix path"
         )
-        assert "ExecStart=" in unit and "/bin/system-pull thoughtfull-nix-cache us-east-1" in unit, (
-            f"ExecStart should invoke system-pull with bucket and region; got:\n{unit}"
+        exec_line = next(
+            line for line in unit.splitlines() if line.startswith("ExecStart=")
+        )
+        assert exec_line == (
+            "ExecStart=/run/current-system/sw/bin/system-pull "
+            "thoughtfull-nix-cache us-east-1"
+        ), f"ExecStart should be the stable current-system path; got:\n{exec_line}"
+        assert "/nix/store/" not in exec_line, (
+            "ExecStart must not embed a store path, or activation would "
+            "stop system-pull.service mid-switch"
         )
 
-    with subtest("switch-to-configuration runs in a transient unit detached from system-pull.service"):
-        # The script must wrap switch-to-configuration with systemd-run so the
-        # switch survives activation-time stop of system-pull.service itself.
+    with subtest("service opts out of stop-on-removal so an in-flight switch survives"):
+        # If a pulled generation removes system-pull.service, activation would
+        # otherwise SIGTERM it (X-StopOnRemoval defaults true) and kill the
+        # in-process switch. X-StopOnRemoval=false keeps the running instance
+        # alive until the switch it is running finishes.
+        unit = headless.succeed("systemctl cat system-pull.service")
+        assert "X-StopOnRemoval=false" in unit, (
+            "service must set X-StopOnRemoval=false so activation cannot stop "
+            "it mid-switch when a pulled generation removes the unit"
+        )
+
+    with subtest("switch-to-configuration runs in-process, not via systemd-run"):
+        # The stable ExecStart keeps system-pull.service byte-identical across
+        # generations, so activation leaves it untouched. The switch can then
+        # run in-process and its output lands in system-pull.service's journal.
         exec_start = headless.succeed(
             "systemctl show system-pull.service -p ExecStart --value"
         )
         script_path = exec_start.split("argv[]=")[1].split()[0]
         script = headless.succeed(f"cat {script_path}")
         print(f"system-pull script:\n{script}")
-        # Strip comment lines so the ordering check isn't fooled by prose.
+        # Strip comment lines so the check isn't fooled by prose.
         code = "\n".join(
             line for line in script.splitlines() if not line.lstrip().startswith("#")
-        )
-        assert "systemd-run" in code, (
-            "system-pull must invoke switch-to-configuration via systemd-run "
-            "so activation can stop/restart system-pull.service without killing "
-            "the in-flight switch"
         )
         assert "switch-to-configuration" in code, (
             "system-pull must invoke switch-to-configuration"
         )
-        assert code.index("systemd-run") < code.index("switch-to-configuration"), (
-            "systemd-run must wrap the switch-to-configuration invocation"
+        assert "systemd-run" not in code, (
+            "system-pull must invoke switch-to-configuration in-process; the "
+            "stable ExecStart means activation won't kill it, so the "
+            "systemd-run transient-unit wrapper is no longer needed"
         )
 
     with subtest("nix.conf gets s3:// substituter and trusted public key"):
