@@ -185,6 +185,37 @@ nixpkgs.testers.nixosTest {
             "system-pull must not source the credentials file"
         )
 
+    with subtest("the closure is realised with credentials scoped to that command"):
+        # system-pull runs as root, whose `auto` store realises in-process
+        # rather than through nix-daemon, so `nix-store --realise` substitutes
+        # from the s3:// cache in its own process and must carry the AWS
+        # credentials itself -- the daemon's EnvironmentFile does not apply.
+        # Load them with dotenvy scoped to just the realise, so they stay out
+        # of switch-to-configuration and the activation scripts it runs.
+        exec_start = headless.succeed(
+            "systemctl show system-pull.service -p ExecStart --value"
+        )
+        script_path = exec_start.split("argv[]=")[1].split()[0]
+        script = headless.succeed(f"cat {script_path}")
+        code = "\n".join(
+            line for line in script.splitlines() if not line.lstrip().startswith("#")
+        )
+        realise_line = next(
+            line for line in code.splitlines() if "--realise" in line
+        )
+        assert "dotenvy -f" in realise_line, (
+            "nix-store --realise must be wrapped with 'dotenvy -f <file>' so "
+            "the in-process substitution from the s3:// cache has AWS "
+            f"credentials; got:\n{realise_line}"
+        )
+        switch_line = next(
+            line for line in code.splitlines() if "switch-to-configuration" in line
+        )
+        assert "dotenvy" not in switch_line, (
+            "switch-to-configuration must not receive the AWS credentials: "
+            "they are only needed to fetch the pointer and realise the closure"
+        )
+
     with subtest("bucket, region, and credentials path are baked into the script"):
         exec_start = headless.succeed(
             "systemctl show system-pull.service -p ExecStart --value"

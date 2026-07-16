@@ -51,11 +51,13 @@ in
         Type = mkDefault "oneshot";
         User = mkDefault "root";
         # Deliberately no EnvironmentFile: the AWS credentials are only needed
-        # for the pointer fetch, so the script loads them (via dotenvy) scoped
-        # to just that command. Putting them in the unit environment would
-        # expose them to switch-to-configuration and every activation script it
-        # runs in-process. nix-daemon still gets its own EnvironmentFile (see
-        # binary-cache.nix) to substitute the closure from the cache.
+        # to fetch the pointer and realise the closure, so the script loads
+        # them (via dotenvy) scoped to just those two commands. Putting them in
+        # the unit environment would expose them to switch-to-configuration and
+        # every activation script it runs in-process. The realise carries the
+        # credentials itself because system-pull runs as root, whose `auto`
+        # store realises in-process rather than through nix-daemon, so the
+        # daemon's own EnvironmentFile (see binary-cache.nix) does not apply.
         #
         # Reference system-pull through /run/current-system so the ExecStart is
         # a stable path that does not change on every rebuild. This keeps the
