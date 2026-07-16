@@ -7,14 +7,18 @@ set -euo pipefail
 # credentials-file path are baked in at build time by the system-pull module.
 #
 # The credentials file is an agenix-decrypted EnvironmentFile (KEY=value)
-# holding this host's read-only AWS credentials. It is loaded into the
-# environment of only the pointer fetch, via dotenvy, so the credentials never
-# reach switch-to-configuration or the activation scripts it runs. dotenvy
-# parses the file rather than sourcing it; note it expands $VAR references
-# (systemd's EnvironmentFile does not), which is harmless for base64 AWS keys.
-# The file is root-only, so an unprivileged run fails at the fetch. Realising
-# the closure needs no credentials here: nix-daemon substitutes it using its
-# own EnvironmentFile (see binary-cache.nix).
+# holding this host's read-only AWS credentials. It is loaded, via dotenvy,
+# into the environment of only the two commands that reach the S3 cache -- the
+# pointer fetch and the closure realise -- so the credentials never reach
+# switch-to-configuration or the activation scripts it runs. dotenvy parses the
+# file rather than sourcing it; note it expands $VAR references (systemd's
+# EnvironmentFile does not), which is harmless for base64 AWS keys. The file is
+# root-only, so an unprivileged run fails at the fetch.
+#
+# The realise needs the credentials directly: system-pull runs as root, whose
+# `auto` store realises in-process rather than through nix-daemon, so
+# `nix-store --realise` substitutes from the S3 cache in this process and the
+# daemon's own EnvironmentFile (see binary-cache.nix) does not apply to it.
 
 bucket="@bucket@"
 region="@region@"
@@ -40,7 +44,7 @@ if [[ ${target} == "${current}" ]]; then
 fi
 
 echo "system-pull: realising ${target}"
-@nix_store@ --realise "${target}"
+@dotenvy@ -f "${creds_file}" @nix_store@ --realise "${target}"
 
 echo "system-pull: registering system profile generation"
 @nix_env@ -p /nix/var/nix/profiles/system --set "${target}"
