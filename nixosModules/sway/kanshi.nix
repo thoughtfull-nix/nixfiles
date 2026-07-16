@@ -22,6 +22,12 @@ let
 in
 {
   config = {
+    assertions = [
+      {
+        assertion = !cfg.enable || cfg.configFile != null;
+        message = "thoughtfull.programs.sway.kanshi.enable requires configFile to be set";
+      }
+    ];
     environment = mkIf sway.enable {
       etc."xdg/kanshi/config" = mkIf enabled { source = cfg.configFile; };
       systemPackages = [
