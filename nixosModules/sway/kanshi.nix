@@ -7,13 +7,18 @@
 let
   inherit (config.programs) sway;
   cfg = config.thoughtfull.programs.sway.kanshi;
-  inherit (lib) mkIf mkOption types;
+  inherit (lib)
+    mkEnableOption
+    mkIf
+    mkOption
+    types
+    ;
   inherit (pkgs)
     kanshi
     wdisplays
     ;
   inherit (pkgs.thoughtfull) waybar-displays;
-  enabled = sway.enable && cfg.configFile != null;
+  enabled = sway.enable && cfg.enable;
 in
 {
   config = {
@@ -38,14 +43,19 @@ in
       };
     };
   };
-  options.thoughtfull.programs.sway.kanshi.configFile = mkOption {
-    default = null;
-    description = ''
-      Path to this host's kanshi output-profile config. Output profiles are
-      hardware-specific (monitor identifiers, positions, modes), so each host
-      that enables sway should set its own, for example `./kanshi/config` next
-      to its `nixosConfigurations/<host>.nix`.
-    '';
-    type = types.nullOr types.path;
+  options.thoughtfull.programs.sway.kanshi = {
+    configFile = mkOption {
+      default = null;
+      description = ''
+        Path to this host's kanshi output-profile config. Output profiles are
+        hardware-specific (monitor identifiers, positions, modes), so each host
+        that enables sway should set its own, for example `./kanshi/config` next
+        to its `nixosConfigurations/<host>.nix`.
+      '';
+      type = types.nullOr types.path;
+    };
+    enable = mkEnableOption "kanshi output-profile management" // {
+      default = cfg.configFile != null;
+    };
   };
 }
