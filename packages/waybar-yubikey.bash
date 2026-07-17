@@ -14,6 +14,14 @@ while true; do
   while read -r -n5 cmd; do
     reason="${cmd:0:3}"
 
+    # HMAC detection is broken with multiple YubiKeys plugged in: it infers touch-waiting
+    # from hidraw device disappear/reappear counts, so unplugging any key while another
+    # remains gets misread as "still waiting" and never clears. Ignore it entirely.
+    # See: https://github.com/max-baz/yubikey-touch-detector/issues/62
+    if [ "$reason" = "MAC" ]; then
+      continue
+    fi
+
     if [ "${cmd:4:1}" = "1" ]; then
       touch_reasons+=("$reason")
     else
