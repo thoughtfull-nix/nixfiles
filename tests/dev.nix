@@ -49,6 +49,9 @@ extendedNixpkgs.testers.nixosTest {
         # nixosModules/java.nix sets programs.java.enable = mkDefault true in the
         # full system; mirror that here so the package selection is exercised.
         programs.java.enable = true;
+        # zsh is this repo's default shell; enable it so the zsh auto-activation
+        # hook is exercised.
+        programs.zsh.enable = true;
         assertions = map (directory: {
           assertion = builtins.elem directory config.thoughtfull.impermanence.user.directories;
           message = "expected opencode persistence directory ${directory}";
@@ -78,6 +81,8 @@ extendedNixpkgs.testers.nixosTest {
         ../nixosModules/dev.nix
         thoughtfullSubModuleStub
       ];
+      # Enable zsh so /etc/zshrc exists to assert the hook is absent.
+      programs.zsh.enable = true;
     };
   };
 
@@ -89,6 +94,9 @@ extendedNixpkgs.testers.nixosTest {
 
     with subtest("enabled: devenv is in PATH"):
         enabled.succeed("which devenv")
+
+    with subtest("enabled: zsh devenv auto-activation hook is configured"):
+        enabled.succeed("grep -q 'devenv hook zsh' /etc/zshrc")
 
     with subtest("enabled: java is in PATH and is JDK 25"):
         result = enabled.succeed("java -version 2>&1")
@@ -112,5 +120,8 @@ extendedNixpkgs.testers.nixosTest {
 
     with subtest("disabled default: opencode is not available"):
         disabled.fail("which opencode")
+
+    with subtest("disabled default: no devenv auto-activation hook"):
+        disabled.fail("grep -q 'devenv hook' /etc/zshrc")
   '';
 }
