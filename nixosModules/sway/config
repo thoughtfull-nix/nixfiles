@@ -13,6 +13,7 @@ seat * xcursor_theme Numix 32
 
 default_border pixel 3
 gaps inner 10
+workspace_layout tabbed
 
 # Adwaita colors (focused and urgent are the same for light/dark)
 #              <border> <background> <text> [<indicator> [<child_border>]]
