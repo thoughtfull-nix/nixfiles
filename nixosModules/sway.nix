@@ -90,6 +90,29 @@ in
     gnome-settings-daemon.enable = mkDefault sway.enable;
   };
   systemd.user.services = {
+    gtk-defaults = {
+      after = [ "sway-session.target" ];
+      # partOf (not bindsTo): this unit must never *pull up* sway-session.target
+      # by being restarted (see the exec_always in sway/config) -- only follow
+      # it down when the session itself stops/restarts.
+      partOf = [ "sway-session.target" ];
+      enable = mkDefault sway.enable;
+      wantedBy = [ "sway-session.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        # sway reruns this on every config reload via `systemctl --user restart
+        # gtk-defaults.service`, so waybar (ordered `after` this unit) never
+        # starts before the GTK icon/cursor/font theme is actually applied.
+        # Each command is "-"-prefixed so one failure doesn't skip the rest.
+        ExecStart = mkDefault [
+          "-${glib}/bin/gsettings set org.gnome.desktop.interface gtk-theme Adwaita"
+          "-${glib}/bin/gsettings set org.gnome.desktop.interface icon-theme Numix"
+          "-${glib}/bin/gsettings set org.gnome.desktop.interface cursor-theme Numix"
+          "-${glib}/bin/gsettings set org.gnome.desktop.interface cursor-size 32"
+          "-${glib}/bin/gsettings set org.gnome.desktop.interface font-name Numix"
+        ];
+      };
+    };
     sway-autotiling = {
       after = [ "sway-session.target" ];
       bindsTo = [ "sway-session.target" ];

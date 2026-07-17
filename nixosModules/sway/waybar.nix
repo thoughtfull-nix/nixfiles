@@ -76,16 +76,19 @@ in
           RestartSec = 1;
         };
       };
-      waybar.path = [
-        bash
-        curl
-        gtklock.package
-        power-menu
-        theme-toggle
-        waybar-displays
-        waybar-yubikey
-        wdisplays
-      ];
+      waybar = {
+        after = [ "gtk-defaults.service" ];
+        path = [
+          bash
+          curl
+          gtklock.package
+          power-menu
+          theme-toggle
+          waybar-displays
+          waybar-yubikey
+          wdisplays
+        ];
+      };
     };
   };
 }
