@@ -89,24 +89,32 @@ in
     gnome-keyring.enable = true;
     gnome-settings-daemon.enable = mkDefault sway.enable;
   };
+  systemd.user.targets.sway-session = {
+    # gtk-defaults sets the GTK icon/cursor/font theme via gsettings. Ordering
+    # the whole session target after it (rather than having every consumer
+    # order after gtk-defaults.service individually) means anything
+    # WantedBy=sway-session.target -- waybar, pasystray, blueman-applet, etc.
+    # -- is guaranteed to start only once the theme is actually applied.
+    after = [ "gtk-defaults.service" ];
+  };
   systemd.user.services = {
     gtk-defaults = {
-      after = [ "sway-session.target" ];
-      # partOf (not bindsTo): this unit must never *pull up* sway-session.target
-      # by being restarted (see the exec_always in sway/config) -- only follow
-      # it down when the session itself stops/restarts.
+      # No explicit `after`: this unit is a dependency *of* sway-session.target
+      # (see the target's `after` above), not the other way around. Ordering
+      # it after the target here would form a cycle with that.
+      #
+      # partOf (not bindsTo): follow the session down when it stops/restarts,
+      # but a lone `systemctl --user restart gtk-defaults.service` must never
+      # pull sway-session.target up if it isn't already active.
       partOf = [ "sway-session.target" ];
       enable = mkDefault sway.enable;
       wantedBy = [ "sway-session.target" ];
       serviceConfig = {
         Type = "oneshot";
         # Keeps `systemctl --user status` showing active/exited instead of
-        # inactive (dead) after this ad-hoc-restarted unit runs, so it doesn't
-        # look like it never ran or failed when debugging theming issues.
+        # inactive (dead) once this has run, so it doesn't look like it never
+        # ran or failed when debugging theming issues.
         RemainAfterExit = true;
-        # sway reruns this on every config reload via `systemctl --user restart
-        # gtk-defaults.service`, so waybar (ordered `after` this unit) never
-        # starts before the GTK icon/cursor/font theme is actually applied.
         # Each command is "-"-prefixed so one failure doesn't skip the rest.
         ExecStart = mkDefault [
           "-${glib}/bin/gsettings set org.gnome.desktop.interface gtk-theme Adwaita"

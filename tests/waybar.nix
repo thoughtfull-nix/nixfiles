@@ -1,5 +1,15 @@
 { nixpkgs, self, ... }:
-nixpkgs.testers.nixosTest {
+let
+  # Importing nixosModules/sway.nix requires lib.thoughtfull.dirFiles, and
+  # module-set nixpkgs.overlays are ignored with external pkgs, so provide both
+  # through the pkgs instance used by nixosTest.
+  testPkgs = (nixpkgs.extend self.overlays.thoughtfull).extend (
+    _: prev: {
+      lib = prev.lib.extend (_: _: { thoughtfull = self.lib.thoughtfull; });
+    }
+  );
+in
+testPkgs.testers.nixosTest {
   name = "waybar";
 
   skipTypeCheck = true;
@@ -10,19 +20,28 @@ nixpkgs.testers.nixosTest {
       { lib, pkgs, ... }:
       {
         imports = [
-          # Import the sway/waybar module and its direct dependencies
-          ../nixosModules/sway/waybar.nix
-          # Define minimal thoughtfull.user option for the test
+          # Import the real sway module so the waybar/gtk-defaults ordering test
+          # exercises nixosModules/sway.nix instead of duplicating its unit
+          # wiring here.
+          ../nixosModules/sway.nix
+          ../nixosModules/swayidle.nix
+          # Define minimal options from unrelated thoughtfull modules so this
+          # focused test does not need to import the full module set.
           {
-            options.thoughtfull.user.name = lib.mkOption {
-              type = lib.types.str;
-              default = "testuser";
+            options.thoughtfull = {
+              graphical.enable = lib.mkEnableOption "graphical UI configuration (stub)";
+              impermanence.user.files = lib.mkOption {
+                type = lib.types.listOf lib.types.str;
+                default = [ ];
+              };
+              programs.mako.enable = lib.mkEnableOption "mako (stub)";
+              user.name = lib.mkOption {
+                type = lib.types.str;
+                default = "testuser";
+              };
             };
           }
         ];
-
-        # Apply the thoughtfull overlay to get pkgs.thoughtfull
-        nixpkgs.overlays = [ self.overlays.thoughtfull ];
 
         # Configure thoughtfull user (required for the restart service)
         thoughtfull.user.name = "testuser";
@@ -39,6 +58,20 @@ nixpkgs.testers.nixosTest {
         users.users.testuser = {
           isNormalUser = true;
           uid = 1000;
+        };
+
+        # A deliberately cyclic pair of units, used only as a positive
+        # control for the "no ordering cycle" subtest below -- it proves
+        # `systemd-analyze --user verify` actually detects cycles in this
+        # environment, so a clean result on the real units can't be mistaken
+        # for the check having silently failed to run.
+        systemd.user.services.cycle-canary-a = {
+          after = [ "cycle-canary-b.service" ];
+          serviceConfig.ExecStart = "${pkgs.coreutils}/bin/true";
+        };
+        systemd.user.services.cycle-canary-b = {
+          after = [ "cycle-canary-a.service" ];
+          serviceConfig.ExecStart = "${pkgs.coreutils}/bin/true";
         };
       };
   };
@@ -136,5 +169,65 @@ nixpkgs.testers.nixosTest {
         # writes the state file that waybar-displays reads.
         machine.succeed("XDG_RUNTIME_DIR=/run/user/1000 kanshi-active undocked")
         machine.succeed("grep -qx undocked /run/user/1000/kanshi/active-profile")
+
+    with subtest("gtk-defaults, waybar, and sway-session.target have no ordering cycle"):
+        # `systemctl --user show` can't be queried without a live login
+        # session, but `systemd-analyze --user verify` loads the same unit
+        # graph in an offline test manager and reports cycles the same way
+        # -- it just needs a writable XDG_RUNTIME_DIR, no session/bus.
+        machine.succeed("install -d -o testuser -m 700 /tmp/verify-rt")
+
+        def analyze_verify(units):
+            _, output = machine.execute(
+                "su testuser -c "
+                f"'XDG_RUNTIME_DIR=/tmp/verify-rt systemd-analyze --user verify {units}' 2>&1"
+            )
+            return output
+
+        # Positive control: prove verify actually detects a cycle in this
+        # environment before trusting a clean result on the real units below
+        # -- otherwise a broken invocation (wrong binary, bad XDG_RUNTIME_DIR,
+        # su failing) would silently read as "no cycle found".
+        canary_output = analyze_verify("cycle-canary-a.service cycle-canary-b.service")
+        print("systemd-analyze --user verify (canary) output:")
+        print(canary_output)
+        assert "ordering cycle" in canary_output.lower(), (
+            "self-test failed: systemd-analyze --user verify did not detect a "
+            "deliberately cyclic pair of units, so the check below can't be trusted"
+        )
+
+        output = analyze_verify("waybar.service gtk-defaults.service sway-session.target")
+        print("systemd-analyze --user verify output:")
+        print(output)
+        assert "ordering cycle" not in output.lower(), (
+            "waybar/gtk-defaults/sway-session.target should not form an ordering cycle"
+        )
+
+    with subtest("sway-session.target is ordered after gtk-defaults applies the icon theme"):
+        # gtk-defaults sets the GTK icon theme via gsettings. Rather than
+        # every consumer ordering after gtk-defaults.service individually,
+        # sway-session.target itself waits on it, so anything that just waits
+        # on the target (waybar, pasystray, blueman-applet, ...) is covered.
+        # Absence of a cycle above isn't enough to prove this edge exists --
+        # e.g. a consumer silently losing its after=sway-session.target
+        # wouldn't cycle, just quietly reintroduce the race -- so assert the
+        # ordering direction directly on the rendered unit.
+        target_unit = machine.succeed("cat /etc/systemd/user/sway-session.target")
+        assert "gtk-defaults.service" in target_unit, (
+            "sway-session.target should be ordered After=gtk-defaults.service"
+        )
+
+    with subtest("waybar and pasystray are ordered after sway-session.target"):
+        # Same reasoning as above: confirm the consumer side of the edge
+        # directly, rather than relying only on cycle-absence.
+        dropin = machine.succeed("cat /etc/systemd/user/waybar.service.d/*.conf")
+        assert "sway-session.target" in dropin, (
+            "waybar should be ordered After=sway-session.target"
+        )
+
+        pasystray_unit = machine.succeed("cat /etc/systemd/user/pasystray.service")
+        assert "sway-session.target" in pasystray_unit, (
+            "pasystray should be ordered After=sway-session.target"
+        )
   '';
 }

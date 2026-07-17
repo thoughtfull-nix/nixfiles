@@ -5,9 +5,8 @@
 # Read `man 5 sway` for a complete reference.
 
 # GTK theme/icon-theme/cursor-theme/font defaults live in the gtk-defaults
-# systemd unit (see sway.nix) so waybar can order after it and is guaranteed
-# to start only once the theme is actually applied.
-exec_always "systemctl --user restart gtk-defaults.service"
+# systemd unit (see sway.nix). Starting sway-session.target (nixos.conf)
+# already pulls it in and waits for it, so nothing needs to invoke it here.
 
 seat * xcursor_theme Numix 32
 

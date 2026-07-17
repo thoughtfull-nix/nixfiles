@@ -22,6 +22,9 @@ in
     };
   };
   systemd.user.services.blueman-applet = {
+    # sway-session.target itself is ordered after gtk-defaults.service
+    # (nixosModules/sway.nix) on hosts with sway, so waiting on it alone
+    # already guarantees the GTK theme is applied before this starts.
     after = [
       "graphical-session.target"
       "sway-session.target"
