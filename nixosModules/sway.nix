@@ -100,6 +100,10 @@ in
       wantedBy = [ "sway-session.target" ];
       serviceConfig = {
         Type = "oneshot";
+        # Keeps `systemctl --user status` showing active/exited instead of
+        # inactive (dead) after this ad-hoc-restarted unit runs, so it doesn't
+        # look like it never ran or failed when debugging theming issues.
+        RemainAfterExit = true;
         # sway reruns this on every config reload via `systemctl --user restart
         # gtk-defaults.service`, so waybar (ordered `after` this unit) never
         # starts before the GTK icon/cursor/font theme is actually applied.
