@@ -42,6 +42,11 @@ in
       ]);
       files = optionals claude.enable [ ".claude.json" ];
     };
+    # Auto-activate the devenv environment on directory change.
+    # https://devenv.sh/auto-activation/
+    programs.zsh.interactiveShellInit = mkIf config.programs.zsh.enable ''
+      eval "$(devenv hook zsh)"
+    '';
   };
   options.thoughtfull.dev = {
     agents = {
