@@ -12,7 +12,6 @@ let
         services.restic.thoughtfull.enable = lib.mkEnableOption "restic (stub)";
         services.xremap.enable = lib.mkEnableOption "xremap (stub)";
         thoughtfull = {
-          backlight.enable = lib.mkEnableOption "backlight (stub)";
           impermanence = {
             disko.enable = lib.mkEnableOption "impermanence disko (stub)";
             enable = lib.mkEnableOption "impermanence (stub)";

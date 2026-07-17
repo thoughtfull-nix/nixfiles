@@ -42,7 +42,6 @@ in
     ./agenix.nix
     ./auto-upgrade.nix
     ./avahi.nix
-    ./backlight.nix
     ./binary-cache.nix
     ./bluetooth.nix
     ./boot.nix

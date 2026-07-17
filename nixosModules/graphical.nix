@@ -22,7 +22,6 @@ in
     };
     systemd.user.services.mako.enable = mkDefault true;
     thoughtfull = {
-      backlight.enable = mkDefault true;
       impermanence.user.directories = [ ".config/dconf" ];
       programs = {
         dictation.enable = mkDefault true;
