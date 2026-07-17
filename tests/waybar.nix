@@ -32,8 +32,12 @@ nixpkgs.testers.nixosTest {
         programs.waybar.enable = true;
         programs.yubikey-touch-detector.enable = true;
 
-        # Make the displays widget's scripts callable from the test script.
-        environment.systemPackages = [ pkgs.thoughtfull.waybar-displays ];
+        # Make the displays widget's scripts callable from the test script, and pull in
+        # netcat to fake the yubikey-touch-detector socket for the yubikey widget test.
+        environment.systemPackages = [
+          pkgs.netcat
+          pkgs.thoughtfull.waybar-displays
+        ];
 
         # Create a test user for user services
         users.users.testuser = {
@@ -87,6 +91,55 @@ nixpkgs.testers.nixosTest {
         # Verify the service completed successfully
         machine.succeed("journalctl -u restart-yubikey-touch-detector.service --no-pager | grep -q 'Starting Restart YubiKey touch detector after resume'")
         machine.succeed("journalctl -u restart-yubikey-touch-detector.service --no-pager | grep -q 'Finished Restart YubiKey touch detector after resume'")
+
+    with subtest("waybar-yubikey ignores broken multi-key HMAC events but still reports GPG/U2F"):
+        # Regression test for a permanently-stuck "waiting for touch" indicator seen when
+        # unplugging one of several YubiKeys. Root cause: yubikey-touch-detector's HMAC
+        # detector infers touch-waiting from a global count of hidraw devices, which is
+        # only valid with a single key (see nixosModules/sway/waybar.nix and
+        # https://github.com/max-baz/yubikey-touch-detector/issues/62). We fake the
+        # detector's unix socket here since no real hardware is available in the VM.
+        # Use a throwaway XDG_RUNTIME_DIR (not /run/user/1000): the real
+        # yubikey-touch-detector.socket unit is already socket-activated on that path,
+        # so a second listener there would silently fail to bind.
+        runtime_dir = "/tmp/yubikey-test-runtime"
+        socket = f"{runtime_dir}/yubikey-touch-detector.socket"
+        fifo = f"{runtime_dir}/yubikey-feed"
+        out = "/tmp/yubikey-out.log"
+
+        machine.succeed(f"mkdir -p {runtime_dir}")
+        machine.succeed(f"mkfifo {fifo}")
+
+        # Serve the fifo's contents over a listening unix socket, standing in for the
+        # real daemon. Opening the fifo read-write keeps a reader attached so later
+        # writes to it never block waiting for one.
+        machine.execute(f"sh -c 'exec 3<>{fifo}; exec nc -lU {socket} <&3' >/tmp/fake-detector.log 2>&1 &")
+        machine.wait_until_succeeds(f"test -S {socket}")
+
+        machine.execute(f"XDG_RUNTIME_DIR={runtime_dir} timeout 30 waybar-yubikey >{out} 2>&1 &")
+        machine.wait_until_succeeds(f"test -s {out}")  # initial idle line once connected
+
+        def send(five_bytes):
+            machine.succeed(f"printf '%s' '{five_bytes}' > {fifo}")
+
+        def last_line():
+            return machine.succeed(f"tail -n1 {out}").strip()
+
+        # The bug: a lone MAC_1 (yubikey-touch-detector's broken multi-key HMAC signal)
+        # must never surface as a tooltip.
+        send("MAC_1")
+        machine.succeed("sleep 1")
+        machine.succeed(f"! grep -q tooltip {out}")
+
+        # Real touch detection (GPG here, representative of GPG/U2F which are unaffected)
+        # still works, and isn't disturbed by the ignored MAC_1 above.
+        send("GPG_1")
+        machine.wait_until_succeeds(f"grep -q tooltip {out}")
+        assert "GPG" in last_line(), f"expected GPG in tooltip, got: {last_line()}"
+
+        # Clearing GPG returns to idle; the stale MAC_1 does not resurrect the indicator.
+        send("GPG_0")
+        machine.wait_until_succeeds(f"tail -n1 {out} | grep -qv tooltip")
 
     with subtest("waybar config wires up the displays widget"):
         # The displays module is present and placed after the tray.
