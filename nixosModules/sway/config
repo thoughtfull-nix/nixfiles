@@ -4,15 +4,10 @@
 #
 # Read `man 5 sway` for a complete reference.
 
-set $gnome-schema org.gnome.desktop.interface
-
-exec_always {
-    gsettings set $gnome-schema gtk-theme 'Adwaita'
-    gsettings set $gnome-schema icon-theme 'Numix'
-    gsettings set $gnome-schema cursor-theme 'Numix'
-    gsettings set $gnome-schema cursor-size 32
-    gsettings set $gnome-schema font-name 'Numix'
-}
+# GTK theme/icon-theme/cursor-theme/font defaults live in the gtk-defaults
+# systemd unit (see sway.nix) so waybar can order after it and is guaranteed
+# to start only once the theme is actually applied.
+exec_always "systemctl --user restart gtk-defaults.service"
 
 seat * xcursor_theme Numix 32
 
