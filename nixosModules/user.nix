@@ -58,7 +58,10 @@ in
     users = {
       mutableUsers = lib.mkDefault false;
       users = {
-        root.openssh.authorizedKeys.keys = mkIf wheel user.openssh.authorizedKeys.keys;
+        root = {
+          openssh.authorizedKeys.keys = mkIf wheel user.openssh.authorizedKeys.keys;
+          password = null;
+        };
         ${cfg.name} = {
           extraGroups = cfg.extraGroups;
           group = mkOptionDefault cfg.group;
