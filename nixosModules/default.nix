@@ -28,6 +28,7 @@ in
     uns
   ]
   ++ lib.optional cfgImpermanence.disko.enable disko.packages.${system}.disko;
+  i18n.defaultLocale = mkDefault "en_US.UTF-8";
   # Import all flake input modules
   imports = [
     agenix.nixosModules.default
