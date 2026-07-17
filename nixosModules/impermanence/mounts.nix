@@ -103,7 +103,9 @@ in
       example = [
         "/etc/NetworkManager/system-connections"
         "/var/lib/nixos"
+        "/var/lib/systemd/backlight"
         "/var/lib/systemd/coredump"
+        "/var/lib/systemd/rfkill"
         "/var/log"
       ];
       type = types.listOf (types.coercedTo types.str (d: { directory = d; }) rootDir);
