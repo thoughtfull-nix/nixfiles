@@ -77,7 +77,10 @@ in
         };
       };
       waybar = {
-        after = [ "gtk-defaults.service" ];
+        # sway-session.target itself is ordered after gtk-defaults.service
+        # (nixosModules/sway.nix), so waiting on the target alone already
+        # guarantees the GTK theme is applied before this starts.
+        after = [ "sway-session.target" ];
         path = [
           bash
           curl
