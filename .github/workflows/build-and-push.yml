@@ -30,6 +30,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Free disk space
+        # jlumbroso/free-disk-space targets the x64 hosted runner image; the
+        # arm runner has a different (smaller) preinstalled toolset and
+        # plenty of headroom already, so skip it there.
+        if: matrix.runner == 'ubuntu-24.04'
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          swap-storage: false
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v22
         with:
