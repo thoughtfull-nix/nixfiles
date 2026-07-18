@@ -370,7 +370,6 @@ testPkgs.testers.nixosTest {
             "iwmenu",
             "networkmanager",
             "network-manager-applet",
-            "procps",
             "waybar-network",
         ]:
             assert tool in dropin, f"{tool} missing from waybar PATH"

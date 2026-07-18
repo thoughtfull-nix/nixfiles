@@ -17,7 +17,6 @@ let
     networkmanager
     networkmanagerapplet
     pasystray
-    procps
     waybar
     wdisplays
     ;
@@ -101,7 +100,6 @@ in
           networkmanager
           networkmanagerapplet
           power-menu
-          procps
           theme-toggle
           waybar-displays
           waybar-network
