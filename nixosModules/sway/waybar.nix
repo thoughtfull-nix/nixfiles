@@ -12,12 +12,21 @@ let
     bash
     curl
     font-awesome
+    fuzzel
+    iwmenu
+    networkmanager
     networkmanagerapplet
     pasystray
+    procps
     waybar
     wdisplays
     ;
-  inherit (pkgs.thoughtfull) theme-toggle waybar-displays waybar-yubikey;
+  inherit (pkgs.thoughtfull)
+    theme-toggle
+    waybar-displays
+    waybar-network
+    waybar-yubikey
+    ;
   power-menu = pkgs.thoughtfull.power-menu.override { gtklock = gtklock.package; };
   cfg = config.programs.waybar;
 in
@@ -29,15 +38,17 @@ in
     };
     systemPackages = [
       font-awesome
+      iwmenu
+      networkmanager
       networkmanagerapplet
       pasystray
       power-menu
       waybar
+      waybar-network
       waybar-yubikey
     ];
   };
   programs = {
-    nm-applet.enable = mkDefault sway.enable;
     waybar = {
       enable = mkDefault sway.enable;
       systemd.target = mkDefault "sway-session.target";
@@ -84,10 +95,16 @@ in
         path = [
           bash
           curl
+          fuzzel
           gtklock.package
+          iwmenu
+          networkmanager
+          networkmanagerapplet
           power-menu
+          procps
           theme-toggle
           waybar-displays
+          waybar-network
           waybar-yubikey
           wdisplays
         ];

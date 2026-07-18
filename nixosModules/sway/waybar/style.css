@@ -50,9 +50,24 @@ window#waybar {
 #custom-yubikey,
 #custom-lock,
 #custom-power,
+#custom-network-ethernet,
+#custom-network-vpn,
 #mode,
 #tray {
   padding: 0 8pt;
+}
+
+#custom-network-wifi {
+  padding: 0 12pt 0 6pt;
+}
+
+#custom-network-wifi.disconnected,
+#custom-network-ethernet.disconnected,
+#custom-network-vpn.disconnected,
+#custom-network-wifi.disabled,
+#custom-network-ethernet.disabled,
+#custom-network-vpn.disabled {
+  color: @insensitive_fg_color;
 }
 
 #custom-yubikey {
@@ -109,6 +124,9 @@ window#waybar {
 #custom-displays:hover,
 #custom-theme:hover,
 #custom-lock:hover,
-#custom-power:hover {
+#custom-power:hover,
+#custom-network-wifi:hover,
+#custom-network-ethernet:hover,
+#custom-network-vpn:hover {
   background-color: @borders;
 }

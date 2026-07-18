@@ -124,6 +124,7 @@
             uns
             usb-menu
             waybar-displays
+            waybar-network
             waybar-weather
             waybar-yubikey
             yubikey-totp

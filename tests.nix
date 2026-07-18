@@ -23,6 +23,7 @@ forEachSystem (
     monitoring = callTest ./tests/monitoring.nix;
     nixfiles = callTest ./tests/nixfiles.nix;
     system-pull = callTest ./tests/system-pull.nix;
+    vpn = callTest ./tests/vpn.nix;
     waybar = callTest ./tests/waybar.nix;
   }
 )
