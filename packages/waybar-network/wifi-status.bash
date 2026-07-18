@@ -38,7 +38,7 @@ if [[ ${state} == connected* ]]; then
   fi
   # shellcheck disable=SC2016
   @jq@ -cn --arg icon "${icon}" --arg ssid "${ssid}" --arg signal "${signal}" \
-    '{text: $icon, tooltip: ("Wi-Fi: " + $ssid + " (" + $signal + "%)\nClick to disconnect"), class: "connected"}'
+    '{text: $icon, tooltip: ("Wi-Fi: " + $ssid + " (" + $signal + "%)\nClick to browse networks\nRight-click to disconnect"), class: "connected"}'
 else
-  printf '{"text": "󰤯", "tooltip": "Wi-Fi disconnected\\nClick to reconnect, right-click to browse", "class": "disconnected"}\n'
+  printf '{"text": "󰤯", "tooltip": "Wi-Fi disconnected\\nClick to browse networks\\nRight-click to reconnect", "class": "disconnected"}\n'
 fi
