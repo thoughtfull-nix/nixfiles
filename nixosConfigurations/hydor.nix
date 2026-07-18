@@ -32,6 +32,7 @@
             swap.size = "4G";
           };
           user.hashedPasswordFile = ./hydor/secrets/hashed-user-passphrase.age;
+          vpn.configFile = ./hydor/secrets/vpn-config.age;
         };
       }
     )

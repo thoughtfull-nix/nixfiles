@@ -11,7 +11,13 @@ in
   config = mkIf graphical.enable {
     gtk.iconCache.enable = mkDefault true;
     hardware.bluetooth.enable = mkDefault true;
-    networking.networkmanager.enable = mkDefault true;
+    networking = {
+      networkmanager = {
+        enable = mkDefault true;
+        wifi.backend = mkDefault "iwd";
+      };
+      wireless.iwd.enable = mkDefault true;
+    };
     programs = {
       firefox.enable = mkDefault true;
       sway.enable = mkDefault true;
@@ -23,6 +29,7 @@ in
     systemd.user.services.mako.enable = mkDefault true;
     thoughtfull = {
       impermanence.user.directories = [ ".config/dconf" ];
+      user.extraGroups = [ "networkmanager" ];
       programs = {
         dictation.enable = mkDefault true;
         obsidian.enable = mkDefault true;

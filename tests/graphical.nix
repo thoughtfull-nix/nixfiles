@@ -53,7 +53,7 @@ nixpkgs.testers.nixosTest {
 
   nodes = {
     enabled =
-      { lib, ... }:
+      { config, lib, ... }:
       {
         inherit imports;
         thoughtfull.graphical.enable = true;
@@ -63,6 +63,9 @@ nixpkgs.testers.nixosTest {
         programs.sway.enable = lib.mkForce false;
         services.emacs.enable = lib.mkForce false;
         services.syncthing.enable = lib.mkForce false;
+        environment.etc."thoughtfull-user-extra-groups".text =
+          builtins.concatStringsSep "\n" config.thoughtfull.user.extraGroups;
+        environment.etc."networkmanager-wifi-backend".text = config.networking.networkmanager.wifi.backend;
       };
 
     disabled = {
@@ -78,6 +81,13 @@ nixpkgs.testers.nixosTest {
 
     with subtest("graphical enabled: NetworkManager is configured"):
         enabled.succeed("systemctl cat NetworkManager.service")
+
+    with subtest("graphical enabled: user can control NetworkManager"):
+        enabled.succeed("grep -Fx networkmanager /etc/thoughtfull-user-extra-groups")
+
+    with subtest("graphical enabled: iwmenu backend is configured"):
+        enabled.succeed("systemctl cat iwd.service")
+        enabled.succeed("grep -Fx iwd /etc/networkmanager-wifi-backend")
 
     with subtest("graphical disabled: NetworkManager is not configured"):
         disabled.fail("systemctl cat NetworkManager.service")

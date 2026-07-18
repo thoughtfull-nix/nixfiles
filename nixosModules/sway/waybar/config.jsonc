@@ -6,7 +6,7 @@
 
   "modules-left": ["sway/workspaces", "sway/scratchpad" ],
   "modules-center": [],
-  "modules-right": ["sway/mode", "custom/yubikey", "custom/weather", "clock", "clock#utc", "battery", "tray", "custom/displays", "custom/theme", "custom/lock", "custom/power"],
+  "modules-right": ["sway/mode", "custom/yubikey", "custom/weather", "clock", "clock#utc", "battery", "custom/network-wifi", "custom/network-ethernet", "custom/network-vpn", "tray", "custom/displays", "custom/theme", "custom/lock", "custom/power"],
 
   "sway/workspaces": {
     "disable-scroll": false,
@@ -96,6 +96,36 @@
     "format": "<span font=\"20px\">󰐥</span>",
     "tooltip-format": "Power menu",
     "on-click": "power-menu --no-lock"
+  },
+
+  "custom/network-wifi": {
+    "format": "<span font=\"20px\">{}</span>",
+    "exec": "waybar-network-wifi",
+    "return-type": "json",
+    "interval": 15,
+    "on-click": "iwmenu --launcher fuzzel",
+    "on-click-middle": "waybar-network-wifi-toggle",
+    "on-click-right": "waybar-network-wifi-toggle"
+  },
+
+  "custom/network-ethernet": {
+    "format": "<span font=\"20px\">{}</span>",
+    "exec": "waybar-network-ethernet",
+    "return-type": "json",
+    "interval": 15,
+    "on-click": "waybar-network-ethernet-toggle",
+    "on-click-middle": "waybar-network-ethernet-toggle",
+    "on-click-right": "nm-connection-editor -t 802-3-ethernet -s"
+  },
+
+  "custom/network-vpn": {
+    "format": "<span font=\"20px\">{}</span>",
+    "exec": "waybar-network-vpn",
+    "return-type": "json",
+    "interval": 15,
+    "on-click": "waybar-network-vpn-toggle",
+    "on-click-middle": "waybar-network-vpn-toggle",
+    "on-click-right": "waybar-network-vpn-toggle"
   },
 
   "custom/displays": {

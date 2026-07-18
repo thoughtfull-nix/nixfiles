@@ -77,11 +77,31 @@ testPkgs.testers.nixosTest {
           after = [ "cycle-canary-a.service" ];
           serviceConfig.ExecStart = "${pkgs.coreutils}/bin/true";
         };
+
+        # Stub for the custom/network-vpn widget. Exercises the real
+        # waybar-network-vpn/-toggle scripts against a real systemd unit
+        # instead of the real wg-quick wiring (this focused test doesn't
+        # import vpn.nix); polkit authorization for a non-root caller is
+        # covered separately in tests/vpn.nix.
+        systemd.services.vpn = {
+          description = "Stub VPN service for waybar-network-vpn tests";
+          serviceConfig.ExecStart = "${pkgs.coreutils}/bin/sleep infinity";
+        };
+      };
+
+    noVpn =
+      { pkgs, ... }:
+      {
+        environment.systemPackages = [ pkgs.thoughtfull.waybar-network ];
       };
   };
 
   testScript = ''
+    import json
+
+    start_all()
     machine.wait_for_unit("multi-user.target")
+    noVpn.wait_for_unit("multi-user.target")
 
     with subtest("yubikey-touch-detector service exists"):
         # Check that yubikey-touch-detector service file exists
@@ -282,5 +302,150 @@ testPkgs.testers.nixosTest {
         assert "sway-session.target" in pasystray_unit, (
             "pasystray should be ordered After=sway-session.target"
         )
+
+    with subtest("nm-applet is removed"):
+        machine.fail("test -f /etc/systemd/user/nm-applet.service")
+
+    with subtest("waybar config wires up the network widgets"):
+        # Replaces nm-applet's tray icon with three custom modules: Wi-Fi,
+        # Ethernet, and the wg-quick home VPN.
+        config = machine.succeed("cat /etc/xdg/waybar/config.jsonc")
+        for module in ["custom/network-wifi", "custom/network-ethernet", "custom/network-vpn"]:
+            assert f'"{module}"' in config, f"{module} missing from config.jsonc"
+
+        # Placed after battery, before tray -- the slot the old nm-applet
+        # tray icon occupied.
+        assert (
+            config.index('"battery"')
+            < config.index('"custom/network-wifi"')
+            < config.index('"tray"')
+        ), "network widgets should sit between battery and tray"
+
+        for module in ["custom/network-wifi", "custom/network-ethernet", "custom/network-vpn"]:
+            block = config[config.index(f'"{module}": {{') :]
+            block = block[: block.index("\n  },")]
+            assert '"format": "<span font=\\"20px\\">{}</span>"' in block, (
+                f"{module} should use the same 20px icon format as theme/power"
+            )
+
+        machine.succeed('grep -q \'"exec": "waybar-network-wifi"\' /etc/xdg/waybar/config.jsonc')
+        machine.succeed(
+            'grep -q \'"on-click": "iwmenu --launcher fuzzel"\' /etc/xdg/waybar/config.jsonc'
+        )
+        machine.succeed(
+            'grep -q \'"on-click-middle": "waybar-network-wifi-toggle"\' /etc/xdg/waybar/config.jsonc'
+        )
+        machine.succeed(
+            'grep -q \'"on-click-right": "waybar-network-wifi-toggle"\' /etc/xdg/waybar/config.jsonc'
+        )
+        machine.succeed('grep -q \'"exec": "waybar-network-ethernet"\' /etc/xdg/waybar/config.jsonc')
+        machine.succeed(
+            'grep -q \'"on-click": "waybar-network-ethernet-toggle"\' /etc/xdg/waybar/config.jsonc'
+        )
+        machine.succeed(
+            'grep -q \'"on-click-middle": "waybar-network-ethernet-toggle"\' /etc/xdg/waybar/config.jsonc'
+        )
+        machine.succeed(
+            'grep -q \'"on-click-right": "nm-connection-editor -t 802-3-ethernet -s"\' /etc/xdg/waybar/config.jsonc'
+        )
+        machine.succeed('grep -q \'"exec": "waybar-network-vpn"\' /etc/xdg/waybar/config.jsonc')
+        machine.succeed(
+            'grep -q \'"on-click": "waybar-network-vpn-toggle"\' /etc/xdg/waybar/config.jsonc'
+        )
+        machine.succeed(
+            'grep -q \'"on-click-middle": "waybar-network-vpn-toggle"\' /etc/xdg/waybar/config.jsonc'
+        )
+        machine.succeed(
+            'grep -q \'"on-click-right": "waybar-network-vpn-toggle"\' /etc/xdg/waybar/config.jsonc'
+        )
+
+    with subtest("waybar service PATH provides the network widgets' tooling"):
+        # PATH= only lists directories (nix store paths), one per package --
+        # individual binary names inside a symlinkJoin bundle (like the six
+        # waybar-network-* scripts, all joined under one "waybar-network"
+        # output) don't appear literally, only the bundle's own name does.
+        dropin = machine.succeed("cat /etc/systemd/user/waybar.service.d/*.conf")
+        for tool in [
+            "fuzzel",
+            "iwmenu",
+            "networkmanager",
+            "network-manager-applet",
+            "waybar-network",
+        ]:
+            assert tool in dropin, f"{tool} missing from waybar PATH"
+
+    with subtest("network widgets use icon padding and no active background"):
+        style = machine.succeed("cat /etc/xdg/waybar/style.css")
+        assert (
+            "#custom-network-wifi {\n  padding: 0 12pt 0 6pt;\n}"
+            in style
+        ), "Wi-Fi should use display-like right padding"
+        assert (
+            "#custom-network-ethernet,\n#custom-network-vpn,\n#mode"
+            in style
+        ), "Ethernet should use the default network widget padding"
+        assert "#custom-network-ethernet {" not in style, (
+            "Ethernet should use the default network widget padding"
+        )
+        assert "#custom-network-ethernet.connected" not in style, (
+            "Ethernet should use the normal background when connected"
+        )
+        assert "#custom-network-vpn.connected" not in style, (
+            "VPN should use the normal background when connected"
+        )
+
+    with subtest("waybar-network-wifi reports a disabled state when NetworkManager is unavailable"):
+        # This test node doesn't enable networking.networkmanager, so nmcli
+        # has no daemon to talk to -- the widget should degrade gracefully
+        # rather than crash waybar's exec loop.
+        out = machine.succeed("waybar-network-wifi").strip()
+        print(f"waybar-network-wifi output: {out}")
+        status = json.loads(out)
+        assert status["class"] == "disabled", f"expected a disabled state, got: {out}"
+        assert status["text"] == "󰤯", f"expected icon-only Wi-Fi text, got: {out}"
+
+        waybar_network_dir = machine.succeed(
+            "dirname $(readlink -f $(command -v waybar-network-wifi))"
+        ).strip()
+        for icon in ["󰤟", "󰤢", "󰤥", "󰤨"]:
+            machine.succeed(f"grep -R -q '{icon}' {waybar_network_dir}")
+
+    with subtest(
+        "waybar-network-ethernet reports a disabled state when NetworkManager is unavailable"
+    ):
+        out = machine.succeed("waybar-network-ethernet").strip()
+        print(f"waybar-network-ethernet output: {out}")
+        status = json.loads(out)
+        assert status["class"] == "disabled", f"expected a disabled state, got: {out}"
+        assert status["text"] == "󰈀", f"expected icon-only Ethernet text, got: {out}"
+
+    with subtest("waybar-network-vpn is disabled when vpn.service is absent"):
+        out = noVpn.succeed("waybar-network-vpn").strip()
+        status = json.loads(out)
+        assert status["class"] == "disabled", f"expected disabled, got: {out}"
+        assert status["text"] == "󰦝", f"expected icon-only VPN text, got: {out}"
+        noVpn.succeed("waybar-network-vpn-toggle")
+
+    with subtest("waybar-network-vpn reflects and toggles a real systemd unit"):
+        machine.succeed("systemctl stop vpn.service || true")
+
+        out = machine.succeed("waybar-network-vpn").strip()
+        status = json.loads(out)
+        assert status["class"] == "disconnected", f"expected disconnected, got: {out}"
+        assert status["text"] == "󰦝", f"expected icon-only VPN text, got: {out}"
+
+        machine.succeed("waybar-network-vpn-toggle")
+        machine.succeed("systemctl is-active --quiet vpn.service")
+        out = machine.succeed("waybar-network-vpn").strip()
+        status = json.loads(out)
+        assert status["class"] == "connected", f"expected connected, got: {out}"
+        assert status["text"] == "󰦝", f"expected icon-only VPN text, got: {out}"
+
+        machine.succeed("waybar-network-vpn-toggle")
+        machine.fail("systemctl is-active --quiet vpn.service")
+        out = machine.succeed("waybar-network-vpn").strip()
+        status = json.loads(out)
+        assert status["class"] == "disconnected", f"expected disconnected again, got: {out}"
+        assert status["text"] == "󰦝", f"expected icon-only VPN text, got: {out}"
   '';
 }
