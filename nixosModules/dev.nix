@@ -32,6 +32,7 @@ in
     thoughtfull.impermanence.user = {
       directories = [
         ".config/gh"
+        ".local/share/devenv"
       ]
       ++ (optionals claude.enable [ ".claude" ])
       ++ (optionals opencode.enable [
