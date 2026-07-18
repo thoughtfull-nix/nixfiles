@@ -14,20 +14,24 @@ let
     self
     ;
   inherit (lib) mkDefault mkForce;
-  inherit (pkgs) gh;
+  inherit (pkgs) gh proton-pass-cli;
   inherit (pkgs.thoughtfull) nixfiles pins uns;
   cfgImpermanence = config.thoughtfull.impermanence;
   system = config.nixpkgs.localSystem.system;
 in
 {
   boot.loader.timeout = mkForce 2;
-  environment.systemPackages = [
-    gh
-    nixfiles
-    pins
-    uns
-  ]
-  ++ lib.optional cfgImpermanence.disko.enable disko.packages.${system}.disko;
+  environment = {
+    etc."nix/nixpkgs-config.nix".text = "{ allowUnfree = true; }";
+    systemPackages = [
+      gh
+      nixfiles
+      pins
+      proton-pass-cli
+      uns
+    ]
+    ++ lib.optional cfgImpermanence.disko.enable disko.packages.${system}.disko;
+  };
   i18n.defaultLocale = mkDefault "en_US.UTF-8";
   # Import all flake input modules
   imports = [
@@ -130,7 +134,16 @@ in
     syncthing.enable = mkDefault true;
   };
   thoughtfull = {
-    impermanence.user.directories = [ ".local/share/nix" ];
+    impermanence.user = {
+      directories = [
+        ".local/share/nix"
+        ".local/share/proton-pass-cli"
+        ".local/state/nix"
+      ];
+      files = [
+        ".config/nixpkgs"
+      ];
+    };
     monitoring = {
       enable = mkDefault true;
       services = [
