@@ -394,10 +394,12 @@ testPkgs.testers.nixosTest {
             "VPN should use the normal background when connected"
         )
 
-    with subtest("waybar-network-wifi reports a disabled state when NetworkManager is unavailable"):
-        # This test node doesn't enable networking.networkmanager, so nmcli
-        # has no daemon to talk to -- the widget should degrade gracefully
-        # rather than crash waybar's exec loop.
+    with subtest("waybar-network-wifi reports a disabled state when iwd is unavailable"):
+        # This test node doesn't enable networking.wireless.iwd, so there's
+        # no iwd daemon on the system bus for busctl to talk to -- the
+        # widget should degrade gracefully rather than crash waybar's exec
+        # loop. Wifi is queried via iwd directly (not nmcli/NetworkManager,
+        # which only manages ethernet -- see graphical.nix and tests/graphical.nix).
         out = machine.succeed("waybar-network-wifi").strip()
         print(f"waybar-network-wifi output: {out}")
         status = json.loads(out)

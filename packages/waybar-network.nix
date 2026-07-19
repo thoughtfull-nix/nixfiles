@@ -18,14 +18,21 @@ let
     };
     src = ./waybar-network/network-device.bash;
   };
+  wifi-device = writeFileScriptBin {
+    name = "waybar-network-wifi-device";
+    replacements = {
+      bash = "${bash}/bin/bash";
+      busctl = "${systemd}/bin/busctl";
+      jq = "${jq}/bin/jq";
+    };
+    src = ./waybar-network/wifi-device.bash;
+  };
   waybar-network-wifi = writeFileScriptBin {
     name = "waybar-network-wifi";
     replacements = {
-      awk = "${gawk}/bin/awk";
       bash = "${bash}/bin/bash";
       jq = "${jq}/bin/jq";
-      network-device = "${network-device}/bin/waybar-network-device";
-      nmcli = "${networkmanager}/bin/nmcli";
+      wifi-device = "${wifi-device}/bin/waybar-network-wifi-device";
     };
     src = ./waybar-network/wifi-status.bash;
   };
@@ -33,8 +40,9 @@ let
     name = "waybar-network-wifi-toggle";
     replacements = {
       bash = "${bash}/bin/bash";
-      network-device = "${network-device}/bin/waybar-network-device";
-      nmcli = "${networkmanager}/bin/nmcli";
+      busctl = "${systemd}/bin/busctl";
+      jq = "${jq}/bin/jq";
+      wifi-device = "${wifi-device}/bin/waybar-network-wifi-device";
     };
     src = ./waybar-network/wifi-toggle.bash;
   };
@@ -82,5 +90,6 @@ symlinkJoin {
     waybar-network-vpn-toggle
     waybar-network-wifi
     waybar-network-wifi-toggle
+    wifi-device
   ];
 }
