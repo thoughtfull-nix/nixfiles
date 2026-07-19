@@ -65,7 +65,11 @@ nixpkgs.testers.nixosTest {
         services.syncthing.enable = lib.mkForce false;
         environment.etc."thoughtfull-user-extra-groups".text =
           builtins.concatStringsSep "\n" config.thoughtfull.user.extraGroups;
-        environment.etc."networkmanager-wifi-backend".text = config.networking.networkmanager.wifi.backend;
+        environment.etc."networkmanager-unmanaged".text =
+          builtins.concatStringsSep "\n" config.networking.networkmanager.unmanaged;
+        environment.etc."wireless-enable".text = lib.boolToString config.networking.wireless.enable;
+        environment.etc."iwd-enable-network-configuration".text =
+          lib.boolToString config.networking.wireless.iwd.settings.General.EnableNetworkConfiguration;
       };
 
     disabled = {
@@ -85,9 +89,25 @@ nixpkgs.testers.nixosTest {
     with subtest("graphical enabled: user can control NetworkManager"):
         enabled.succeed("grep -Fx networkmanager /etc/thoughtfull-user-extra-groups")
 
-    with subtest("graphical enabled: iwmenu backend is configured"):
+    with subtest(
+        "graphical enabled: iwd manages Wi-Fi directly, NetworkManager only manages ethernet"
+    ):
+        # iwmenu (the Wi-Fi picker) talks to iwd's D-Bus API directly, so
+        # NetworkManager must not also be driving the same wifi device --
+        # the two fighting over the same iwd station is what broke wifi in
+        # the first place (see git history). NetworkManager keeps managing
+        # ethernet.
         enabled.succeed("systemctl cat iwd.service")
-        enabled.succeed("grep -Fx iwd /etc/networkmanager-wifi-backend")
+        enabled.succeed("grep -Fx type:wifi /etc/networkmanager-unmanaged")
+        # NetworkManager's module wants to enable this wpa_supplicant
+        # service itself whenever wifi.backend isn't "iwd" (deliberately
+        # not set here -- see graphical.nix for why), which would conflict
+        # with wireless.iwd.enable and break the build (`Only one wireless
+        # daemon is allowed at the time`).
+        enabled.succeed("grep -Fx false /etc/wireless-enable")
+        # iwd does its own IP configuration now that NetworkManager isn't
+        # managing the wifi device to run DHCP for it.
+        enabled.succeed("grep -Fx true /etc/iwd-enable-network-configuration")
 
     with subtest("graphical disabled: NetworkManager is not configured"):
         disabled.fail("systemctl cat NetworkManager.service")
