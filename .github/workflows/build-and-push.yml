@@ -48,9 +48,18 @@ jobs:
             extra-substituters = s3://thoughtfull-nix-cache?region=us-east-1 https://cache.numtide.com https://devenv.cachix.org
             extra-trusted-public-keys = nix-cache.thoughtfull.systems-1:kN4M+h0QLcDpQksBsFNtE9t6+bLa/s4axEWYpDmz2ag= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g= devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=
       - name: Configure Nix daemon AWS credentials
+        if: matrix.runner != 'ubuntu-24.04-arm'
         uses: ./.github/actions/configure-nix-daemon-aws-creds
         with:
           role-to-assume: arn:aws:iam::481411455398:role/NixCacheWriter
+      - name: Configure Nix daemon AWS credentials (arm)
+        # The arm runner is slower, so give its assumed role's credentials
+        # longer to live than the default before they expire mid-build.
+        if: matrix.runner == 'ubuntu-24.04-arm'
+        uses: ./.github/actions/configure-nix-daemon-aws-creds
+        with:
+          role-to-assume: arn:aws:iam::481411455398:role/NixCacheWriter
+          role-duration-seconds: 7200
       - name: Build system closures
         run: |
           set -euo pipefail

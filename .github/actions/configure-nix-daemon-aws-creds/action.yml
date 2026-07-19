@@ -12,6 +12,9 @@ inputs:
   aws-region:
     description: AWS region to assume the role in.
     default: us-east-1
+  role-duration-seconds:
+    description: Duration, in seconds, of the assumed role's temporary credentials.
+    default: 3600
 runs:
   using: composite
   steps:
@@ -19,6 +22,7 @@ runs:
       uses: aws-actions/configure-aws-credentials@v6
       with:
         role-to-assume: ${{ inputs.role-to-assume }}
+        role-duration-seconds: ${{ inputs.role-duration-seconds }}
         aws-region: ${{ inputs.aws-region }}
         aws-profile: default
         overwrite-aws-profile: true
