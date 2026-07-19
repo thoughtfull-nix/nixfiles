@@ -56,11 +56,11 @@ in
           # but Wi-Fi is unmanaged by NetworkManager here, so it doesn't.
           DriverQuirks.DefaultInterface = mkDefault "?*";
           # iwd's own default (systemd, i.e. systemd-resolved) assumes
-          # systemd-resolved is running. It isn't -- DNS here is managed
-          # the classic way, via resolvconf (see NetworkManager's rc-manager
-          # above, which uses it for ethernet already) -- so without this,
-          # Wi-Fi connects and gets an IP but /etc/resolv.conf never gets a
-          # nameserver for it.
+          # systemd-resolved is running. It isn't: this system resolves
+          # DNS the classic way, via the resolvconf program (which is also
+          # what NetworkManager uses for ethernet, by nixpkgs' default) --
+          # so without this, Wi-Fi connects and gets an IP but
+          # /etc/resolv.conf never gets a nameserver for it.
           Network.NameResolvingService = mkDefault "resolvconf";
         };
       };

@@ -6,9 +6,9 @@ set -euo pipefail
 # that script for why wifi uses iwd directly instead of NetworkManager).
 mapfile -t fields < <(@wifi-device@)
 dev="${fields[0]:-}"
-state="${fields[2]:-}"
-ssid="${fields[3]:-}"
-rssi="${fields[4]:-}"
+state="${fields[1]:-}"
+ssid="${fields[2]:-}"
+rssi="${fields[3]:-}"
 
 if [[ -z ${dev} ]]; then
   printf '{"text": "󰤯", "tooltip": "No Wi-Fi device", "class": "disabled"}\n'

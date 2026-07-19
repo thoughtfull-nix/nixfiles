@@ -9,7 +9,7 @@ set -euo pipefail
 # rather than relying on iwd's own autoconnect state machine.
 mapfile -t fields < <(@wifi-device@)
 dev="${fields[0]:-}"
-state="${fields[2]:-}"
+state="${fields[1]:-}"
 [[ -z ${dev} ]] && exit 0
 
 if [[ ${state} == "connected" ]]; then
