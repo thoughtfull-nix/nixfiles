@@ -73,6 +73,7 @@ in
     ./javascript.nix
     ./less.nix
     ./mako.nix
+    ./minecraft.nix
     ./monitoring.nix
     ./obsidian.nix
     ./openssh.nix
