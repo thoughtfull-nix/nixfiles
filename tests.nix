@@ -9,7 +9,10 @@ in
 forEachSystem (
   system:
   let
-    nixpkgs = inputs.nixpkgs.legacyPackages.${system};
+    nixpkgs = import inputs.nixpkgs {
+      inherit system;
+      config.allowUnfree = true;
+    };
     callTest = path: import path { inherit self nixpkgs; };
   in
   {
