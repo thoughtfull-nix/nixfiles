@@ -17,7 +17,7 @@ fi
 # such as "connected (externally)" for devices it didn't activate itself, so
 # match on the prefix rather than exact equality.
 if [[ ${state} == connected* ]]; then
-  printf '{"text": "󰈀", "tooltip": "Ethernet connected\\nClick to disconnect", "class": "connected"}\n'
+  printf '{"text": "󰈀", "tooltip": "Ethernet connected\\nClick to manage\\nRight-click to disconnect", "class": "connected"}\n'
 else
-  printf '{"text": "󰈀", "tooltip": "Ethernet disconnected\\nClick to reconnect", "class": "disconnected"}\n'
+  printf '{"text": "󰈀", "tooltip": "Ethernet disconnected\\nClick to manage\\nRight-click to reconnect", "class": "disconnected"}\n'
 fi

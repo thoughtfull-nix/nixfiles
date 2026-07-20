@@ -2,9 +2,11 @@
 let
   inherit (pkgs)
     bash
+    fuzzel
     gawk
     jq
     networkmanager
+    networkmanagerapplet
     procps
     symlinkJoin
     systemd
@@ -75,6 +77,16 @@ let
     };
     src = ./waybar-network/ethernet-toggle.bash;
   };
+  waybar-network-ethernet-menu = writeFileScriptBin {
+    name = "waybar-network-ethernet-menu";
+    replacements = {
+      bash = "${bash}/bin/bash";
+      fuzzel = "${fuzzel}/bin/fuzzel";
+      "nm-connection-editor" = "${networkmanagerapplet}/bin/nm-connection-editor";
+      nmcli = "${networkmanager}/bin/nmcli";
+    };
+    src = ./waybar-network/ethernet-menu.bash;
+  };
   waybar-network-vpn = writeFileScriptBin {
     name = "waybar-network-vpn";
     replacements = {
@@ -97,6 +109,7 @@ symlinkJoin {
   paths = [
     network-device
     waybar-network-ethernet
+    waybar-network-ethernet-menu
     waybar-network-ethernet-toggle
     waybar-network-vpn
     waybar-network-vpn-toggle

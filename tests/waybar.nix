@@ -8,6 +8,69 @@ let
       lib = prev.lib.extend (_: _: { thoughtfull = self.lib.thoughtfull; });
     }
   );
+
+  # Fixture nmcli output for the ethernet-menu regression test below: one
+  # already-connected profile, plus profiles whose NAME exercises nmcli's
+  # terse-output escaping (an escaped colon, an escaped backslash, and both
+  # adjacent to each other) that ethernet-menu.bash must undo when it
+  # displays the name.
+  stubNmcli = testPkgs.writeShellScriptBin "nmcli" ''
+    set -euo pipefail
+    echo "nmcli $*" >>/tmp/nmcli-calls.log
+    if [[ "$1" == "-t" ]]; then
+      printf '%s\n' \
+        'uuid-plain:802-3-ethernet:eth0:Plain' \
+        'uuid-colon:802-3-ethernet::foo\:bar' \
+        'uuid-backslash:802-3-ethernet::back\\slash' \
+        'uuid-both:802-3-ethernet::a\\\:b'
+    fi
+  '';
+
+  # Stands in for the interactive fuzzel picker. Logs whatever menu it was
+  # shown (the thing under test -- this is how the ethernet-menu.bash
+  # regression test below observes the decoded profile names without a real
+  # Wayland session) and answers from a queue of 1-based line numbers in
+  # $FUZZEL_ANSWERS, one per invocation; "CANCEL" reproduces fuzzel's
+  # non-zero dmenu-cancel exit code instead of picking a line.
+  stubFuzzel = testPkgs.writeShellScriptBin "fuzzel" ''
+    set -euo pipefail
+    input=$(cat)
+    {
+      echo "== fuzzel $* =="
+      printf '%s\n' "$input"
+    } >>"$FUZZEL_LOG"
+
+    choice=$(head -n1 "$FUZZEL_ANSWERS")
+    sed -i '1d' "$FUZZEL_ANSWERS"
+
+    [[ ''${choice} == "CANCEL" ]] && exit 2
+
+    for arg in "$@"; do
+      if [[ ''${arg} == "--index" ]]; then
+        echo $((choice - 1))
+        exit 0
+      fi
+    done
+    printf '%s\n' "$input" | sed -n "''${choice}p"
+  '';
+
+  stubNmConnectionEditor = testPkgs.writeShellScriptBin "nm-connection-editor" ''
+    echo "nm-connection-editor $*" >>/tmp/nmcli-calls.log
+  '';
+
+  # The real ethernet-menu.bash rebuilt with nmcli/fuzzel replaced by the
+  # stubs above, so its parsing/escaping/index-lookup logic can be exercised
+  # end to end without real NetworkManager or a Wayland compositor.
+  testEthernetMenu = testPkgs.thoughtfull.writeFileScriptBin {
+    name = "waybar-network-ethernet-menu-test";
+    replacements = {
+      bash = "${testPkgs.bash}/bin/bash";
+      fuzzel = "${stubFuzzel}/bin/fuzzel";
+      "nm-connection-editor" = "${stubNmConnectionEditor}/bin/nm-connection-editor";
+      nmcli = "${stubNmcli}/bin/nmcli";
+    };
+    src = ../packages/waybar-network/ethernet-menu.bash;
+  };
 in
 testPkgs.testers.nixosTest {
   name = "waybar";
@@ -56,6 +119,7 @@ testPkgs.testers.nixosTest {
         environment.systemPackages = [
           pkgs.netcat
           pkgs.thoughtfull.waybar-displays
+          testEthernetMenu
         ];
 
         # Create a test user for user services
@@ -344,13 +408,13 @@ testPkgs.testers.nixosTest {
         )
         machine.succeed('grep -q \'"exec": "waybar-network-ethernet"\' /etc/xdg/waybar/config.jsonc')
         machine.succeed(
-            'grep -q \'"on-click": "waybar-network-ethernet-toggle"\' /etc/xdg/waybar/config.jsonc'
+            'grep -q \'"on-click": "waybar-network-ethernet-menu"\' /etc/xdg/waybar/config.jsonc'
         )
         machine.succeed(
             'grep -q \'"on-click-middle": "waybar-network-ethernet-toggle"\' /etc/xdg/waybar/config.jsonc'
         )
         machine.succeed(
-            'grep -q \'"on-click-right": "nm-connection-editor -t 802-3-ethernet -s"\' /etc/xdg/waybar/config.jsonc'
+            'grep -q \'"on-click-right": "waybar-network-ethernet-toggle"\' /etc/xdg/waybar/config.jsonc'
         )
         machine.succeed('grep -q \'"exec": "waybar-network-vpn"\' /etc/xdg/waybar/config.jsonc')
         machine.succeed(
@@ -424,6 +488,75 @@ testPkgs.testers.nixosTest {
         status = json.loads(out)
         assert status["class"] == "disabled", f"expected a disabled state, got: {out}"
         assert status["text"] == "󰈀", f"expected icon-only Ethernet text, got: {out}"
+
+    with subtest(
+        "waybar-network-ethernet-menu decodes escaped profile names and manages connections"
+    ):
+        # Exercises the real script (waybar-network-ethernet-menu-test, built
+        # from the same source as waybar-network-ethernet-menu but with
+        # nmcli/fuzzel replaced by stubs -- see stubNmcli/stubFuzzel above)
+        # against fixture nmcli output, without a real NetworkManager or
+        # Wayland compositor.
+        fuzzel_log = "/tmp/fuzzel-menu.log"
+        answers = "/tmp/fuzzel-answers"
+
+        def run_menu(*choices):
+            machine.succeed(f"rm -f {fuzzel_log} /tmp/nmcli-calls.log")
+            machine.succeed(
+                "printf '%s\\n' " + " ".join(choices) + f" >{answers}"
+            )
+            machine.succeed(
+                f"FUZZEL_LOG={fuzzel_log} FUZZEL_ANSWERS={answers} "
+                "waybar-network-ethernet-menu-test"
+            )
+
+        # Cancelling the very first prompt is enough to inspect the
+        # top-level list: it must show profile names with nmcli's
+        # colon/backslash escaping already undone, not the raw escaped form.
+        run_menu("CANCEL")
+        top_level = machine.succeed(f"cat {fuzzel_log}")
+        assert "foo:bar" in top_level, f"expected decoded colon name, got: {top_level}"
+        assert "back\\slash" in top_level, (
+            f"expected decoded backslash name, got: {top_level}"
+        )
+        assert "a\\:b" in top_level, f"expected decoded mixed-escape name, got: {top_level}"
+        assert "foo\\:bar" not in top_level, (
+            f"colon escape should have been undone, got: {top_level}"
+        )
+        assert "back\\\\slash" not in top_level, (
+            f"backslash escape should have been undone, got: {top_level}"
+        )
+
+        # Selecting the already-connected "Plain" profile (list line 1) then
+        # "Disconnect" (submenu line 1, since it has a device) must resolve
+        # back to the right uuid via the --index lookup, not just the label.
+        run_menu("1", "1")
+        calls = machine.succeed("cat /tmp/nmcli-calls.log")
+        assert "connection down uuid uuid-plain" in calls, f"expected disconnect call, got: {calls}"
+
+        # Selecting a disconnected profile and choosing Connect uses the same
+        # index-derived uuid path as Disconnect, but runs the opposite nmcli
+        # action when the fixture has no active device.
+        run_menu("2", "1")
+        calls = machine.succeed("cat /tmp/nmcli-calls.log")
+        assert "connection up uuid uuid-colon" in calls, f"expected connect call, got: {calls}"
+
+        # Back returns to the already-snapshotted top-level menu, where the
+        # Settings item can still be selected.
+        run_menu("2", "4", "6")
+        calls = machine.succeed("cat /tmp/nmcli-calls.log")
+        assert "nm-connection-editor -t 802-3-ethernet -s" in calls, (
+            f"expected settings call after Back, got: {calls}"
+        )
+
+        # Selecting the colon-escaped profile (list line 2), then Delete
+        # (submenu line 3) and confirming Yes (confirm line 2) must delete
+        # the uuid belonging to that profile, not a neighboring one --
+        # exercising both the delete confirmation flow and that the index
+        # lookup still lines up correctly for a profile with an escaped name.
+        run_menu("2", "3", "2")
+        calls = machine.succeed("cat /tmp/nmcli-calls.log")
+        assert "connection delete uuid uuid-colon" in calls, f"expected delete call, got: {calls}"
 
     with subtest("waybar-network-vpn is disabled when vpn.service is absent"):
         out = noVpn.succeed("waybar-network-vpn").strip()

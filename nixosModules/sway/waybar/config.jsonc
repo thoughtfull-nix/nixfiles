@@ -114,9 +114,9 @@
     "exec": "waybar-network-ethernet",
     "return-type": "json",
     "interval": 15,
-    "on-click": "waybar-network-ethernet-toggle",
+    "on-click": "waybar-network-ethernet-menu",
     "on-click-middle": "waybar-network-ethernet-toggle",
-    "on-click-right": "nm-connection-editor -t 802-3-ethernet -s"
+    "on-click-right": "waybar-network-ethernet-toggle"
   },
 
   "custom/network-vpn": {
