@@ -38,9 +38,14 @@ while IFS=: read -r uuid type device name; do
   # backslash-escapes it, but it's still a literal ":" -- can't shift
   # UUID/TYPE/DEVICE out of place: `read` with a fixed variable count
   # folds any of its own remaining colons into the last variable intact.
-  # nmcli's terse output backslash-escapes literal colons within a field
-  # (e.g. a profile named "foo:bar"), same as wifi-status.bash's SSID.
+  # nmcli's terse output backslash-escapes literal colons (e.g. a profile
+  # named "foo:bar") and literal backslashes (e.g. "foo\bar" becomes
+  # "foo\\bar") so the colon-escape is unambiguous. Undo the backslash
+  # escape first via a placeholder so a doubled backslash doesn't get
+  # mistaken for an escaped colon partway through.
+  name="${name//\\\\/$'\x01'}"
   name="${name//\\:/:}"
+  name="${name//$'\x01'/\\}"
   menu_uuid+=("${uuid}")
   menu_device+=("${device}")
   menu_lines+=("${icon_connection} ${name}")
@@ -95,7 +100,13 @@ while true; do
       exit 0
       ;;
     "${delete_label}")
-      @nmcli@ connection delete uuid "${uuid}"
+      confirm_yes="Yes"
+      confirm_no="No"
+      confirm=$(
+        printf '%s\n' "${confirm_no}" "${confirm_yes}" |
+          @fuzzel@ --dmenu --minimal-lines --placeholder "Delete ${name}?"
+      )
+      [[ ${confirm} == "${confirm_yes}" ]] && @nmcli@ connection delete uuid "${uuid}"
       exit 0
       ;;
     "${back_label}")
