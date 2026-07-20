@@ -340,13 +340,13 @@ testPkgs.testers.nixosTest {
         )
         machine.succeed('grep -q \'"exec": "waybar-network-ethernet"\' /etc/xdg/waybar/config.jsonc')
         machine.succeed(
-            'grep -q \'"on-click": "waybar-network-ethernet-toggle"\' /etc/xdg/waybar/config.jsonc'
+            'grep -q \'"on-click": "waybar-network-ethernet-menu"\' /etc/xdg/waybar/config.jsonc'
         )
         machine.succeed(
             'grep -q \'"on-click-middle": "waybar-network-ethernet-toggle"\' /etc/xdg/waybar/config.jsonc'
         )
         machine.succeed(
-            'grep -q \'"on-click-right": "nm-connection-editor -t 802-3-ethernet -s"\' /etc/xdg/waybar/config.jsonc'
+            'grep -q \'"on-click-right": "waybar-network-ethernet-toggle"\' /etc/xdg/waybar/config.jsonc'
         )
         machine.succeed('grep -q \'"exec": "waybar-network-vpn"\' /etc/xdg/waybar/config.jsonc')
         machine.succeed(
