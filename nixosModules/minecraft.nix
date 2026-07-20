@@ -13,11 +13,19 @@ in
     environment.systemPackages = [ pkgs.hmcl ];
     thoughtfull.impermanence.user = {
       directories = [
-        ".local/share/hmcl"
+        {
+          directory = ".local/share/hmcl";
+          mode = "0700";
+        }
         ".minecraft"
       ];
       files = [
-        ".hmcl/hmcl.json"
+        {
+          file = ".hmcl/hmcl.json";
+          parentDirectory = {
+            mode = "0700";
+          };
+        }
       ];
     };
   };
