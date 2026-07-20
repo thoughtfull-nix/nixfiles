@@ -6,7 +6,7 @@ set -euo pipefail
 # on device" prompt. That prompt doesn't actually gate anything useful:
 # iwmenu only picks up iwd's Station D-Bus interface (and so only shows a
 # network list) if the radio was already powered when iwmenu started --
-# see iwd-device.bash for why Station only exists while powered. Selecting
+# see wifi-device.bash for why Station only exists while powered. Selecting
 # "Power on device" works by reinitializing everything from scratch, but
 # escaping just quits with the radio silently left on and no menu shown.
 # Powering on ourselves first sidesteps that prompt entirely.
@@ -21,17 +21,28 @@ dev="${fields[0]:-}"
 powered="${fields[4]:-}"
 
 if [[ -n ${dev} && ${powered} != "true" ]]; then
-  @busctl@ --system set-property net.connman.iwd "${dev}" net.connman.iwd.Device Powered b true
+  # A failed power-on shouldn't abort the script under set -e and leave
+  # iwmenu never even attempted -- fall through and let iwmenu try anyway,
+  # same as if we hadn't powered on at all.
+  @busctl@ --system set-property net.connman.iwd "${dev}" net.connman.iwd.Device Powered b true || true
   @pkill@ -RTMIN+5 -x waybar || true
   # Real hardware can take a few seconds to bring the interface up (driver
   # firmware load, etc.) before iwd registers the Station interface --
   # launching iwmenu before that happens makes it silently quit with no
   # menu shown at all (see comment above), so wait longer than it should
-  # ever actually take rather than risk cutting this off early.
+  # ever actually take rather than risk cutting this off early. If it still
+  # never comes up, say so on stderr rather than launching iwmenu into the
+  # same silent failure this script exists to avoid.
+  station_ready=false
   for _ in $(seq 1 20); do
-    @busctl@ --system get-property net.connman.iwd "${dev}" net.connman.iwd.Station Scanning &>/dev/null && break
+    if @busctl@ --system get-property net.connman.iwd "${dev}" net.connman.iwd.Station Scanning &>/dev/null; then
+      station_ready=true
+      break
+    fi
     sleep 0.25
   done
+  [[ ${station_ready} == false ]] &&
+    echo "wifi-menu: iwd's Station interface never came up after powering on; launching iwmenu anyway" >&2
 fi
 
 iwmenu --launcher fuzzel || true

@@ -26,14 +26,16 @@ objects=$(@busctl@ --system -j call net.connman.iwd / org.freedesktop.DBus.Objec
 # shellcheck disable=SC2016
 parsed=$(@jq@ -r '
   .data[0] as $objs
-  | ($objs | to_entries[] | select(.value["net.connman.iwd.Device"].Mode.data? == "station")) as $d
+  # This widget only has room for one Wi-Fi icon, so if a machine has more
+  # than one station-mode device, only the first one found is reported.
+  | first($objs | to_entries[] | select(.value["net.connman.iwd.Device"].Mode.data? == "station")) as $d
   | ($d.value["net.connman.iwd.Station"].ConnectedNetwork.data // "") as $net
   | [
       $d.key,
       ($d.value["net.connman.iwd.Station"].State.data // "disconnected"),
       (if $net != "" then $objs[$net]["net.connman.iwd.Network"].Name.data else "" end),
       (if $d.value["net.connman.iwd.Device"].Powered.data == true then "true" else "false" end)
-    ] | join("")
+    ] | join("\u001f")
 ' <<<"${objects}" 2>/dev/null) || exit 0
 [[ -z ${parsed} ]] && exit 0
 

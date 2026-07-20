@@ -26,13 +26,16 @@ dev="${fields[0]:-}"
 powered="${fields[4]:-}"
 [[ -z ${dev} ]] && exit 0
 
+# A failed set-property shouldn't abort the script under set -e before the
+# refresh below runs -- if it really failed, the icon just reflects that
+# nothing changed, which is accurate.
 if [[ ${powered} == "true" ]]; then
-  @busctl@ --system set-property net.connman.iwd "${dev}" net.connman.iwd.Device Powered b false
+  @busctl@ --system set-property net.connman.iwd "${dev}" net.connman.iwd.Device Powered b false || true
   @pkill@ -RTMIN+5 -x waybar || true
   exit 0
 fi
 
-@busctl@ --system set-property net.connman.iwd "${dev}" net.connman.iwd.Device Powered b true
+@busctl@ --system set-property net.connman.iwd "${dev}" net.connman.iwd.Device Powered b true || true
 @pkill@ -RTMIN+5 -x waybar || true
 for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
   @busctl@ --system get-property net.connman.iwd "${dev}" net.connman.iwd.Station Scanning &>/dev/null && break
@@ -45,19 +48,20 @@ for _ in 1 2 3 4 5; do
   sleep 1
 done
 
+# GetOrderedNetworks returns every visible network (known or not), sorted
+# best-signal-first. KnownNetwork is only present on a Network object at
+# all if it's actually a known one, so a per-candidate property read (not
+# a full ObjectManager tree dump) is enough to find the first one we can
+# connect to.
 ordered=$(@busctl@ --system -j call net.connman.iwd "${dev}" net.connman.iwd.Station GetOrderedNetworks 2>/dev/null) || exit 0
-objects=$(@busctl@ --system -j call net.connman.iwd / org.freedesktop.DBus.ObjectManager GetManagedObjects 2>/dev/null) || exit 0
 
-best=$(
-  # shellcheck disable=SC2016
-  @jq@ -n -r --argjson objects "${objects}" --argjson ordered "${ordered}" '
-    $objects.data[0] as $o
-    | $ordered.data[0][]
-    | .[0] as $path
-    | select($o[$path]["net.connman.iwd.Network"].KnownNetwork.data? != null)
-    | $path
-  ' 2>/dev/null | head -n1
-) || exit 0
+best=""
+while IFS= read -r path; do
+  if @busctl@ --system get-property net.connman.iwd "${path}" net.connman.iwd.Network KnownNetwork &>/dev/null; then
+    best="${path}"
+    break
+  fi
+done < <(@jq@ -r '.data[0][][0] // empty' <<<"${ordered}" 2>/dev/null)
 
 if [[ -n ${best} ]]; then
   @busctl@ --system call net.connman.iwd "${best}" net.connman.iwd.Network Connect
