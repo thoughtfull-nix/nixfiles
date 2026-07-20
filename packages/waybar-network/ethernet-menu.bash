@@ -30,6 +30,7 @@ settings_label="${icon_settings} Settings"
 # used as an associative-array key.
 declare -a menu_uuid=()
 declare -a menu_device=()
+declare -a menu_name=()
 declare -a menu_lines=()
 while IFS=: read -r uuid type device name; do
   [[ ${type} == "802-3-ethernet" ]] || continue
@@ -48,6 +49,7 @@ while IFS=: read -r uuid type device name; do
   name="${name//$'\x01'/\\}"
   menu_uuid+=("${uuid}")
   menu_device+=("${device}")
+  menu_name+=("${name}")
   menu_lines+=("${icon_connection} ${name}")
 done < <(@nmcli@ -t -f UUID,TYPE,DEVICE,NAME connection show 2>/dev/null)
 
@@ -57,7 +59,11 @@ settings_index=${#menu_lines[@]}
 menu_lines+=("${settings_label}")
 
 while true; do
-  index=$(printf '%s\n' "${menu_lines[@]}" | @fuzzel@ --dmenu --minimal-lines --index)
+  # fuzzel exits non-zero (2 on Escape/right-click, 1 if dmenu mode never
+  # got a selection) whenever nothing was chosen, which `errexit` would
+  # otherwise treat as a script failure right at the assignment -- `|| true`
+  # neutralizes that so the explicit empty check below actually runs.
+  index=$(printf '%s\n' "${menu_lines[@]}" | @fuzzel@ --dmenu --minimal-lines --index) || true
   [[ -z ${index} ]] && exit 0
 
   if ((index == new_index)); then
@@ -70,7 +76,7 @@ while true; do
 
   uuid="${menu_uuid[index]}"
   device="${menu_device[index]}"
-  name="${menu_lines[index]#"${icon_connection} "}"
+  name="${menu_name[index]}"
 
   if [[ -n ${device} ]]; then
     connect_label="${icon_disconnect} Disconnect"
@@ -81,10 +87,12 @@ while true; do
   delete_label="${icon_delete} Delete"
   back_label="${icon_back} Back"
 
+  # See the `|| true` note above: a cancelled submenu must fall through to
+  # the `*)` case below instead of triggering `errexit`.
   sub_selection=$(
     printf '%s\n' "${connect_label}" "${edit_label}" "${delete_label}" "${back_label}" |
       @fuzzel@ --dmenu --minimal-lines --placeholder "Manage ${name}"
-  )
+  ) || true
 
   case "${sub_selection}" in
     "${connect_label}")
@@ -105,7 +113,7 @@ while true; do
       confirm=$(
         printf '%s\n' "${confirm_no}" "${confirm_yes}" |
           @fuzzel@ --dmenu --minimal-lines --placeholder "Delete ${name}?"
-      )
+      ) || true
       [[ ${confirm} == "${confirm_yes}" ]] && @nmcli@ connection delete uuid "${uuid}"
       exit 0
       ;;
