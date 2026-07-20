@@ -103,7 +103,8 @@
     "exec": "waybar-network-wifi",
     "return-type": "json",
     "interval": 15,
-    "on-click": "iwmenu --launcher fuzzel",
+    "signal": 5,
+    "on-click": "waybar-network-wifi-menu",
     "on-click-middle": "waybar-network-wifi-toggle",
     "on-click-right": "waybar-network-wifi-toggle"
   },

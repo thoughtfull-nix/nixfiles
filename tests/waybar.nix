@@ -393,8 +393,12 @@ testPkgs.testers.nixosTest {
             )
 
         machine.succeed('grep -q \'"exec": "waybar-network-wifi"\' /etc/xdg/waybar/config.jsonc')
+        # wifi-toggle.bash and wifi-menu.bash both poke this signal after
+        # changing state, so the icon updates immediately instead of
+        # waiting out the 15s poll interval.
+        machine.succeed('grep -q \'"signal": 5\' /etc/xdg/waybar/config.jsonc')
         machine.succeed(
-            'grep -q \'"on-click": "iwmenu --launcher fuzzel"\' /etc/xdg/waybar/config.jsonc'
+            'grep -q \'"on-click": "waybar-network-wifi-menu"\' /etc/xdg/waybar/config.jsonc'
         )
         machine.succeed(
             'grep -q \'"on-click-middle": "waybar-network-wifi-toggle"\' /etc/xdg/waybar/config.jsonc'
@@ -468,12 +472,12 @@ testPkgs.testers.nixosTest {
         print(f"waybar-network-wifi output: {out}")
         status = json.loads(out)
         assert status["class"] == "disabled", f"expected a disabled state, got: {out}"
-        assert status["text"] == "󰤯", f"expected icon-only Wi-Fi text, got: {out}"
+        assert status["text"] == "󰤭", f"expected the slashed Wi-Fi icon, got: {out}"
 
         waybar_network_dir = machine.succeed(
             "dirname $(readlink -f $(command -v waybar-network-wifi))"
         ).strip()
-        for icon in ["󰤟", "󰤢", "󰤥", "󰤨"]:
+        for icon in ["󰤟", "󰤢", "󰤥", "󰤨", "󰤯", "󰤭"]:
             machine.succeed(f"grep -R -q '{icon}' {waybar_network_dir}")
 
     with subtest(

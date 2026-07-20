@@ -9,9 +9,15 @@ dev="${fields[0]:-}"
 state="${fields[1]:-}"
 ssid="${fields[2]:-}"
 rssi="${fields[3]:-}"
+powered="${fields[4]:-}"
 
 if [[ -z ${dev} ]]; then
-  printf '{"text": "󰤯", "tooltip": "No Wi-Fi device", "class": "disabled"}\n'
+  printf '{"text": "󰤭", "tooltip": "No Wi-Fi device", "class": "disabled"}\n'
+  exit 0
+fi
+
+if [[ ${powered} != "true" ]]; then
+  printf '{"text": "󰤭", "tooltip": "Wi-Fi disabled\\nClick to browse networks\\nRight-click to enable", "class": "disabled"}\n'
   exit 0
 fi
 
@@ -30,7 +36,7 @@ if [[ ${state} == "connected" ]]; then
   fi
   # shellcheck disable=SC2016
   @jq@ -cn --arg icon "${icon}" --arg ssid "${ssid}" --arg rssi "${rssi}" \
-    '{text: $icon, tooltip: ("Wi-Fi: " + $ssid + " (" + $rssi + " dBm)\nClick to browse networks\nRight-click to disconnect"), class: "connected"}'
+    '{text: $icon, tooltip: ("Wi-Fi: " + $ssid + " (" + $rssi + " dBm)\nClick to browse networks\nRight-click to disable"), class: "connected"}'
 else
-  printf '{"text": "󰤯", "tooltip": "Wi-Fi disconnected\\nClick to browse networks\\nRight-click to reconnect", "class": "disconnected"}\n'
+  printf '{"text": "󰤯", "tooltip": "Wi-Fi disconnected\\nClick to browse networks\\nRight-click to disable", "class": "disconnected"}\n'
 fi

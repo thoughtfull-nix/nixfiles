@@ -7,6 +7,7 @@ let
     jq
     networkmanager
     networkmanagerapplet
+    procps
     symlinkJoin
     systemd
     ;
@@ -44,9 +45,20 @@ let
       bash = "${bash}/bin/bash";
       busctl = "${systemd}/bin/busctl";
       jq = "${jq}/bin/jq";
+      pkill = "${procps}/bin/pkill";
       wifi-device = "${wifi-device}/bin/waybar-network-wifi-device";
     };
     src = ./waybar-network/wifi-toggle.bash;
+  };
+  waybar-network-wifi-menu = writeFileScriptBin {
+    name = "waybar-network-wifi-menu";
+    replacements = {
+      bash = "${bash}/bin/bash";
+      busctl = "${systemd}/bin/busctl";
+      pkill = "${procps}/bin/pkill";
+      wifi-device = "${wifi-device}/bin/waybar-network-wifi-device";
+    };
+    src = ./waybar-network/wifi-menu.bash;
   };
   waybar-network-ethernet = writeFileScriptBin {
     name = "waybar-network-ethernet";
@@ -102,6 +114,7 @@ symlinkJoin {
     waybar-network-vpn
     waybar-network-vpn-toggle
     waybar-network-wifi
+    waybar-network-wifi-menu
     waybar-network-wifi-toggle
     wifi-device
   ];
