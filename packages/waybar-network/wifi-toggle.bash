@@ -31,12 +31,12 @@ powered="${fields[4]:-}"
 # nothing changed, which is accurate.
 if [[ ${powered} == "true" ]]; then
   @busctl@ --system set-property net.connman.iwd "${dev}" net.connman.iwd.Device Powered b false || true
-  @pkill@ -RTMIN+5 -x waybar || true
+  @systemctl@ --user kill --signal=RTMIN+5 waybar.service || true
   exit 0
 fi
 
 @busctl@ --system set-property net.connman.iwd "${dev}" net.connman.iwd.Device Powered b true || true
-@pkill@ -RTMIN+5 -x waybar || true
+@systemctl@ --user kill --signal=RTMIN+5 waybar.service || true
 for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
   @busctl@ --system get-property net.connman.iwd "${dev}" net.connman.iwd.Station Scanning &>/dev/null && break
   sleep 0.25
@@ -65,5 +65,5 @@ done < <(@jq@ -r '.data[0][][0] // empty' <<<"${ordered}" 2>/dev/null)
 
 if [[ -n ${best} ]]; then
   @busctl@ --system call net.connman.iwd "${best}" net.connman.iwd.Network Connect
-  @pkill@ -RTMIN+5 -x waybar || true
+  @systemctl@ --user kill --signal=RTMIN+5 waybar.service || true
 fi

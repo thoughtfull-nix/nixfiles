@@ -6,6 +6,7 @@ let
     pulseaudio
     replaceVars
     symlinkJoin
+    systemd
     ;
   inherit (lib) writeFileScriptBin;
   mic-mute-toggle = writeFileScriptBin {
@@ -13,6 +14,7 @@ let
     replacements = {
       DEFAULT_SOURCE = null;
       pactl = "${pulseaudio}/bin/pactl";
+      systemctl = "${systemd}/bin/systemctl";
       mic-status = "${mic-status}/bin/mic-status";
     };
     src = ./mic/mic-mute-toggle.bash;
@@ -56,6 +58,7 @@ let
       DEFAULT_SOURCE = null;
       canberra-gtk-play = "${libcanberra-gtk3}/bin/canberra-gtk-play";
       pactl = "${pulseaudio}/bin/pactl";
+      systemctl = "${systemd}/bin/systemctl";
       mic-status = "${mic-status}/bin/mic-status";
     };
     src = ./mic/mic-volume-down.bash;
@@ -66,6 +69,7 @@ let
       DEFAULT_SOURCE = null;
       canberra-gtk-play = "${libcanberra-gtk3}/bin/canberra-gtk-play";
       pactl = "${pulseaudio}/bin/pactl";
+      systemctl = "${systemd}/bin/systemctl";
       mic-status = "${mic-status}/bin/mic-status";
     };
     src = ./mic/mic-volume-up.bash;

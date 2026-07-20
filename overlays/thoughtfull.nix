@@ -201,6 +201,12 @@ in
       };
       pkgs = final;
     };
+    waybar-audio = import ../packages/waybar-audio.nix {
+      lib = {
+        inherit writeFileScriptBin;
+      };
+      pkgs = final;
+    };
     waybar-displays = import ../packages/waybar-displays.nix {
       lib = {
         inherit writeFileScriptBin;

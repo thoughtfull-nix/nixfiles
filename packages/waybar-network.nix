@@ -7,7 +7,6 @@ let
     jq
     networkmanager
     networkmanagerapplet
-    procps
     symlinkJoin
     systemd
     ;
@@ -45,7 +44,7 @@ let
       bash = "${bash}/bin/bash";
       busctl = "${systemd}/bin/busctl";
       jq = "${jq}/bin/jq";
-      pkill = "${procps}/bin/pkill";
+      systemctl = "${systemd}/bin/systemctl";
       wifi-device = "${wifi-device}/bin/waybar-network-wifi-device";
     };
     src = ./waybar-network/wifi-toggle.bash;
@@ -55,7 +54,7 @@ let
     replacements = {
       bash = "${bash}/bin/bash";
       busctl = "${systemd}/bin/busctl";
-      pkill = "${procps}/bin/pkill";
+      systemctl = "${systemd}/bin/systemctl";
       wifi-device = "${wifi-device}/bin/waybar-network-wifi-device";
     };
     src = ./waybar-network/wifi-menu.bash;

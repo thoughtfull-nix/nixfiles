@@ -6,7 +6,7 @@
 
   "modules-left": ["sway/workspaces", "sway/scratchpad" ],
   "modules-center": [],
-  "modules-right": ["sway/mode", "custom/yubikey", "custom/weather", "clock", "clock#utc", "battery", "custom/network-wifi", "custom/network-ethernet", "custom/network-vpn", "tray", "custom/displays", "custom/theme", "custom/lock", "custom/power"],
+  "modules-right": ["sway/mode", "custom/yubikey", "custom/weather", "clock", "clock#utc", "battery", "custom/network-wifi", "custom/network-ethernet", "custom/network-vpn", "custom/audio-mic", "custom/audio-speaker", "tray", "custom/displays", "custom/theme", "custom/lock", "custom/power"],
 
   "sway/workspaces": {
     "disable-scroll": false,
@@ -127,6 +127,28 @@
     "on-click": "waybar-network-vpn-toggle",
     "on-click-middle": "waybar-network-vpn-toggle",
     "on-click-right": "waybar-network-vpn-toggle"
+  },
+
+  "custom/audio-mic": {
+    "format": "<span font=\"20px\">{}</span>",
+    "exec": "waybar-audio-mic",
+    "return-type": "json",
+    "interval": 15,
+    "signal": 7,
+    "on-click": "waybar-audio-mic-menu",
+    "on-click-middle": "waybar-audio-mic-toggle",
+    "on-click-right": "waybar-audio-mic-toggle"
+  },
+
+  "custom/audio-speaker": {
+    "format": "<span font=\"20px\">{}</span>",
+    "exec": "waybar-audio-speaker",
+    "return-type": "json",
+    "interval": 15,
+    "signal": 6,
+    "on-click": "waybar-audio-speaker-menu",
+    "on-click-middle": "waybar-audio-speaker-toggle",
+    "on-click-right": "waybar-audio-speaker-toggle"
   },
 
   "custom/displays": {

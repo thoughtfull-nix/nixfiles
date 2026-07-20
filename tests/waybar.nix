@@ -71,6 +71,72 @@ let
     };
     src = ../packages/waybar-network/ethernet-menu.bash;
   };
+
+  # Fixture-driven stand-in for pactl, used by the audio widget script tests
+  # below. Every invocation is logged (mirroring stubNmcli) so tests can
+  # assert on set-default-sink/move-sink-input calls without a real
+  # PipeWire/PulseAudio server; the handful of read commands the audio
+  # scripts depend on answer from files each subtest points at via env vars,
+  # so different subtests can swap in different fixtures without rebuilding
+  # the stub.
+  stubPactl = testPkgs.writeShellScriptBin "pactl" ''
+    set -euo pipefail
+    echo "pactl $*" >>/tmp/pactl-calls.log
+    case "$*" in
+      "-f json list sinks") cat "''${SINKS_JSON:-/dev/null}" ;;
+      "-f json list sources") cat "''${SOURCES_JSON:-/dev/null}" ;;
+      "get-default-sink") cat "''${DEFAULT_SINK_FILE:-/dev/null}" ;;
+      "get-default-source") cat "''${DEFAULT_SOURCE_FILE:-/dev/null}" ;;
+      "list sink-inputs short") cat "''${SINK_INPUTS:-/dev/null}" ;;
+      "list source-outputs short") cat "''${SOURCE_OUTPUTS:-/dev/null}" ;;
+      *) ;;
+    esac
+  '';
+
+  # The real status/menu scripts rebuilt with pactl/fuzzel replaced by the
+  # stubs above (jq and systemctl are the real thing -- deterministic and
+  # harmless against the test machine's real waybar service, same as the
+  # network widget tests leave them unstubbed).
+  testSpeakerStatus = testPkgs.thoughtfull.writeFileScriptBin {
+    name = "waybar-audio-speaker-test";
+    replacements = {
+      bash = "${testPkgs.bash}/bin/bash";
+      jq = "${testPkgs.jq}/bin/jq";
+      pactl = "${stubPactl}/bin/pactl";
+    };
+    src = ../packages/waybar-audio/speaker-status.bash;
+  };
+  testMicStatus = testPkgs.thoughtfull.writeFileScriptBin {
+    name = "waybar-audio-mic-test";
+    replacements = {
+      bash = "${testPkgs.bash}/bin/bash";
+      jq = "${testPkgs.jq}/bin/jq";
+      pactl = "${stubPactl}/bin/pactl";
+    };
+    src = ../packages/waybar-audio/mic-status.bash;
+  };
+  testSpeakerMenu = testPkgs.thoughtfull.writeFileScriptBin {
+    name = "waybar-audio-speaker-menu-test";
+    replacements = {
+      bash = "${testPkgs.bash}/bin/bash";
+      fuzzel = "${stubFuzzel}/bin/fuzzel";
+      jq = "${testPkgs.jq}/bin/jq";
+      pactl = "${stubPactl}/bin/pactl";
+      systemctl = "${testPkgs.systemd}/bin/systemctl";
+    };
+    src = ../packages/waybar-audio/speaker-menu.bash;
+  };
+  testMicMenu = testPkgs.thoughtfull.writeFileScriptBin {
+    name = "waybar-audio-mic-menu-test";
+    replacements = {
+      bash = "${testPkgs.bash}/bin/bash";
+      fuzzel = "${stubFuzzel}/bin/fuzzel";
+      jq = "${testPkgs.jq}/bin/jq";
+      pactl = "${stubPactl}/bin/pactl";
+      systemctl = "${testPkgs.systemd}/bin/systemctl";
+    };
+    src = ../packages/waybar-audio/mic-menu.bash;
+  };
 in
 testPkgs.testers.nixosTest {
   name = "waybar";
@@ -120,6 +186,10 @@ testPkgs.testers.nixosTest {
           pkgs.netcat
           pkgs.thoughtfull.waybar-displays
           testEthernetMenu
+          testMicMenu
+          testMicStatus
+          testSpeakerMenu
+          testSpeakerStatus
         ];
 
         # Create a test user for user services
@@ -162,6 +232,7 @@ testPkgs.testers.nixosTest {
 
   testScript = ''
     import json
+    import shlex
 
     start_all()
     machine.wait_for_unit("multi-user.target")
@@ -344,17 +415,17 @@ testPkgs.testers.nixosTest {
         # gtk-defaults sets the GTK icon theme via gsettings. Rather than
         # every consumer ordering after gtk-defaults.service individually,
         # sway-session.target itself waits on it, so anything that just waits
-        # on the target (waybar, pasystray, blueman-applet, ...) is covered.
-        # Absence of a cycle above isn't enough to prove this edge exists --
-        # e.g. a consumer silently losing its after=sway-session.target
-        # wouldn't cycle, just quietly reintroduce the race -- so assert the
-        # ordering direction directly on the rendered unit.
+        # on the target (waybar, blueman-applet, ...) is covered. Absence of
+        # a cycle above isn't enough to prove this edge exists -- e.g. a
+        # consumer silently losing its after=sway-session.target wouldn't
+        # cycle, just quietly reintroduce the race -- so assert the ordering
+        # direction directly on the rendered unit.
         target_unit = machine.succeed("cat /etc/systemd/user/sway-session.target")
         assert "gtk-defaults.service" in target_unit, (
             "sway-session.target should be ordered After=gtk-defaults.service"
         )
 
-    with subtest("waybar and pasystray are ordered after sway-session.target"):
+    with subtest("waybar is ordered after sway-session.target"):
         # Same reasoning as above: confirm the consumer side of the edge
         # directly, rather than relying only on cycle-absence.
         dropin = machine.succeed("cat /etc/systemd/user/waybar.service.d/*.conf")
@@ -362,13 +433,14 @@ testPkgs.testers.nixosTest {
             "waybar should be ordered After=sway-session.target"
         )
 
-        pasystray_unit = machine.succeed("cat /etc/systemd/user/pasystray.service")
-        assert "sway-session.target" in pasystray_unit, (
-            "pasystray should be ordered After=sway-session.target"
-        )
-
     with subtest("nm-applet is removed"):
         machine.fail("test -f /etc/systemd/user/nm-applet.service")
+
+    with subtest("pasystray is not installed or managed"):
+        # Replaced by the custom/audio-mic and custom/audio-speaker widgets
+        # below -- no tray icon, no user service, no package.
+        machine.fail("test -f /etc/systemd/user/pasystray.service")
+        machine.fail("command -v pasystray")
 
     with subtest("waybar config wires up the network widgets"):
         # Replaces nm-applet's tray icon with three custom modules: Wi-Fi,
@@ -427,6 +499,53 @@ testPkgs.testers.nixosTest {
             'grep -q \'"on-click-right": "waybar-network-vpn-toggle"\' /etc/xdg/waybar/config.jsonc'
         )
 
+    with subtest("waybar config wires up the audio widgets"):
+        # Replaces pasystray's tray icon with two custom modules: mic and
+        # speaker. Placed after the network widgets, before tray -- the slot
+        # the old pasystray tray icon occupied.
+        config = machine.succeed("cat /etc/xdg/waybar/config.jsonc")
+        for module in ["custom/audio-mic", "custom/audio-speaker"]:
+            assert f'"{module}"' in config, f"{module} missing from config.jsonc"
+
+        assert (
+            config.index('"custom/network-vpn"')
+            < config.index('"custom/audio-mic"')
+            < config.index('"tray"')
+        ), "audio widgets should sit between the network widgets and tray"
+
+        for module in ["custom/audio-mic", "custom/audio-speaker"]:
+            block = config[config.index(f'"{module}": {{') :]
+            block = block[: block.index("\n  },")]
+            assert '"format": "<span font=\\"20px\\">{}</span>"' in block, (
+                f"{module} should use the same 20px icon format as theme/power"
+            )
+
+        machine.succeed('grep -q \'"exec": "waybar-audio-mic"\' /etc/xdg/waybar/config.jsonc')
+        # mic-menu.bash and mic-toggle.bash both poke this signal after
+        # changing state, so the icon updates immediately instead of
+        # waiting out the 15s poll interval.
+        machine.succeed('grep -q \'"signal": 7\' /etc/xdg/waybar/config.jsonc')
+        machine.succeed(
+            'grep -q \'"on-click": "waybar-audio-mic-menu"\' /etc/xdg/waybar/config.jsonc'
+        )
+        machine.succeed(
+            'grep -q \'"on-click-middle": "waybar-audio-mic-toggle"\' /etc/xdg/waybar/config.jsonc'
+        )
+        machine.succeed(
+            'grep -q \'"on-click-right": "waybar-audio-mic-toggle"\' /etc/xdg/waybar/config.jsonc'
+        )
+        machine.succeed('grep -q \'"exec": "waybar-audio-speaker"\' /etc/xdg/waybar/config.jsonc')
+        machine.succeed('grep -q \'"signal": 6\' /etc/xdg/waybar/config.jsonc')
+        machine.succeed(
+            'grep -q \'"on-click": "waybar-audio-speaker-menu"\' /etc/xdg/waybar/config.jsonc'
+        )
+        machine.succeed(
+            'grep -q \'"on-click-middle": "waybar-audio-speaker-toggle"\' /etc/xdg/waybar/config.jsonc'
+        )
+        machine.succeed(
+            'grep -q \'"on-click-right": "waybar-audio-speaker-toggle"\' /etc/xdg/waybar/config.jsonc'
+        )
+
     with subtest("waybar service PATH provides the network widgets' tooling"):
         # PATH= only lists directories (nix store paths), one per package --
         # individual binary names inside a symlinkJoin bundle (like the six
@@ -440,6 +559,11 @@ testPkgs.testers.nixosTest {
             "network-manager-applet",
             "waybar-network",
         ]:
+            assert tool in dropin, f"{tool} missing from waybar PATH"
+
+    with subtest("waybar service PATH provides the audio widgets' tooling"):
+        dropin = machine.succeed("cat /etc/systemd/user/waybar.service.d/*.conf")
+        for tool in ["fuzzel", "pulseaudio", "waybar-audio"]:
             assert tool in dropin, f"{tool} missing from waybar PATH"
 
     with subtest("network widgets use icon padding and no active background"):
@@ -461,6 +585,16 @@ testPkgs.testers.nixosTest {
         assert "#custom-network-vpn.connected" not in style, (
             "VPN should use the normal background when connected"
         )
+
+    with subtest("audio widgets use the default padding and dim when muted/disabled"):
+        style = machine.succeed("cat /etc/xdg/waybar/style.css")
+        assert "#custom-audio-mic,\n#custom-audio-speaker" in style, (
+            "audio widgets should use the default network widget padding"
+        )
+        assert "#custom-audio-mic.muted" in style, "muted mic should be dimmed"
+        assert "#custom-audio-speaker.muted" in style, "muted speaker should be dimmed"
+        assert "#custom-audio-mic.disabled" in style, "disabled mic should be dimmed"
+        assert "#custom-audio-speaker.disabled" in style, "disabled speaker should be dimmed"
 
     with subtest("waybar-network-wifi reports a disabled state when iwd is unavailable"):
         # This test node doesn't enable networking.wireless.iwd, so there's
@@ -586,5 +720,158 @@ testPkgs.testers.nixosTest {
         status = json.loads(out)
         assert status["class"] == "disconnected", f"expected disconnected again, got: {out}"
         assert status["text"] == "󰦝", f"expected icon-only VPN text, got: {out}"
+
+    with subtest("waybar-audio-speaker reports volume level, mute, and disabled state"):
+        # Exercises the real speaker-status.bash logic (waybar-audio-speaker-test,
+        # built from the same source as waybar-audio-speaker but with pactl
+        # replaced by stubPactl) against fixture pactl output, without a real
+        # PipeWire/PulseAudio server.
+        def sink_fixture(mute, volume_percent):
+            return json.dumps(
+                [
+                    {
+                        "name": "sink1",
+                        "description": "Built-in Speakers",
+                        "mute": mute,
+                        "volume": {"front-left": {"value_percent": f"{volume_percent}%"}},
+                    }
+                ]
+            )
+
+        def speaker_status(default_sink, sinks_json):
+            machine.succeed(f"printf '%s' {shlex.quote(default_sink)} >/tmp/default-sink")
+            machine.succeed(f"printf '%s' {shlex.quote(sinks_json)} >/tmp/sinks.json")
+            out = machine.succeed(
+                "DEFAULT_SINK_FILE=/tmp/default-sink SINKS_JSON=/tmp/sinks.json "
+                "waybar-audio-speaker-test"
+            ).strip()
+            return json.loads(out)
+
+        status = speaker_status("sink1", sink_fixture(False, 80))
+        assert status["class"] == "unmuted", f"expected unmuted, got: {status}"
+        assert status["text"] == "󰕾", f"expected the high-volume icon, got: {status}"
+        assert "80%" in status["tooltip"], f"expected volume in tooltip, got: {status}"
+
+        status = speaker_status("sink1", sink_fixture(False, 20))
+        assert status["text"] == "󰕿", f"expected the low-volume icon, got: {status}"
+
+        status = speaker_status("sink1", sink_fixture(True, 80))
+        assert status["class"] == "muted", f"expected muted, got: {status}"
+        assert status["text"] == "󰝟", f"expected the muted icon, got: {status}"
+
+        status = speaker_status("", "[]")
+        assert status["class"] == "disabled", f"expected disabled, got: {status}"
+        assert status["text"] == "󰝟", f"expected the muted-style icon for disabled, got: {status}"
+
+    with subtest("waybar-audio-mic reports volume level, mute, and disabled state"):
+        def source_fixture(mute, volume_percent):
+            return json.dumps(
+                [
+                    {
+                        "name": "source1",
+                        "description": "Built-in Microphone",
+                        "mute": mute,
+                        "volume": {"front-left": {"value_percent": f"{volume_percent}%"}},
+                        "monitor_source": "",
+                    }
+                ]
+            )
+
+        def mic_status(default_source, sources_json):
+            machine.succeed(f"printf '%s' {shlex.quote(default_source)} >/tmp/default-source")
+            machine.succeed(f"printf '%s' {shlex.quote(sources_json)} >/tmp/sources.json")
+            out = machine.succeed(
+                "DEFAULT_SOURCE_FILE=/tmp/default-source SOURCES_JSON=/tmp/sources.json "
+                "waybar-audio-mic-test"
+            ).strip()
+            return json.loads(out)
+
+        status = mic_status("source1", source_fixture(False, 80))
+        assert status["class"] == "unmuted", f"expected unmuted, got: {status}"
+        assert status["text"] == "󰍬", f"expected the microphone icon, got: {status}"
+        assert "80%" in status["tooltip"], f"expected volume in tooltip, got: {status}"
+
+        status = mic_status("source1", source_fixture(True, 80))
+        assert status["class"] == "muted", f"expected muted, got: {status}"
+        assert status["text"] == "󰍭", f"expected the muted-microphone icon (no dots), got: {status}"
+
+        status = mic_status("", "[]")
+        assert status["class"] == "disabled", f"expected disabled, got: {status}"
+        assert status["text"] == "󰍭", f"expected the muted-style icon for disabled, got: {status}"
+
+    with subtest("waybar-audio-speaker-menu switches the default sink and reroutes active streams"):
+        # Exercises the real speaker-menu.bash logic (waybar-audio-speaker-menu-test,
+        # built with pactl/fuzzel replaced by stubPactl/stubFuzzel) against
+        # fixture pactl output and a scripted fuzzel selection.
+        machine.succeed("rm -f /tmp/pactl-calls.log /tmp/fuzzel-menu.log")
+        sinks = json.dumps(
+            [
+                {"name": "sink1", "description": "Speakers"},
+                {"name": "sink2", "description": "Headphones"},
+            ]
+        )
+        machine.succeed(f"printf '%s' {shlex.quote(sinks)} >/tmp/sinks.json")
+        # One already-playing stream (sink-input index 42), currently on sink1.
+        machine.succeed("printf '42\\tsink1\\t7\\t4294967295\\tfloat32le 2ch 48000Hz\\n' >/tmp/sink-inputs")
+        machine.succeed("printf '2\\n' >/tmp/fuzzel-answers")
+
+        machine.succeed(
+            "FUZZEL_LOG=/tmp/fuzzel-menu.log FUZZEL_ANSWERS=/tmp/fuzzel-answers "
+            "SINKS_JSON=/tmp/sinks.json SINK_INPUTS=/tmp/sink-inputs "
+            "waybar-audio-speaker-menu-test"
+        )
+
+        fuzzel_log = machine.succeed("cat /tmp/fuzzel-menu.log")
+        assert "Speakers" in fuzzel_log and "Headphones" in fuzzel_log, (
+            f"expected both sink descriptions in the fuzzel menu, got: {fuzzel_log}"
+        )
+
+        calls = machine.succeed("cat /tmp/pactl-calls.log")
+        assert "set-default-sink sink2" in calls, (
+            f"expected the second (Headphones) sink to become default, got: {calls}"
+        )
+        assert "move-sink-input 42 sink2" in calls, (
+            f"expected the active stream to be rerouted to the new default, got: {calls}"
+        )
+
+    with subtest("waybar-audio-mic-menu switches the default source, reroutes streams, and hides monitors"):
+        machine.succeed("rm -f /tmp/pactl-calls.log /tmp/fuzzel-menu.log")
+        sources = json.dumps(
+            [
+                {"name": "source1", "description": "Built-in Microphone", "monitor_source": ""},
+                {"name": "source2", "description": "USB Headset Mic", "monitor_source": ""},
+                # A sink's monitor -- must never appear as an input choice.
+                {
+                    "name": "sink1.monitor",
+                    "description": "Monitor of Speakers",
+                    "monitor_source": "sink1",
+                },
+            ]
+        )
+        machine.succeed(f"printf '%s' {shlex.quote(sources)} >/tmp/sources.json")
+        machine.succeed("printf '9\\tsource1\\t3\\t4294967295\\tfloat32le 1ch 48000Hz\\n' >/tmp/source-outputs")
+        machine.succeed("printf '2\\n' >/tmp/fuzzel-answers")
+
+        machine.succeed(
+            "FUZZEL_LOG=/tmp/fuzzel-menu.log FUZZEL_ANSWERS=/tmp/fuzzel-answers "
+            "SOURCES_JSON=/tmp/sources.json SOURCE_OUTPUTS=/tmp/source-outputs "
+            "waybar-audio-mic-menu-test"
+        )
+
+        fuzzel_log = machine.succeed("cat /tmp/fuzzel-menu.log")
+        assert "Built-in Microphone" in fuzzel_log and "USB Headset Mic" in fuzzel_log, (
+            f"expected both real input descriptions in the fuzzel menu, got: {fuzzel_log}"
+        )
+        assert "Monitor of Speakers" not in fuzzel_log, (
+            f"a sink monitor should never be offered as an input, got: {fuzzel_log}"
+        )
+
+        calls = machine.succeed("cat /tmp/pactl-calls.log")
+        assert "set-default-source source2" in calls, (
+            f"expected the second (USB Headset Mic) source to become default, got: {calls}"
+        )
+        assert "move-source-output 9 source2" in calls, (
+            f"expected the active recording to be rerouted to the new default, got: {calls}"
+        )
   '';
 }
