@@ -93,7 +93,7 @@ in
     # gtk-defaults sets the GTK icon/cursor/font theme via gsettings. Ordering
     # the whole session target after it (rather than having every consumer
     # order after gtk-defaults.service individually) means anything
-    # WantedBy=sway-session.target -- waybar, pasystray, blueman-applet, etc.
+    # WantedBy=sway-session.target -- waybar, blueman-applet, etc.
     # -- is guaranteed to start only once the theme is actually applied.
     after = [ "gtk-defaults.service" ];
   };

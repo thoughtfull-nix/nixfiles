@@ -7,6 +7,7 @@ let
     pulseaudio
     replaceVars
     symlinkJoin
+    systemd
     ;
   inherit (lib) writeFileScriptBin;
   speaker-mute-toggle = writeFileScriptBin {
@@ -15,6 +16,7 @@ let
       DEFAULT_SINK = null;
       bash = "${bash}/bin/bash";
       pactl = "${pulseaudio}/bin/pactl";
+      systemctl = "${systemd}/bin/systemctl";
       speaker-status = "${speaker-status}/bin/speaker-status";
     };
     src = ./speaker/speaker-mute-toggle.bash;
@@ -60,6 +62,7 @@ let
       bash = "${bash}/bin/bash";
       canberra-gtk-play = "${libcanberra-gtk3}/bin/canberra-gtk-play";
       pactl = "${pulseaudio}/bin/pactl";
+      systemctl = "${systemd}/bin/systemctl";
       speaker-status = "${speaker-status}/bin/speaker-status";
     };
     src = ./speaker/speaker-volume-down.bash;
@@ -71,6 +74,7 @@ let
       bash = "${bash}/bin/bash";
       canberra-gtk-play = "${libcanberra-gtk3}/bin/canberra-gtk-play";
       pactl = "${pulseaudio}/bin/pactl";
+      systemctl = "${systemd}/bin/systemctl";
       speaker-status = "${speaker-status}/bin/speaker-status";
     };
     src = ./speaker/speaker-volume-up.bash;

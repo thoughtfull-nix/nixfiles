@@ -3,8 +3,8 @@ let
   inherit (pkgs)
     bash
     kanshi
-    procps
     symlinkJoin
+    systemd
     ;
   inherit (lib) writeFileScriptBin;
   waybar-displays = writeFileScriptBin {
@@ -18,7 +18,7 @@ let
     name = "kanshi-active";
     replacements = {
       bash = "${bash}/bin/bash";
-      pkill = "${procps}/bin/pkill";
+      systemctl = "${systemd}/bin/systemctl";
     };
     src = ./waybar-displays/kanshi-active.bash;
   };

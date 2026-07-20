@@ -16,12 +16,13 @@ let
     iwmenu
     networkmanager
     networkmanagerapplet
-    pasystray
+    pulseaudio
     waybar
     wdisplays
     ;
   inherit (pkgs.thoughtfull)
     theme-toggle
+    waybar-audio
     waybar-displays
     waybar-network
     waybar-yubikey
@@ -40,9 +41,9 @@ in
       iwmenu
       networkmanager
       networkmanagerapplet
-      pasystray
       power-menu
       waybar
+      waybar-audio
       waybar-network
       waybar-yubikey
     ];
@@ -75,17 +76,6 @@ in
       };
     };
     user.services = mkIf cfg.enable {
-      pasystray = {
-        after = [ "sway-session.target" ];
-        bindsTo = [ "sway-session.target" ];
-        enable = mkDefault sway.enable;
-        wantedBy = [ "sway-session.target" ];
-        serviceConfig = {
-          ExecStart = "${pasystray}/bin/pasystray -N none";
-          Restart = "on-failure";
-          RestartSec = 1;
-        };
-      };
       waybar = {
         # sway-session.target itself is ordered after gtk-defaults.service
         # (nixosModules/sway.nix), so waiting on the target alone already
@@ -100,7 +90,9 @@ in
           networkmanager
           networkmanagerapplet
           power-menu
+          pulseaudio
           theme-toggle
+          waybar-audio
           waybar-displays
           waybar-network
           waybar-yubikey

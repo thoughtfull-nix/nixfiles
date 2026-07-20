@@ -25,7 +25,7 @@ if [[ -n ${dev} && ${powered} != "true" ]]; then
   # iwmenu never even attempted -- fall through and let iwmenu try anyway,
   # same as if we hadn't powered on at all.
   @busctl@ --system set-property net.connman.iwd "${dev}" net.connman.iwd.Device Powered b true || true
-  @pkill@ -RTMIN+5 -x waybar || true
+  @systemctl@ --user kill --signal=RTMIN+5 waybar.service || true
   # Real hardware can take a few seconds to bring the interface up (driver
   # firmware load, etc.) before iwd registers the Station interface --
   # launching iwmenu before that happens makes it silently quit with no
@@ -46,4 +46,4 @@ if [[ -n ${dev} && ${powered} != "true" ]]; then
 fi
 
 iwmenu --launcher fuzzel || true
-@pkill@ -RTMIN+5 -x waybar || true
+@systemctl@ --user kill --signal=RTMIN+5 waybar.service || true

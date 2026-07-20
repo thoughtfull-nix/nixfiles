@@ -123,6 +123,7 @@
             theme-toggle
             uns
             usb-menu
+            waybar-audio
             waybar-displays
             waybar-network
             waybar-weather
