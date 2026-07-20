@@ -1,0 +1,38 @@
+#!@bash@
+set -euo pipefail
+
+# Powers on the Wi-Fi radio (if it's off) before launching iwmenu, so its
+# network-selection menu shows up directly instead of iwmenu's own "Power
+# on device" prompt. That prompt doesn't actually gate anything useful:
+# iwmenu only picks up iwd's Station D-Bus interface (and so only shows a
+# network list) if the radio was already powered when iwmenu started --
+# see iwd-device.bash for why Station only exists while powered. Selecting
+# "Power on device" works by reinitializing everything from scratch, but
+# escaping just quits with the radio silently left on and no menu shown.
+# Powering on ourselves first sidesteps that prompt entirely.
+#
+# custom/network-wifi polls on a 15s interval and iwmenu's own menu
+# actions (connect, disconnect, forget) don't know to poke it, so nudge it
+# (signal 5) both right after we power on and once iwmenu exits -- whatever
+# changed inside its menu shows up immediately instead of waiting out the
+# interval.
+mapfile -t fields < <(@wifi-device@)
+dev="${fields[0]:-}"
+powered="${fields[4]:-}"
+
+if [[ -n ${dev} && ${powered} != "true" ]]; then
+  @busctl@ --system set-property net.connman.iwd "${dev}" net.connman.iwd.Device Powered b true
+  @pkill@ -RTMIN+5 -x waybar || true
+  # Real hardware can take a few seconds to bring the interface up (driver
+  # firmware load, etc.) before iwd registers the Station interface --
+  # launching iwmenu before that happens makes it silently quit with no
+  # menu shown at all (see comment above), so wait longer than it should
+  # ever actually take rather than risk cutting this off early.
+  for _ in $(seq 1 20); do
+    @busctl@ --system get-property net.connman.iwd "${dev}" net.connman.iwd.Station Scanning &>/dev/null && break
+    sleep 0.25
+  done
+fi
+
+iwmenu --launcher fuzzel || true
+@pkill@ -RTMIN+5 -x waybar || true
