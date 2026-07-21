@@ -25,6 +25,7 @@ forEachSystem (
     kanshi = callTest ./tests/kanshi.nix;
     monitoring = callTest ./tests/monitoring.nix;
     nixfiles = callTest ./tests/nixfiles.nix;
+    restic = callTest ./tests/restic.nix;
     system-pull = callTest ./tests/system-pull.nix;
     vpn = callTest ./tests/vpn.nix;
     waybar = callTest ./tests/waybar.nix;
