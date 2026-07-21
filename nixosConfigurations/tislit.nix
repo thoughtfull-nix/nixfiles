@@ -13,7 +13,10 @@
         networking.hostName = "tislit";
         services = {
           emacs.enable = true;
-          minecraft-server.package = pkgs.thoughtfull.papermc-26-2;
+          minecraft-server = {
+            enable = true;
+            jvmOpts = "-Xmx3072M -Xms3072M";
+          };
           openssh.enable = true;
           restic.thoughtfull.enable = true;
           syncthing = {
@@ -37,7 +40,6 @@
             };
           };
           rpi4.enable = true;
-          services.minecraft-server.enable = true;
           user = {
             extraGroups = [ "wheel" ];
             hashedPasswordFile = ./tislit/secrets/hashed-user-passphrase.age;

@@ -5,10 +5,9 @@
   ...
 }:
 let
-  inherit (config.thoughtfull.services) minecraft-server;
+  inherit (config.services) minecraft-server;
   inherit (lib)
     mkDefault
-    mkEnableOption
     mkIf
     ;
 in
@@ -16,11 +15,9 @@ in
   config = mkIf minecraft-server.enable {
     services.minecraft-server = {
       declarative = mkDefault true;
-      enable = mkDefault true;
       eula = mkDefault true;
-      jvmOpts = mkDefault "-Xmx3072M -Xms3072M";
       openFirewall = mkDefault true;
-      package = mkDefault pkgs.papermc;
+      package = mkDefault pkgs.thoughtfull.papermc-26-2;
       serverProperties = {
         difficulty = mkDefault 2;
         gamemode = mkDefault 0;
@@ -40,5 +37,4 @@ in
       }
     ];
   };
-  options.thoughtfull.services.minecraft-server.enable = mkEnableOption "minecraft-server";
 }

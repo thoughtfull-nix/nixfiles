@@ -30,7 +30,7 @@ nixpkgs.testers.nixosTest {
           ../nixosModules/minecraft-server.nix
           impermanenceStub
         ];
-        thoughtfull.services.minecraft-server.enable = true;
+        services.minecraft-server.enable = true;
 
         # Swap the real PaperMC jar for a harmless fake so the test doesn't
         # need internet access to let Paperclip download the vanilla server
