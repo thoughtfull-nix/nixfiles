@@ -14,6 +14,7 @@
         # blacklisting `option` lets the camera bind correctly.
         boot.blacklistedKernelModules = [ "option" ];
         environment = {
+          etc."sway/config.d/workspaces.conf".source = ./aegle/sway/workspaces.conf;
           systemPackages = with pkgs; [
             libreoffice
             maven
