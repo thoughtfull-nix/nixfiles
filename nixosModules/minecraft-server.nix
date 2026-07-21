@@ -18,7 +18,7 @@ in
       declarative = mkDefault true;
       enable = mkDefault true;
       eula = mkDefault true;
-      jvmOpts = "-Xmx3072M -Xms3072M";
+      jvmOpts = mkDefault "-Xmx3072M -Xms3072M";
       openFirewall = mkDefault true;
       package = mkDefault pkgs.papermc;
       serverProperties = {

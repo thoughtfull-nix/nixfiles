@@ -23,6 +23,7 @@ forEachSystem (
     github-token = callTest ./tests/github-token.nix;
     graphical = callTest ./tests/graphical.nix;
     kanshi = callTest ./tests/kanshi.nix;
+    minecraft-server = callTest ./tests/minecraft-server.nix;
     monitoring = callTest ./tests/monitoring.nix;
     nixfiles = callTest ./tests/nixfiles.nix;
     restic = callTest ./tests/restic.nix;
