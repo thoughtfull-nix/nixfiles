@@ -1,0 +1,78 @@
+{ nixpkgs, ... }:
+let
+  # Stub the agenix `age.secrets` option so we can test the module's
+  # systemd wiring without actually pulling in the agenix activation
+  # scripts (which need a real SSH identity to decrypt).
+  ageSecretsStub =
+    { lib, ... }:
+    {
+      options.age.secrets = lib.mkOption {
+        default = { };
+        type = lib.types.attrsOf (
+          lib.types.submodule (
+            { name, ... }:
+            {
+              options = {
+                file = lib.mkOption { type = lib.types.path; };
+                mode = lib.mkOption {
+                  type = lib.types.str;
+                  default = "0400";
+                };
+                path = lib.mkOption {
+                  type = lib.types.str;
+                  default = "/run/agenix/${name}";
+                };
+              };
+            }
+          )
+        );
+      };
+    };
+in
+nixpkgs.testers.nixosTest {
+  name = "restic";
+
+  skipTypeCheck = true;
+  skipLint = true;
+
+  nodes.machine =
+    { pkgs, ... }:
+    {
+      imports = [
+        ../nixosModules/restic.nix
+        ageSecretsStub
+      ];
+      services.restic.thoughtfull = {
+        enable = true;
+        environmentFile = pkgs.writeText "fake-restic-environment" "";
+        passwordFile = pkgs.writeText "fake-restic-password" "fake-password";
+        repositoryFile = pkgs.writeText "fake-restic-repository" "/tmp/restic-repo";
+      };
+    };
+
+  testScript = ''
+    start_all()
+    machine.wait_for_unit("multi-user.target")
+
+    with subtest("restic-stop-before-sleep is ordered before sleep.target"):
+        before = machine.succeed(
+            "systemctl show restic-stop-before-sleep.service --property=Before --value"
+        )
+        print(f"Before={before}")
+        assert "sleep.target" in before, "expected Before= to include sleep.target"
+
+    with subtest("restic-stop-before-sleep is wanted by sleep.target"):
+        machine.succeed(
+            "test -L /etc/systemd/system/sleep.target.wants/restic-stop-before-sleep.service"
+        )
+
+    with subtest("restic-stop-before-sleep stops the restic backup service"):
+        exec_start = machine.succeed(
+            "systemctl show restic-stop-before-sleep.service --property=ExecStart --value"
+        )
+        print(f"ExecStart={exec_start}")
+        assert "restic-backups-default.service" in exec_start, (
+            "expected ExecStart to stop restic-backups-default.service"
+        )
+  '';
+}

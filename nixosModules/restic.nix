@@ -1,4 +1,9 @@
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   inherit (config.age.secrets) resticEnvironment resticPassword resticRepository;
   inherit (config.services.restic.thoughtfull)
@@ -42,6 +47,15 @@ in
       timerConfig = {
         OnCalendar = "hourly";
         Persistent = true;
+      };
+    };
+    systemd.services.restic-stop-before-sleep = {
+      description = "Stop restic backup before sleep to avoid an orphaned repo lock breaking backups on other hosts";
+      before = [ "sleep.target" ];
+      wantedBy = [ "sleep.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = "${pkgs.systemd}/bin/systemctl stop restic-backups-default.service";
       };
     };
   };
