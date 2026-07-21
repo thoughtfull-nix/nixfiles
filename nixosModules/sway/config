@@ -106,6 +106,12 @@ set $menu fuzzel
     bindsym $mod+Shift+Down move down
     bindsym $mod+Shift+Up move up
     bindsym $mod+Shift+Right move right
+
+    # Move the whole current workspace to the output in the given direction.
+    # With two monitors this acts as "send this workspace to the other screen";
+    # sway does not wrap, so the direction with no output that way is a no-op.
+    bindsym $mod+Mod1+b move workspace to output left
+    bindsym $mod+Mod1+f move workspace to output right
 #
 # Workspaces:
 #
