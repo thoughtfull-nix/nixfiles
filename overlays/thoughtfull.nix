@@ -147,6 +147,9 @@ in
       }
     );
     options-doc = import ../packages/options-doc (self // { pkgs = final; });
+    papermc-26-2 = import ../packages/papermc-26-2.nix {
+      pkgs = final;
+    };
     pins = import ../packages/pins.nix {
       lib = {
         inherit writeFileScriptBin;
