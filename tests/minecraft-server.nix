@@ -18,7 +18,7 @@ nixpkgs.testers.nixosTest {
       {
         imports = [
           ../nixosModules/minecraft-server.nix
-          stubs.impermanenceDirectories
+          stubs.impermanence
         ];
         services.minecraft-server.enable = true;
 
@@ -61,7 +61,7 @@ nixpkgs.testers.nixosTest {
       {
         imports = [
           ../nixosModules/minecraft-server.nix
-          stubs.impermanenceDirectories
+          stubs.impermanence
         ];
 
         assertions = [

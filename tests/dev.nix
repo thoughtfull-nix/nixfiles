@@ -14,7 +14,7 @@ let
   ];
 
   # Stub the thoughtfull sub-module options that dev.nix sets via mkDefault
-  # (clojure and rust; impermanence.user is covered by stubs.impermanenceUser).
+  # (clojure and rust; impermanence.user is covered by stubs.impermanence).
   thoughtfullSubModuleStub =
     { lib, ... }:
     {
@@ -37,7 +37,7 @@ extendedNixpkgs.testers.nixosTest {
         imports = [
           ../nixosModules/dev.nix
           thoughtfullSubModuleStub
-          stubs.impermanenceUser
+          stubs.impermanence
         ];
         thoughtfull.dev.enable = true;
         # nixosModules/java.nix sets programs.java.enable = mkDefault true in the
@@ -58,7 +58,7 @@ extendedNixpkgs.testers.nixosTest {
         imports = [
           ../nixosModules/dev.nix
           thoughtfullSubModuleStub
-          stubs.impermanenceUser
+          stubs.impermanence
         ];
         thoughtfull.dev = {
           enable = true;
@@ -75,7 +75,7 @@ extendedNixpkgs.testers.nixosTest {
       imports = [
         ../nixosModules/dev.nix
         thoughtfullSubModuleStub
-        stubs.impermanenceUser
+        stubs.impermanence
       ];
       # Enable zsh so /etc/zshrc exists to assert the hook is absent.
       programs.zsh.enable = true;

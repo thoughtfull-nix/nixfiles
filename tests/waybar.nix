@@ -159,7 +159,7 @@ testPkgs.testers.nixosTest {
           # Stubs for unrelated thoughtfull modules so this focused test does not
           # need to import the full module set.
           stubs.graphicalEnable
-          stubs.impermanenceUser
+          stubs.impermanence
           # Remaining minimal options not covered by shared stubs.
           {
             options.thoughtfull = {
