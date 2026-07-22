@@ -13,6 +13,10 @@
         networking.hostName = "tislit";
         services = {
           emacs.enable = true;
+          minecraft-server = {
+            enable = true;
+            jvmOpts = "-Xmx3072M -Xms3072M";
+          };
           openssh.enable = true;
           restic.thoughtfull.enable = true;
           syncthing = {
