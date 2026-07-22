@@ -1,5 +1,7 @@
 { self, nixpkgs, ... }:
 let
+  stubs = import ./stubs.nix;
+
   # dev.nix pulls llm-agents packages from pkgs; module-set nixpkgs.overlays is
   # ignored with external pkgs, so apply the overlay here (see tests/default.nix).
   extendedNixpkgs = nixpkgs.extend self.inputs.llm-agents.overlays.default;
@@ -12,22 +14,13 @@ let
   ];
 
   # Stub the thoughtfull sub-module options that dev.nix sets via mkDefault
+  # (clojure and rust; impermanence.user is covered by stubs.impermanenceUser).
   thoughtfullSubModuleStub =
     { lib, ... }:
     {
       options.thoughtfull = {
         clojure.enable = lib.mkEnableOption "clojure (stub)";
         rust.enable = lib.mkEnableOption "rust (stub)";
-        impermanence.user = {
-          files = lib.mkOption {
-            type = lib.types.listOf lib.types.str;
-            default = [ ];
-          };
-          directories = lib.mkOption {
-            type = lib.types.listOf lib.types.str;
-            default = [ ];
-          };
-        };
       };
     };
 in
@@ -44,6 +37,7 @@ extendedNixpkgs.testers.nixosTest {
         imports = [
           ../nixosModules/dev.nix
           thoughtfullSubModuleStub
+          stubs.impermanenceUser
         ];
         thoughtfull.dev.enable = true;
         # nixosModules/java.nix sets programs.java.enable = mkDefault true in the
@@ -64,6 +58,7 @@ extendedNixpkgs.testers.nixosTest {
         imports = [
           ../nixosModules/dev.nix
           thoughtfullSubModuleStub
+          stubs.impermanenceUser
         ];
         thoughtfull.dev = {
           enable = true;
@@ -80,6 +75,7 @@ extendedNixpkgs.testers.nixosTest {
       imports = [
         ../nixosModules/dev.nix
         thoughtfullSubModuleStub
+        stubs.impermanenceUser
       ];
       # Enable zsh so /etc/zshrc exists to assert the hook is absent.
       programs.zsh.enable = true;

@@ -1,16 +1,6 @@
 { nixpkgs, ... }:
 let
-  # Stub thoughtfull.graphical.enable so the auto-upgrade module can branch on
-  # it without pulling in nixosModules/graphical.nix (which depends on other
-  # internal modules like impermanence).
-  graphicalStub =
-    { lib, ... }:
-    {
-      options.thoughtfull.graphical.enable = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
-      };
-    };
+  stubs = import ./stubs.nix;
 in
 nixpkgs.testers.nixosTest {
   name = "auto-upgrade";
@@ -22,7 +12,7 @@ nixpkgs.testers.nixosTest {
     graphical = {
       imports = [
         ../nixosModules/auto-upgrade.nix
-        graphicalStub
+        stubs.graphicalEnable
       ];
       thoughtfull.graphical.enable = true;
       # Default is disabled; opt back in for this test node.
@@ -32,7 +22,7 @@ nixpkgs.testers.nixosTest {
     headless = {
       imports = [
         ../nixosModules/auto-upgrade.nix
-        graphicalStub
+        stubs.graphicalEnable
       ];
       # graphical.enable stays false
       system.autoUpgrade.enable = true;
@@ -41,7 +31,7 @@ nixpkgs.testers.nixosTest {
     defaultDisabled = {
       imports = [
         ../nixosModules/auto-upgrade.nix
-        graphicalStub
+        stubs.graphicalEnable
       ];
       # No override; should land on the module default of disabled.
     };
