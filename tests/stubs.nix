@@ -47,6 +47,26 @@
       };
     };
 
+  # Stub thoughtfull.user.github.{user,keysHash} for tests that need the
+  # per-machine keys pulled from GitHub without importing the full user.nix
+  # module (accounts-daemon, icons, hashed passwords, etc.). Mirrors the real
+  # defaults from nixosModules/user.nix so the fixed-output fetch resolves to
+  # an already-known-good hash.
+  userGithub =
+    { lib, ... }:
+    {
+      options.thoughtfull.user.github = {
+        user = lib.mkOption {
+          type = lib.types.str;
+          default = "technosophist";
+        };
+        keysHash = lib.mkOption {
+          type = lib.types.str;
+          default = "1dzq0125fmng19v088xv7pqq9c42wli75m44cglvxr2xayyz46mr";
+        };
+      };
+    };
+
   # Stub thoughtfull.impermanence.{directories,user.{files,directories}} for
   # tests that check persistence lists without importing the full impermanence
   # module.

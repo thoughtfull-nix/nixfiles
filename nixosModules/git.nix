@@ -1,12 +1,21 @@
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   inherit (builtins) any;
   inherit (config.programs) git;
+  inherit (config.thoughtfull.user) github;
   inherit (lib)
     concatMapStringsSep
+    filter
+    imap0
     mkDefault
     mkIf
     ;
+  inherit (lib.thoughtfull) githubKeys;
   hasSigningkey = any (c: c ? user.signingkey && c.user.signingkey != null) git.config;
   # The same two keys on every machine, unlike the per-machine
   # openssh.authorizedKeys.keys pulled from GitHub via thoughtfull.user.
@@ -15,6 +24,16 @@ let
     ./git/id_ed25519_sk_ypc940_auth.pub
   ];
   identityFileLines = concatMapStringsSep "\n" (f: "  IdentityFile ${f}") identityFiles;
+  # github.com itself is restricted to the keys pulled from GitHub for this
+  # machine's user (the same keys used for openssh.authorizedKeys), one file
+  # per key so each can be offered as its own IdentityFile.
+  githubIdentityFiles = imap0 (i: key: pkgs.writeText "github-com-identity-${toString i}.pub" key) (
+    filter (key: key != "") (githubKeys {
+      sha256 = github.keysHash;
+      username = github.user;
+    })
+  );
+  githubIdentityFileLines = concatMapStringsSep "\n" (f: "  IdentityFile ${f}") githubIdentityFiles;
 in
 {
   config = {
@@ -26,6 +45,12 @@ in
       {
         assertion = !git.enable || any (c: c ? user.name && c.user.name != null) git.config;
         message = "programs.git.config.user.name is not configured";
+      }
+      {
+        # An empty list here would silently combine with the unconditional
+        # IdentitiesOnly yes below to lock github.com out of SSH auth entirely.
+        assertion = githubIdentityFiles != [ ];
+        message = "thoughtfull.user.github (user = \"${github.user}\") pulled no keys from GitHub";
       }
     ];
     programs.git.config = {
@@ -48,6 +73,11 @@ in
     # pushes/pulls reuse it without another touch. The socket lives under
     # /run/user so it is tmpfs-backed and never lands in the persistent store.
     #
+    # github.com is restricted to the keys pulled from GitHub for this
+    # machine's user, so pushes/clones against the real hostname offer only
+    # identities GitHub itself already vouches for, regardless of what else is
+    # loaded in the agent.
+    #
     # technosophist.github.com is a synthetic alias that forwards straight
     # through to github.com, offering both authorized keys as identities.
     # IdentitiesOnly restricts it to exactly these two, regardless of what
@@ -59,6 +89,8 @@ in
     # socket path length limit.
     programs.ssh.extraConfig = ''
       Host github.com
+      ${githubIdentityFileLines}
+        IdentitiesOnly yes
         ControlMaster auto
         ControlPath /run/user/%i/ssh-control-%C
         ControlPersist 10m
