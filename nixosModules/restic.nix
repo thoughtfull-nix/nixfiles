@@ -12,7 +12,12 @@ let
     passwordFile
     repositoryFile
     ;
-  inherit (lib) mkEnableOption mkIf mkOption;
+  inherit (lib)
+    mkDefault
+    mkEnableOption
+    mkIf
+    mkOption
+    ;
   inherit (lib.types) nullOr path;
 in
 {
@@ -49,6 +54,7 @@ in
         Persistent = true;
       };
     };
+    systemd.services.restic-backups-default.serviceConfig.SuccessExitStatus = mkDefault [ 130 ];
     systemd.services.restic-stop-before-sleep = {
       description = "Stop restic backup before sleep to avoid an orphaned repo lock breaking backups on other hosts";
       before = [ "sleep.target" ];
