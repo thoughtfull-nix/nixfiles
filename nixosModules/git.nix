@@ -6,12 +6,15 @@ let
     concatMapStringsSep
     mkDefault
     mkIf
-    mkOption
-    types
     ;
-  cfg = config.thoughtfull.programs.git;
   hasSigningkey = any (c: c ? user.signingkey && c.user.signingkey != null) git.config;
-  identityFileLines = concatMapStringsSep "\n" (f: "  IdentityFile ${f}") cfg.identityFiles;
+  # The same two keys on every machine, unlike the per-machine
+  # openssh.authorizedKeys.keys pulled from GitHub via thoughtfull.user.
+  identityFiles = [
+    ./git/id_ed25519_sk_ypa766_auth.pub
+    ./git/id_ed25519_sk_ypc940_auth.pub
+  ];
+  identityFileLines = concatMapStringsSep "\n" (f: "  IdentityFile ${f}") identityFiles;
 in
 {
   config = {
@@ -47,9 +50,6 @@ in
     #
     # technosophist.github.com is a synthetic alias that forwards straight
     # through to github.com, offering both authorized keys as identities.
-    # These are the same two keys on every machine (identityFiles points at
-    # public key files committed to the repo, unlike the per-machine
-    # openssh.authorizedKeys.keys pulled from GitHub via thoughtfull.user).
     # IdentitiesOnly restricts it to exactly these two, regardless of what
     # else is loaded in the agent, so the identity used here is predictable.
     # %n (the alias as matched, before the HostName rewrite below resolves it
@@ -70,12 +70,5 @@ in
         ControlPersist 10m
     '';
     thoughtfull.impermanence.user.directories = mkIf git.enable [ ".config/git" ];
-  };
-  options.thoughtfull.programs.git.identityFiles = mkOption {
-    default = [
-      ./git/id_ed25519_sk_ypa766_auth.pub
-      ./git/id_ed25519_sk_ypc940_auth.pub
-    ];
-    type = types.listOf types.path;
   };
 }
