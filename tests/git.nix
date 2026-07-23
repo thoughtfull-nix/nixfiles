@@ -1,8 +1,17 @@
-{ nixpkgs, ... }:
+{ nixpkgs, self, ... }:
 let
   stubs = import ./stubs.nix;
+
+  # Importing nixosModules/git.nix requires lib.thoughtfull.githubKeys, and
+  # module-set nixpkgs.overlays are ignored with external pkgs, so provide both
+  # through the pkgs instance used by nixosTest.
+  testPkgs = (nixpkgs.extend self.overlays.thoughtfull).extend (
+    _: prev: {
+      lib = prev.lib.extend (_: _: { thoughtfull = self.lib.thoughtfull; });
+    }
+  );
 in
-nixpkgs.testers.nixosTest {
+testPkgs.testers.nixosTest {
   name = "git";
 
   skipTypeCheck = true;
@@ -15,6 +24,7 @@ nixpkgs.testers.nixosTest {
         imports = [
           ../nixosModules/git.nix
           stubs.impermanence
+          stubs.userGithub
         ];
         programs.git = {
           enable = true;
@@ -43,6 +53,17 @@ nixpkgs.testers.nixosTest {
             "expected tmpfs-backed ControlPath"
         )
         assert "ControlPersist 10m" in ssh_config, "expected ControlPersist 10m"
+
+    with subtest("ssh_config restricts github.com to the keys pulled from GitHub"):
+        ssh_config = machine.succeed("cat /etc/ssh/ssh_config")
+        github_block = ssh_config.split("Host technosophist.github.com")[0]
+        assert "IdentityFile /nix/store/" in github_block, (
+            "expected github.com identities to point at nix store paths built from "
+            "the keys pulled from GitHub"
+        )
+        assert "IdentitiesOnly yes" in github_block, (
+            "expected github.com to restrict to only the keys pulled from GitHub"
+        )
 
     with subtest("ssh_config aliases technosophist.github.com through to github.com"):
         ssh_config = machine.succeed("cat /etc/ssh/ssh_config")
