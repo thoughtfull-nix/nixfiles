@@ -11,58 +11,21 @@
     ];
   };
   inputs = {
-    agenix = {
-      inputs = {
-        darwin.follows = "";
-        home-manager.follows = "";
-        nixpkgs.follows = "nixpkgs";
-        systems.follows = "systems";
-      };
-      url = "github:ryantm/agenix";
-    };
-    claude-desktop = {
-      inputs.nixpkgs.follows = "unstable";
-      url = "github:aaddrick/claude-desktop-debian";
-    };
-    devenv = {
-      inputs = {
-        crate2nix.inputs = {
-          cachix.inputs.nixpkgs.follows = "nixpkgs";
-          crate2nix_stable.inputs = {
-            cachix.inputs.nixpkgs.follows = "nixpkgs";
-            nixpkgs.follows = "nixpkgs";
-          };
-        };
-        nixpkgs.follows = "nixpkgs";
-      };
-      url = "github:cachix/devenv";
-    };
-    disko = {
-      inputs.nixpkgs.follows = "nixpkgs";
-      url = "github:nix-community/disko";
-    };
-    flake-utils = {
-      inputs.systems.follows = "systems";
-      url = "github:numtide/flake-utils";
-    };
-    impermanence = {
-      inputs = {
-        nixpkgs.follows = "";
-        home-manager.follows = "";
-      };
-      url = "github:nix-community/impermanence";
-    };
+    agenix.url = "github:ryantm/agenix";
+    claude-desktop.url = "github:aaddrick/claude-desktop-debian";
+    devenv.url = "github:cachix/devenv";
+    disko.url = "github:nix-community/disko";
+    flake-utils.url = "github:numtide/flake-utils";
+    impermanence.url = "github:nix-community/impermanence";
     kryptonix = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:technosophist/kryptonix";
     };
-    llm-agents = {
-      inputs.nixpkgs.follows = "unstable";
-      url = "github:numtide/llm-agents.nix";
-    };
+    llm-agents.url = "github:numtide/llm-agents.nix";
     nixos-hardware.url = "github:NixOS/nixos-hardware";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     systems.url = "github:nix-systems/default";
+    treefmt-nix.url = "github:numtide/treefmt-nix";
     unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
   outputs =
