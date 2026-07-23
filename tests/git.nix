@@ -58,6 +58,9 @@ nixpkgs.testers.nixosTest {
         assert "IdentityFile ~/.ssh/id_ed25519_sk_ypc940_auth" in ssh_config, (
             "expected second authorized ssh key as an identity"
         )
+        assert "IdentitiesOnly yes" in ssh_config, (
+            "expected technosophist.github.com to restrict to only its configured keys"
+        )
         assert "ControlPath /run/user/%i/ssh-control-%n-%C" in ssh_config, (
             "expected technosophist.github.com to have its own ControlMaster socket"
         )

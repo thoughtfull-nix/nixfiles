@@ -44,20 +44,24 @@ in
     # afterward. 10m mirrors gpg-agent's default-cache-ttl so quick follow-up
     # pushes/pulls reuse it without another touch. The socket lives under
     # /run/user so it is tmpfs-backed and never lands in the persistent store.
+    #
+    # technosophist.github.com is a synthetic alias that forwards straight
+    # through to github.com, offering both authorized keys as identities.
+    # IdentitiesOnly restricts it to exactly these two, regardless of what
+    # else is loaded in the agent, so the identity used here is predictable.
+    # %n (the alias as matched, before the HostName rewrite below resolves it
+    # to github.com) keeps this ControlPath distinct from the github.com
+    # block's, so the two never share a multiplexed connection.
     programs.ssh.extraConfig = ''
       Host github.com
         ControlMaster auto
         ControlPath /run/user/%i/ssh-control-%C
         ControlPersist 10m
 
-      # technosophist.github.com is a synthetic alias that forwards straight
-      # through to github.com, offering both authorized keys as identities.
-      # %n (the alias as matched, before the HostName rewrite above resolves
-      # it to github.com) keeps this ControlPath distinct from the github.com
-      # block's, so the two never share a multiplexed connection.
       Host technosophist.github.com
         HostName github.com
       ${identityFileLines}
+        IdentitiesOnly yes
         ControlMaster auto
         ControlPath /run/user/%i/ssh-control-%n-%C
         ControlPersist 10m
