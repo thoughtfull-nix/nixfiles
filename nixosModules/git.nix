@@ -3,10 +3,15 @@ let
   inherit (builtins) any;
   inherit (config.programs) git;
   inherit (lib)
+    concatMapStringsSep
     mkDefault
     mkIf
+    mkOption
+    types
     ;
+  cfg = config.thoughtfull.programs.git;
   hasSigningkey = any (c: c ? user.signingkey && c.user.signingkey != null) git.config;
+  identityFileLines = concatMapStringsSep "\n" (f: "  IdentityFile ${f}") cfg.identityFiles;
 in
 {
   config = {
@@ -44,7 +49,26 @@ in
         ControlMaster auto
         ControlPath /run/user/%i/ssh-control-%C
         ControlPersist 10m
+
+      # technosophist.github.com is a synthetic alias that forwards straight
+      # through to github.com, offering both authorized keys as identities.
+      # %n (the alias as matched, before the HostName rewrite above resolves
+      # it to github.com) keeps this ControlPath distinct from the github.com
+      # block's, so the two never share a multiplexed connection.
+      Host technosophist.github.com
+        HostName github.com
+      ${identityFileLines}
+        ControlMaster auto
+        ControlPath /run/user/%i/ssh-control-%n-%C
+        ControlPersist 10m
     '';
     thoughtfull.impermanence.user.directories = mkIf git.enable [ ".config/git" ];
+  };
+  options.thoughtfull.programs.git.identityFiles = mkOption {
+    default = [
+      "~/.ssh/id_ed25519_sk_ypa766_auth"
+      "~/.ssh/id_ed25519_sk_ypc940_auth"
+    ];
+    type = types.listOf types.str;
   };
 }

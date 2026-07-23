@@ -44,6 +44,27 @@ nixpkgs.testers.nixosTest {
         )
         assert "ControlPersist 10m" in ssh_config, "expected ControlPersist 10m"
 
+    with subtest("ssh_config aliases technosophist.github.com through to github.com"):
+        ssh_config = machine.succeed("cat /etc/ssh/ssh_config")
+        assert "Host technosophist.github.com" in ssh_config, (
+            "expected a technosophist.github.com ssh host block"
+        )
+        assert "HostName github.com" in ssh_config, (
+            "expected technosophist.github.com to forward through to github.com"
+        )
+        assert "IdentityFile ~/.ssh/id_ed25519_sk_ypa766_auth" in ssh_config, (
+            "expected first authorized ssh key as an identity"
+        )
+        assert "IdentityFile ~/.ssh/id_ed25519_sk_ypc940_auth" in ssh_config, (
+            "expected second authorized ssh key as an identity"
+        )
+        assert "ControlPath /run/user/%i/ssh-control-%n-%C" in ssh_config, (
+            "expected technosophist.github.com to have its own ControlMaster socket"
+        )
+        assert ssh_config.count("ControlPersist 10m") == 2, (
+            "expected both github.com and technosophist.github.com to persist for 10m"
+        )
+
     with subtest("gitconfig opts git-lfs out of its own ssh multiplexing"):
         gitconfig = machine.succeed("cat /etc/gitconfig")
         print(f"/etc/gitconfig:\n{gitconfig}")
