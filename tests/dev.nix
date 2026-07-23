@@ -4,7 +4,7 @@ let
 
   # dev.nix pulls llm-agents packages from pkgs; module-set nixpkgs.overlays is
   # ignored with external pkgs, so apply the overlay here (see tests/default.nix).
-  extendedNixpkgs = nixpkgs.extend self.inputs.llm-agents.overlays.default;
+  extendedNixpkgs = nixpkgs.extend self.inputs.llm-agents.overlays.shared-nixpkgs;
 
   opencodeDirectories = [
     ".cache/opencode"
