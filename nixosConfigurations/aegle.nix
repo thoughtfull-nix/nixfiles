@@ -27,7 +27,15 @@
           variables.PSQL_PAGER = "${pkgs.less}/bin/less -S --header 2";
         };
         networking.hostName = "aegle";
-        programs.git.lfs.enable = true;
+        programs.git = {
+          # Let git-lfs defer SSH connection multiplexing to ssh_config instead
+          # of opening its own private control socket. Combined with the
+          # ControlMaster config for github.com (see git.nix), this lets
+          # git-lfs-transfer reuse the master connection git already opened for
+          # the push, so an LFS-backed push needs a single YubiKey touch.
+          config.lfs.ssh.automultiplex = false;
+          lfs.enable = true;
+        };
         services = {
           clamav = {
             daemon.enable = true;

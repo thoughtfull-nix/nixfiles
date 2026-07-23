@@ -20,6 +20,7 @@ forEachSystem (
     avahi = callTest ./tests/avahi.nix;
     default = callTest ./tests/default.nix;
     dev = callTest ./tests/dev.nix;
+    git = callTest ./tests/git.nix;
     github-token = callTest ./tests/github-token.nix;
     graphical = callTest ./tests/graphical.nix;
     kanshi = callTest ./tests/kanshi.nix;
