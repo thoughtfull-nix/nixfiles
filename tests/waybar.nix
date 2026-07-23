@@ -1,5 +1,7 @@
 { nixpkgs, self, ... }:
 let
+  stubs = import ./stubs.nix;
+
   # Importing nixosModules/sway.nix requires lib.thoughtfull.dirFiles, and
   # module-set nixpkgs.overlays are ignored with external pkgs, so provide both
   # through the pkgs instance used by nixosTest.
@@ -154,15 +156,13 @@ testPkgs.testers.nixosTest {
           # wiring here.
           ../nixosModules/sway.nix
           ../nixosModules/swayidle.nix
-          # Define minimal options from unrelated thoughtfull modules so this
-          # focused test does not need to import the full module set.
+          # Stubs for unrelated thoughtfull modules so this focused test does not
+          # need to import the full module set.
+          stubs.graphicalEnable
+          stubs.impermanence
+          # Remaining minimal options not covered by shared stubs.
           {
             options.thoughtfull = {
-              graphical.enable = lib.mkEnableOption "graphical UI configuration (stub)";
-              impermanence.user.files = lib.mkOption {
-                type = lib.types.listOf lib.types.str;
-                default = [ ];
-              };
               programs.mako.enable = lib.mkEnableOption "mako (stub)";
               user.name = lib.mkOption {
                 type = lib.types.str;

@@ -1,55 +1,17 @@
 { nixpkgs, self, ... }:
 let
+  stubs = import ./stubs.nix;
+
   # Apply the thoughtfull overlay so pkgs.thoughtfull.system-pull resolves.
   overlayModule = {
     nixpkgs.overlays = [ self.overlays.thoughtfull ];
   };
 
-  # Stub the agenix `age.secrets` option so we can test the module's
-  # systemd wiring without actually pulling in the agenix activation scripts
-  # (which need a real SSH identity to decrypt).
-  ageSecretsStub =
-    { lib, ... }:
-    {
-      options.age.secrets = lib.mkOption {
-        default = { };
-        type = lib.types.attrsOf (
-          lib.types.submodule (
-            { name, ... }:
-            {
-              options = {
-                file = lib.mkOption { type = lib.types.path; };
-                mode = lib.mkOption {
-                  type = lib.types.str;
-                  default = "0400";
-                };
-                path = lib.mkOption {
-                  type = lib.types.str;
-                  default = "/run/agenix/${name}";
-                };
-              };
-            }
-          )
-        );
-      };
-    };
-
-  # Stub thoughtfull.graphical.enable so the module's `dates` default can
-  # branch on it without pulling in nixosModules/graphical.nix.
-  graphicalStub =
-    { lib, ... }:
-    {
-      options.thoughtfull.graphical.enable = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
-      };
-    };
-
   imports = [
     ../nixosModules/binary-cache.nix
     ../nixosModules/system-pull.nix
-    ageSecretsStub
-    graphicalStub
+    stubs.ageSecrets
+    stubs.graphicalEnable
     overlayModule
   ];
 in

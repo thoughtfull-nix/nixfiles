@@ -1,33 +1,6 @@
 { nixpkgs, ... }:
 let
-  # Stub the agenix `age.secrets` option so we can test vpn.nix's polkit
-  # wiring without pulling in real agenix activation scripts (which need a
-  # real SSH identity to decrypt).
-  ageSecretsStub =
-    { lib, ... }:
-    {
-      options.age.secrets = lib.mkOption {
-        default = { };
-        type = lib.types.attrsOf (
-          lib.types.submodule (
-            { name, ... }:
-            {
-              options = {
-                file = lib.mkOption { type = lib.types.path; };
-                mode = lib.mkOption {
-                  type = lib.types.str;
-                  default = "0400";
-                };
-                path = lib.mkOption {
-                  type = lib.types.str;
-                  default = "/run/agenix/${name}";
-                };
-              };
-            }
-          )
-        );
-      };
-    };
+  stubs = import ./stubs.nix;
 in
 nixpkgs.testers.nixosTest {
   name = "vpn";
@@ -41,7 +14,7 @@ nixpkgs.testers.nixosTest {
       {
         imports = [
           ../nixosModules/vpn.nix
-          ageSecretsStub
+          stubs.ageSecrets
         ];
         # Use a fake plaintext file instead of a real .age fixture so the
         # test doesn't depend on the encrypted secret being decryptable.
@@ -66,7 +39,7 @@ nixpkgs.testers.nixosTest {
     disabled = {
       imports = [
         ../nixosModules/vpn.nix
-        ageSecretsStub
+        stubs.ageSecrets
       ];
       thoughtfull.vpn.configFile = null;
     };

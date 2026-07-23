@@ -1,16 +1,6 @@
 { nixpkgs, ... }:
 let
-  # Stub thoughtfull.impermanence.directories so this test doesn't need to
-  # pull in the full impermanence module (disko, etc.) just to check that
-  # minecraft-server.nix appends to it.
-  impermanenceStub =
-    { lib, ... }:
-    {
-      options.thoughtfull.impermanence.directories = lib.mkOption {
-        type = lib.types.listOf lib.types.anything;
-        default = [ ];
-      };
-    };
+  stubs = import ./stubs.nix;
 in
 nixpkgs.testers.nixosTest {
   name = "minecraft-server";
@@ -28,7 +18,7 @@ nixpkgs.testers.nixosTest {
       {
         imports = [
           ../nixosModules/minecraft-server.nix
-          impermanenceStub
+          stubs.impermanence
         ];
         services.minecraft-server.enable = true;
 
@@ -71,7 +61,7 @@ nixpkgs.testers.nixosTest {
       {
         imports = [
           ../nixosModules/minecraft-server.nix
-          impermanenceStub
+          stubs.impermanence
         ];
 
         assertions = [

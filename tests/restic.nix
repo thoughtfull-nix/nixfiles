@@ -1,33 +1,6 @@
 { nixpkgs, ... }:
 let
-  # Stub the agenix `age.secrets` option so we can test the module's
-  # systemd wiring without actually pulling in the agenix activation
-  # scripts (which need a real SSH identity to decrypt).
-  ageSecretsStub =
-    { lib, ... }:
-    {
-      options.age.secrets = lib.mkOption {
-        default = { };
-        type = lib.types.attrsOf (
-          lib.types.submodule (
-            { name, ... }:
-            {
-              options = {
-                file = lib.mkOption { type = lib.types.path; };
-                mode = lib.mkOption {
-                  type = lib.types.str;
-                  default = "0400";
-                };
-                path = lib.mkOption {
-                  type = lib.types.str;
-                  default = "/run/agenix/${name}";
-                };
-              };
-            }
-          )
-        );
-      };
-    };
+  stubs = import ./stubs.nix;
 in
 nixpkgs.testers.nixosTest {
   name = "restic";
@@ -40,7 +13,7 @@ nixpkgs.testers.nixosTest {
     {
       imports = [
         ../nixosModules/restic.nix
-        ageSecretsStub
+        stubs.ageSecrets
       ];
       services.restic.thoughtfull = {
         enable = true;
