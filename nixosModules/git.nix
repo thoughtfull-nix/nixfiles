@@ -92,7 +92,7 @@ in
       ${githubIdentityFileLines}
         IdentitiesOnly yes
         ControlMaster auto
-        ControlPath /run/user/%i/ssh-control-%C
+        ControlPath /run/user/%i/ssh-control-%n
         ControlPersist 10m
 
       Host technosophist.github.com
