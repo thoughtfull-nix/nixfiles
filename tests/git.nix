@@ -64,7 +64,7 @@ nixpkgs.testers.nixosTest {
         assert "IdentitiesOnly yes" in ssh_config, (
             "expected technosophist.github.com to restrict to only its configured keys"
         )
-        assert "ControlPath /run/user/%i/ssh-control-%n-%C" in ssh_config, (
+        assert "ControlPath /run/user/%i/ssh-control-%n" in ssh_config, (
             "expected technosophist.github.com to have its own ControlMaster socket"
         )
         assert ssh_config.count("ControlPersist 10m") == 2, (

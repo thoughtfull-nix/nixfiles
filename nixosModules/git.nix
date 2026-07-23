@@ -54,7 +54,9 @@ in
     # else is loaded in the agent, so the identity used here is predictable.
     # %n (the alias as matched, before the HostName rewrite below resolves it
     # to github.com) keeps this ControlPath distinct from the github.com
-    # block's, so the two never share a multiplexed connection.
+    # block's, so the two never share a multiplexed connection. %C is left
+    # out here: combined with the long alias it can overflow the Unix domain
+    # socket path length limit.
     programs.ssh.extraConfig = ''
       Host github.com
         ControlMaster auto
@@ -66,7 +68,7 @@ in
       ${identityFileLines}
         IdentitiesOnly yes
         ControlMaster auto
-        ControlPath /run/user/%i/ssh-control-%n-%C
+        ControlPath /run/user/%i/ssh-control-%n
         ControlPersist 10m
     '';
     thoughtfull.impermanence.user.directories = mkIf git.enable [ ".config/git" ];
