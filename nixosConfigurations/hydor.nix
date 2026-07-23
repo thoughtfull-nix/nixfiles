@@ -1,6 +1,7 @@
-{ ... }:
+{ inputs, ... }:
 {
   modules = [
+    inputs.nixos-hardware.nixosModules.lenovo-thinkpad-x1-6th-gen
     (
       { ... }:
       {

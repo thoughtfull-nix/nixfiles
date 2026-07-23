@@ -1,6 +1,7 @@
-{ ... }:
+{ inputs, ... }:
 {
   modules = [
+    inputs.nixos-hardware.nixosModules.lenovo-thinkpad-x13-intel
     (
       { pkgs, ... }:
       {
