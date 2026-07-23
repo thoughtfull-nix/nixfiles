@@ -54,6 +54,8 @@ in
         Persistent = true;
       };
     };
+    # restic exits 130 when terminated by SIGINT/SIGTERM (e.g. by
+    # restic-stop-before-sleep below); don't treat that as a failure.
     systemd.services.restic-backups-default.serviceConfig.SuccessExitStatus = mkDefault [ 130 ];
     systemd.services.restic-stop-before-sleep = {
       description = "Stop restic backup before sleep to avoid an orphaned repo lock breaking backups on other hosts";
