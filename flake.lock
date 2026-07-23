@@ -792,11 +792,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1784306906,
-        "narHash": "sha256-wS0B4opwTklhY4Aczt6HuHmg/nXSaj1Zuvr305W5+uA=",
+        "lastModified": 1784803908,
+        "narHash": "sha256-Z37Yvg1ephoh9FxqDGlZln9GG9f1ASkBr6eNUj7z9Ek=",
         "owner": "technosophist",
         "repo": "kryptonix",
-        "rev": "9f255bda13dbf12bc20e28a5ec0a9ef8bd308b88",
+        "rev": "bc159de00be069fa785994d8c48b5ef963f9a4d8",
         "type": "github"
       },
       "original": {
