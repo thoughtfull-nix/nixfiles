@@ -52,11 +52,14 @@ nixpkgs.testers.nixosTest {
         assert "HostName github.com" in ssh_config, (
             "expected technosophist.github.com to forward through to github.com"
         )
-        assert "IdentityFile ~/.ssh/id_ed25519_sk_ypa766_auth" in ssh_config, (
-            "expected first authorized ssh key as an identity"
+        assert "IdentityFile /nix/store/" in ssh_config, (
+            "expected identities to point at nix store paths, not per-machine home paths"
         )
-        assert "IdentityFile ~/.ssh/id_ed25519_sk_ypc940_auth" in ssh_config, (
-            "expected second authorized ssh key as an identity"
+        assert "id_ed25519_sk_ypa766_auth.pub" in ssh_config, (
+            "expected first authorized ssh public key as an identity"
+        )
+        assert "id_ed25519_sk_ypc940_auth.pub" in ssh_config, (
+            "expected second authorized ssh public key as an identity"
         )
         assert "IdentitiesOnly yes" in ssh_config, (
             "expected technosophist.github.com to restrict to only its configured keys"

@@ -47,6 +47,9 @@ in
     #
     # technosophist.github.com is a synthetic alias that forwards straight
     # through to github.com, offering both authorized keys as identities.
+    # These are the same two keys on every machine (identityFiles points at
+    # public key files committed to the repo, unlike the per-machine
+    # openssh.authorizedKeys.keys pulled from GitHub via thoughtfull.user).
     # IdentitiesOnly restricts it to exactly these two, regardless of what
     # else is loaded in the agent, so the identity used here is predictable.
     # %n (the alias as matched, before the HostName rewrite below resolves it
@@ -70,9 +73,9 @@ in
   };
   options.thoughtfull.programs.git.identityFiles = mkOption {
     default = [
-      "~/.ssh/id_ed25519_sk_ypa766_auth"
-      "~/.ssh/id_ed25519_sk_ypc940_auth"
+      ./git/id_ed25519_sk_ypa766_auth.pub
+      ./git/id_ed25519_sk_ypc940_auth.pub
     ];
-    type = types.listOf types.str;
+    type = types.listOf types.path;
   };
 }
