@@ -11,6 +11,7 @@ in
 {
   config = mkIf minecraft.enable {
     environment.systemPackages = [ pkgs.hmcl ];
+    networking.firewall.allowedTCPPorts = [ 39059 ];
     thoughtfull.impermanence.user = {
       directories = [
         {
