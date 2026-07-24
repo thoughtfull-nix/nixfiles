@@ -49,7 +49,7 @@ testPkgs.testers.nixosTest {
         print(f"/etc/ssh/ssh_config:\n{ssh_config}")
         assert "Host github.com" in ssh_config, "expected a github.com ssh host block"
         assert "ControlMaster auto" in ssh_config, "expected ControlMaster auto"
-        assert "ControlPath /run/user/%i/ssh-control-%C" in ssh_config, (
+        assert "ControlPath /run/user/%i/ssh-control-%n" in ssh_config, (
             "expected tmpfs-backed ControlPath"
         )
         assert "ControlPersist 10m" in ssh_config, "expected ControlPersist 10m"
