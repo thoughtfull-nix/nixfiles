@@ -18,7 +18,12 @@ let
     mkIf
     mkOption
     ;
-  inherit (lib.types) nullOr path;
+  inherit (lib.types)
+    listOf
+    nullOr
+    path
+    str
+    ;
 in
 {
   config = mkIf enable {
@@ -33,13 +38,14 @@ in
         "/persistent/home/**/.cache"
         "/persistent/home/**/Cache"
         "/persistent/home/**/cache"
-      ];
+      ]
+      ++ config.services.restic.thoughtfull.exclude;
       extraBackupArgs = [
         "--no-scan"
         "--retry-lock 1h"
       ];
       passwordFile = resticPassword.path;
-      paths = [ "/persistent" ];
+      paths = config.services.restic.thoughtfull.paths;
       pruneOpts = [
         "--retry-lock 1h"
         "--keep-hourly 24"
@@ -76,6 +82,22 @@ in
         EnvironmentFile as described by {manpage}systemd.exec(5)
       '';
       type = nullOr path;
+    };
+    exclude = mkOption {
+      default = [ ];
+      description = ''
+        Restic exclude patterns to append to the default backup's hardcoded cache-directory
+        excludes. Other modules (for example thoughtfull.impermanence) contribute to this list.
+      '';
+      type = listOf str;
+    };
+    paths = mkOption {
+      default = [ ];
+      description = ''
+        Paths for the default backup to back up. Other modules (for example
+        thoughtfull.impermanence) contribute to this list.
+      '';
+      type = listOf str;
     };
     passwordFile = mkOption {
       default = ../nixosConfigurations/shared/secrets/restic-password.age;

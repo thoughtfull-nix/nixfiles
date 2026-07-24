@@ -7,13 +7,63 @@
 let
   inherit (config.thoughtfull) impermanence user;
   inherit (lib)
+    concatMap
+    concatStringsSep
+    filter
     mkDefault
     mkEnableOption
     mkIf
     mkOption
+    optional
+    splitString
     types
     unique
     ;
+
+  # environment.persistence's directory/file submodules are strict (no freeformType), so the
+  # backup/backupExclude fields added to dirOpts/fileOpts (impermanence/mounts.nix) must be
+  # stripped before merging into it.
+  stripDir =
+    d:
+    removeAttrs d [
+      "backup"
+      "backupExclude"
+    ];
+  stripFile = f: removeAttrs f [ "backup" ];
+
+  persistentPrefix = "/${impermanence.persistent.name}";
+  joinPath =
+    parts: "/" + concatStringsSep "/" (filter (s: s != "") (concatMap (p: splitString "/" p) parts));
+
+  directoryExcludes =
+    base: entries:
+    concatMap (
+      d:
+      (optional (!d.backup) (joinPath [
+        persistentPrefix
+        base
+        d.directory
+      ]))
+      ++ (map (
+        sub:
+        joinPath [
+          persistentPrefix
+          base
+          d.directory
+          sub
+        ]
+      ) (if d.backup then d.backupExclude else [ ]))
+    ) entries;
+  fileExcludes =
+    base: entries:
+    map (
+      f:
+      joinPath [
+        persistentPrefix
+        base
+        f.file
+      ]
+    ) (filter (f: !f.backup) entries);
 in
 {
   config = mkIf impermanence.enable {
@@ -33,18 +83,26 @@ in
           mode = "u=rwx,g=x,o=x";
         }
       ]
-      ++ (unique impermanence.directories);
+      ++ (map stripDir (unique impermanence.directories));
       files = [
         "/etc/machine-id"
       ]
-      ++ (unique impermanence.files);
+      ++ (map stripFile (unique impermanence.files));
       users.${user.name} = {
-        directories = unique impermanence.user.directories;
-        files = unique impermanence.user.files;
+        directories = map stripDir (unique impermanence.user.directories);
+        files = map stripFile (unique impermanence.user.files);
       };
     };
     fileSystems."/${impermanence.persistent.name}".neededForBoot = mkDefault true;
     services.btrfs.autoScrub.enable = mkDefault true;
+    services.restic.thoughtfull = {
+      paths = [ persistentPrefix ];
+      exclude =
+        (directoryExcludes "" (unique impermanence.directories))
+        ++ (directoryExcludes user.home (unique impermanence.user.directories))
+        ++ (fileExcludes "" (unique impermanence.files))
+        ++ (fileExcludes user.home (unique impermanence.user.files));
+    };
   };
   imports = [
     (import ./impermanence/mounts.nix {
