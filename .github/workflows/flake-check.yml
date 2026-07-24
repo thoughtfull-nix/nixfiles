@@ -28,11 +28,31 @@ jobs:
       - name: Configure Nix daemon AWS credentials
         uses: ./.github/actions/configure-nix-daemon-aws-creds
         with:
-          role-to-assume: arn:aws:iam::481411455398:role/NixCacheReader
+          # Only `push` runs (to main) get write access, so a pull_request build can
+          # never poison the cache; PRs stay read-only and benefit from what main
+          # last pushed.
+          role-to-assume: >-
+            arn:aws:iam::481411455398:role/NixCache${{
+            github.event_name == 'push' && 'Writer' || 'Reader' }}
       - name: Run devenv test
         run: nix develop --no-pure-eval --command devenv test
       - name: Run flake check
         run: nix flake check --no-pure-eval
+      - name: Push check outputs to cache
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s\n' "${{ secrets.CACHE_SIGNING_KEY }}" >/tmp/sign.key
+          trap 'shred -u /tmp/sign.key' EXIT
+          readarray -t names < <(
+            nix eval --no-pure-eval --json .#checks.x86_64-linux \
+              --apply builtins.attrNames | jq -r '.[]'
+          )
+          installables=("${names[@]/#/.#checks.x86_64-linux.}")
+          nix copy --to \
+            "s3://thoughtfull-nix-cache?region=us-east-1&secret-key=/tmp/sign.key" \
+            "${installables[@]}"
       - name: Remove AWS credential files
         if: always()
         uses: ./.github/actions/cleanup-nix-daemon-aws-creds
