@@ -20,6 +20,25 @@ let
     group = "root";
   };
   dirOpts.options = {
+    backup = mkOption {
+      default = true;
+      description = ''
+        Whether this directory's contents should be included in restic backups. Set to false to
+        persist the directory across boots without backing it up (for example, a package manager
+        download cache).
+      '';
+      type = types.bool;
+    };
+    backupExclude = mkOption {
+      default = [ ];
+      description = ''
+        Paths relative to `directory` to exclude from restic backups, even though the directory
+        itself is backed up. Ignored if `backup` is false. Useful when a persisted directory has a
+        known cache subdirectory that shouldn't be backed up (for example, a game's asset cache).
+      '';
+      example = [ "cache" ];
+      type = types.listOf types.str;
+    };
     directory = mkOption {
       description = "The path to the directory.";
       type = types.str;
@@ -57,13 +76,29 @@ let
     };
   };
   fileOpts.options = {
+    backup = mkOption {
+      default = true;
+      description = ''
+        Whether this file should be included in restic backups. Set to false to persist the file
+        across boots without backing it up.
+      '';
+      type = types.bool;
+    };
     file = mkOption {
       description = "The path to the file.";
       type = types.str;
     };
-    parentDirectory = mapAttrs (
-      _: x: if x._type or null == "option" then x // { internal = true; } else x
-    ) dirOpts.options;
+    # backup/backupExclude describe restic handling for the directory/file itself; they have no
+    # meaningful effect on the parent directory created to hold it, so they're excluded here
+    # rather than mirrored in a way that looks configurable but silently does nothing.
+    parentDirectory =
+      mapAttrs (_: x: if x._type or null == "option" then x // { internal = true; } else x)
+        (
+          removeAttrs dirOpts.options [
+            "backup"
+            "backupExclude"
+          ]
+        );
   };
   rootFile = types.submodule [
     fileOpts
