@@ -6,7 +6,7 @@
 }:
 let
   inherit (config.thoughtfull) graphical;
-  inherit (lib) mkDefault mkIf;
+  inherit (lib) mkDefault mkIf mkOverride;
   inherit (pkgs.thoughtfull) ssh-askpass;
 in
 {
@@ -56,7 +56,14 @@ in
       # Both u2f and rssh are "sufficient", so auth stops at whichever succeeds first: prefer
       # touching the yubikey directly by running u2f before rssh. rssh then only kicks in as a
       # fallback when the yubikey isn't directly plugged in, e.g. over agent-forwarded ssh.
-      rules.auth.u2f.order = config.security.pam.services.sudo.rules.auth.rssh.order - 10;
+      #
+      # mkOverride 999 rather than mkDefault: the upstream default for this option is itself
+      # mkDefault (priority 1000), so a same-priority mkDefault here would conflict instead of
+      # overriding it. Priority 999 wins over that default while still leaving a plain value (or
+      # mkForce) in a host config free to override this in turn, same as rssh.order itself.
+      rules.auth.u2f.order = mkOverride 999 (
+        config.security.pam.services.sudo.rules.auth.rssh.order - 10
+      );
     };
   };
   services.openssh.hostKeys = [
