@@ -329,6 +329,19 @@ testPkgs.testers.nixosTest {
         send("GPG_0")
         machine.wait_until_succeeds(f"tail -n1 {out} | grep -qv tooltip")
 
+    with subtest("waybar config restarts the yubikey widget if it exits"):
+        # custom/yubikey has no signal/interval, so waybar treats it as a
+        # continuous script and won't ever re-launch it if the process exits
+        # -- unlike the socket disappearing/reappearing, which the script's
+        # own outer retry loop already handles internally. restart-interval
+        # is the config-level safety net for the script crashing outright.
+        config = machine.succeed("cat /etc/xdg/waybar/config.jsonc")
+        block = config[config.index('"custom/yubikey": {') :]
+        block = block[: block.index("\n  },")]
+        assert '"restart-interval"' in block, (
+            "custom/yubikey should set restart-interval so waybar respawns it if it exits"
+        )
+
     with subtest("waybar config wires up the displays widget"):
         # The displays module is present and placed after the tray.
         config = machine.succeed("cat /etc/xdg/waybar/config.jsonc")

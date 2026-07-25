@@ -74,7 +74,8 @@
 
   "custom/yubikey": {
     "exec": "waybar-yubikey",
-    "return-type": "json"
+    "return-type": "json",
+    "restart-interval": 5
   },
 
   "custom/theme": {
