@@ -1,43 +1,53 @@
-* Nixfiles for NixOS
-** git hooks
+# Nixfiles for NixOS
+
+## git hooks
+
 To install git hooks run:
-: devenv tasks run devenv:git-hooks:install
 
-If ~flake-checker~ is stale and complains about the ~nixpkgs~ version (e.g.
+```
+devenv tasks run devenv:git-hooks:install
+```
+
+If `flake-checker` is stale and complains about the `nixpkgs` version (e.g.
 rejecting a release branch it doesn't recognize yet), run:
-: devenv update
-: devenv tasks run devenv:git-hooks:install
 
-** nixos
+```
+devenv update
+devenv tasks run devenv:git-hooks:install
+```
+
+## nixos
+
 An installation/rescue ISO file based on the NixOS installation ISO file, but preconfigured with my
 user accounts and modules.
 
 It has all the tools I need to provision a new machine, reprovision, or rescue an existing machine.
 
-The ~run-vm~ script will boot the ISO on a qemu VM.
+The `run-vm` script will boot the ISO on a qemu VM.
 
-** yubikey
-In weighing the options, I decided to go with a FIDO ssh key. I tried using the ~no-touch-required~ option, but that is not allowed.
+## yubikey
 
-I tried using the ~verify-required~ option, but that doesn't cache the PIN at all and was kind of annoying. Also, askpass is apparently for X11 only? So I'm not sure how to even enter a PIN at the terminal.
+In weighing the options, I decided to go with a FIDO ssh key. I tried using the `no-touch-required` option, but that is not allowed.
+
+I tried using the `verify-required` option, but that doesn't cache the PIN at all and was kind of annoying. Also, askpass is apparently for X11 only? So I'm not sure how to even enter a PIN at the terminal.
 
 I ended up generating the key with
 
-#+BEGIN_EXAMPLE
+```
 ssh-keygen -t ed25519-sk -O resident -O "application=ssh:technosophist@ypa766" -C "technosophist@ypa766"
-#+END_EXAMPLE
+```
 
 And my sudo key with
 
-#+BEGIN_EXAMPLE
+```
 ssh-keygen -t ed25519-sk -O resident -O verify-required -O "application=ssh:technosophist@ypa766" -C "technosophist@ypa766"
-#+END_EXAMPLE
+```
 
 I can add the key to the ssh-agent on another computer using
 
-#+BEGIN_EXAMPLE
+```
 ssh-add -K
-#+END_EXAMPLE
+```
 
 It requires entering the PIN to load the key, then only to touch after that. Annoyingly, it pops up
 askpass every time, even when it just needs a touch.
@@ -47,7 +57,7 @@ just deal with it because I don't provision often or I should go back to using a
 I think that would help (though this may not help because even multiplexing it may still need a
 touch for each operation).
 
-I will still have to use PIV for age, because age doesn't support ~-sk~ SSH keys.
+I will still have to use PIV for age, because age doesn't support `-sk` SSH keys.
 
 As far as PAM, it was slightly annoying with resident keys because it will ask for the PIN for each
 yubikey because it has to check if the key exists, whereas with non-resident keys it can just check
@@ -62,26 +72,26 @@ key. I'm OK with this situation for a better UX.
 
 I set up each key using
 
-#+BEGIN_EXAMPLE
+```
 pamu2fcfg -N -u technosophist -o pam://auth -i pam://auth
-#+END_EXAMPLE
+```
 
 This configures each for a "portable" pam application, so I don't have to create a different key for each host.
 
 For luks, I had to enroll with this command
 
-#+BEGIN_EXAMPLE
+```
 systemd-cryptenroll --fido2-device=auto
-#+END_EXAMPLE
+```
 
-I tried turning on ~--with-user-verification=yes~, but it printed a message that it was going to
+I tried turning on `--with-user-verification=yes`, but it printed a message that it was going to
 turn it off because by device didn't support it.
 
-I tried turning off ~--with-user-presence=no~, but it printed a message that it was going to turn it
+I tried turning off `--with-user-presence=no`, but it printed a message that it was going to turn it
 on because the device required it.
 
-So there are really only two ways to setup my yubikeys: 1) ~--with-client-pin=yes~ which requires a
-PIN and a touch, or 2) ~--with-client-pin=no~ which requires only a touch.
+So there are really only two ways to setup my yubikeys: 1) `--with-client-pin=yes` which requires a
+PIN and a touch, or 2) `--with-client-pin=no` which requires only a touch.
 
 The luks keys are non-resident. I'm not sure if it is possible to use a resident key? I think
 probably the keys are "wrapped" and stored in the luks header.
@@ -94,17 +104,21 @@ at all.
 
 To wipe the fido2 slots use
 
-#+BEGIN_EXAMPLE
+```
 systemd-cryptenroll --wipe-slot=fido2 /dev/sda2
-#+END_EXAMPLE
-** sudo
+```
+
+## sudo
+
 I setup pam_rssh (pam_ssh_agent_auth has not been updated in a while and does not support SSH FIDO2
 keys). I'm a little wary that sudo can be run (remotely and locally) with simply a touch, so I
 configured multiple keys, one for ssh that requires only a touch and one for sudo and requires a
 PIN.
 
 Even though it seems like I don't need a pam fido2 setup, I do still need it for login.
-** Master key
+
+## Master key
+
 If I use an ssh key, then I have to put the private key on to the machine I'm bootstrapping. I also prefer FIDO2 SSH keys, but age doesn't support that. age doesn't support ssh-agent.
 
 If I were to use a PIV key with my yubikey, then I have to have PCSCD setup on the bootstrapping machine, but that requires a rebuild, and isn't convenient for bootstrapping.
@@ -114,53 +128,89 @@ I had considered jettisoning GPG and using SSH for signing commits, but I still 
 The simplest thing is to just use a password protected age or ssh key. I settled on just using an age key that is password protected, because they are extremely simple to create.
 
 Create a key:
-: age-keygen | age -p -o master-identity.key
 
-If you leave the passphrase empty, then age generates a passphrase. The public key is printed, and can be copied and pasted into ~master-keys.txt~.
+```
+age-keygen | age -p -o master-identity.key
+```
+
+If you leave the passphrase empty, then age generates a passphrase. The public key is printed, and can be copied and pasted into `master-keys.txt`.
 
 On my bootstrapping machine, I can just use this master key with the passphrase. I can also add a PIV key that I can use on a bootstrapped machine.
-*** PIV setup
+
+### PIV setup
+
 Configure the number of PIN and PUK retries (3 for both) this resets the PINs to the factory default (123456) and (12345678), respectively
-: ykman piv access set-retries 3 3
+
+```
+ykman piv access set-retries 3 3
+```
 
 Setup the device by changing the pin
-: ykman piv access change-pin
+
+```
+ykman piv access change-pin
+```
 
 The PUK pin (used to unblock if the regular pin is entered incorrectly)
-: ykman piv access change-puk
+
+```
+ykman piv access change-puk
+```
 
 Generate a management key protected by the PIN (TDES is required by age-yubikey-plugin until this issue is resolved https://github.com/str4d/age-plugin-yubikey/issues/92)
-: ykman piv access change-management-key -a TDES --protect
+
+```
+ykman piv access change-management-key -a TDES --protect
+```
 
 Following https://developers.yubico.com/PIV/Guides/Generating_keys_using_OpenSSL.html to generate a P-256 key. I generated a keypair in my ctmg vault.
 
-: openssl ecparam -name prime256v1 -genkey -noout -out authentication-private.pem
+```
+openssl ecparam -name prime256v1 -genkey -noout -out authentication-private.pem
+```
 
-~prime256v1~ is the OpenSSL name for what is also known as the ~secp256r1~ curve.
+`prime256v1` is the OpenSSL name for what is also known as the `secp256r1` curve.
 
 The public key is extracted using
-: openssl ec -in authentication-private.pem -pubout -out authentication-public.pem
+
+```
+openssl ec -in authentication-private.pem -pubout -out authentication-public.pem
+```
 
 Import the private key:
-: ykman piv keys import 9a authentication-private.pem
+
+```
+ykman piv keys import 9a authentication-private.pem
+```
 
 Generate a self-signed certificate using:
-: ykman piv certificates generate -s "CN=PIV authentication key" -d 36500 9a authentication-public.pem
 
-This process should be repeated for slots ~9a~, ~9c~, and ~9d~, which are for authentication, signing, and encryption, respectively.
-: openssl ecparam -name prime256v1 -genkey -noout -out signing-private.pem
-: openssl ec -in signing-private.pem -pubout -out signing-public.pem
-: ykman piv keys import 9c signing-private.pem
-: ykman piv certificates generate -s "CN=signing key" -d 36500 9c signing-public.pem
-: openssl ecparam -name prime256v1 -genkey -noout -out encrypting-private.pem
-: openssl ec -in encrypting-private.pem -pubout -out encrypting-public.pem
-: ykman piv keys import 9d encrypting-private.pem
-: ykman piv certificates generate -s "CN=encryption key" -d 36500 9d encrypting-public.pem
+```
+ykman piv certificates generate -s "CN=PIV authentication key" -d 36500 9a authentication-public.pem
+```
+
+This process should be repeated for slots `9a`, `9c`, and `9d`, which are for authentication, signing, and encryption, respectively.
+
+```
+openssl ecparam -name prime256v1 -genkey -noout -out signing-private.pem
+openssl ec -in signing-private.pem -pubout -out signing-public.pem
+ykman piv keys import 9c signing-private.pem
+ykman piv certificates generate -s "CN=signing key" -d 36500 9c signing-public.pem
+openssl ecparam -name prime256v1 -genkey -noout -out encrypting-private.pem
+openssl ec -in encrypting-private.pem -pubout -out encrypting-public.pem
+ykman piv keys import 9d encrypting-private.pem
+ykman piv certificates generate -s "CN=encryption key" -d 36500 9d encrypting-public.pem
+```
 
 I setup age-plugin-yubikey on each yubikey using:
-: age-plugin-yubikey -g --slot 1 --pin-policy once --touch-policy cached --force
-** LICENSE
-#+BEGIN_EXAMPLE
+
+```
+age-plugin-yubikey -g --slot 1 --pin-policy once --touch-policy cached --force
+```
+
+## LICENSE
+
+```
 © 2025 technosophist
 
 This Source Code Form is subject to the terms of the Mozilla Public
@@ -169,4 +219,4 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 This Source Code Form is "Incompatible With Secondary Licenses", as
 defined by the Mozilla Public License, v. 2.0.
-#+END_EXAMPLE
+```
