@@ -1,31 +1,36 @@
-{ nixpkgs, self, ... }:
+# Lightweight nix eval check (not a nixosTest/VM boot) for git.nix's rendered
+# ssh_config (github.com multiplexing/identity restriction, the
+# technosophist.github.com alias) and gitconfig (lfs ssh multiplexing opt-out).
+#
+# A VM boot was considered and rejected: no ssh connection or git operation is
+# ever exercised here, only the rendered text of two config files -- both of
+# which NixOS computes as plain strings (config.programs.ssh.extraConfig,
+# config.environment.etc."gitconfig".text) at eval time, identical to what a
+# VM's `cat /etc/ssh/ssh_config` / `cat /etc/gitconfig` would read back.
+{ self, nixpkgs, ... }:
 let
+  inherit (nixpkgs) lib;
+  inherit (self.inputs.nixpkgs.lib) nixosSystem;
   stubs = import ./stubs.nix;
 
   # Importing nixosModules/git.nix requires lib.thoughtfull.githubKeys, and
   # module-set nixpkgs.overlays are ignored with external pkgs, so provide both
-  # through the pkgs instance used by nixosTest.
+  # through the pkgs instance passed to nixosSystem (see tests/default.nix).
   testPkgs = (nixpkgs.extend self.overlays.thoughtfull).extend (
     _: prev: {
       lib = prev.lib.extend (_: _: { thoughtfull = self.lib.thoughtfull; });
     }
   );
-in
-testPkgs.testers.nixosTest {
-  name = "git";
 
-  skipTypeCheck = true;
-  skipLint = true;
-
-  nodes = {
-    machine =
-      { ... }:
+  eval = nixosSystem {
+    system = nixpkgs.stdenv.hostPlatform.system;
+    lib = self.lib;
+    pkgs = testPkgs;
+    modules = [
+      ../nixosModules/git.nix
+      stubs.impermanence
+      stubs.userGithub
       {
-        imports = [
-          ../nixosModules/git.nix
-          stubs.impermanence
-          stubs.userGithub
-        ];
         programs.git = {
           enable = true;
           config = {
@@ -37,64 +42,64 @@ testPkgs.testers.nixosTest {
           };
           lfs.enable = true;
         };
-      };
+      }
+    ];
   };
 
-  testScript = ''
-    start_all()
-    machine.wait_for_unit("multi-user.target")
+  cfg = eval.config;
+  sshConfig = cfg.programs.ssh.extraConfig;
+  gitconfig = cfg.environment.etc."gitconfig".text;
 
-    with subtest("ssh_config multiplexes github.com connections"):
-        ssh_config = machine.succeed("cat /etc/ssh/ssh_config")
-        print(f"/etc/ssh/ssh_config:\n{ssh_config}")
-        assert "Host github.com" in ssh_config, "expected a github.com ssh host block"
-        assert "ControlMaster auto" in ssh_config, "expected ControlMaster auto"
-        assert "ControlPath /run/user/%i/ssh-control-%n" in ssh_config, (
-            "expected tmpfs-backed ControlPath"
-        )
-        assert "ControlPersist 10m" in ssh_config, "expected ControlPersist 10m"
+  # Only github.com should be restricted to the GitHub-pulled keys; slice off
+  # everything from the technosophist.github.com block onward before checking.
+  githubBlock = lib.head (lib.splitString "Host technosophist.github.com" sshConfig);
 
-    with subtest("ssh_config restricts github.com to the keys pulled from GitHub"):
-        ssh_config = machine.succeed("cat /etc/ssh/ssh_config")
-        github_block = ssh_config.split("Host technosophist.github.com")[0]
-        assert "IdentityFile /nix/store/" in github_block, (
-            "expected github.com identities to point at nix store paths built from "
-            "the keys pulled from GitHub"
-        )
-        assert "IdentitiesOnly yes" in github_block, (
-            "expected github.com to restrict to only the keys pulled from GitHub"
-        )
+  countOccurrences = needle: haystack: builtins.length (lib.splitString needle haystack) - 1;
 
-    with subtest("ssh_config aliases technosophist.github.com through to github.com"):
-        ssh_config = machine.succeed("cat /etc/ssh/ssh_config")
-        assert "Host technosophist.github.com" in ssh_config, (
-            "expected a technosophist.github.com ssh host block"
-        )
-        assert "HostName github.com" in ssh_config, (
-            "expected technosophist.github.com to forward through to github.com"
-        )
-        assert "IdentityFile /nix/store/" in ssh_config, (
-            "expected identities to point at nix store paths, not per-machine home paths"
-        )
-        assert "id_ed25519_sk_ypa766_auth.pub" in ssh_config, (
-            "expected first authorized ssh public key as an identity"
-        )
-        assert "id_ed25519_sk_ypc940_auth.pub" in ssh_config, (
-            "expected second authorized ssh public key as an identity"
-        )
-        assert "IdentitiesOnly yes" in ssh_config, (
-            "expected technosophist.github.com to restrict to only its configured keys"
-        )
-        assert "ControlPath /run/user/%i/ssh-control-%n" in ssh_config, (
-            "expected technosophist.github.com to have its own ControlMaster socket"
-        )
-        assert ssh_config.count("ControlPersist 10m") == 2, (
-            "expected both github.com and technosophist.github.com to persist for 10m"
-        )
+  checks = [
+    {
+      name = "ssh_config multiplexes github.com connections";
+      ok =
+        lib.hasInfix "Host github.com" sshConfig
+        && lib.hasInfix "ControlMaster auto" sshConfig
+        && lib.hasInfix "ControlPath /run/user/%i/ssh-control-%n" sshConfig
+        && lib.hasInfix "ControlPersist 10m" sshConfig;
+    }
+    {
+      name = "ssh_config restricts github.com to the keys pulled from GitHub";
+      ok =
+        lib.hasInfix "IdentityFile /nix/store/" githubBlock
+        && lib.hasInfix "IdentitiesOnly yes" githubBlock;
+    }
+    {
+      name = "ssh_config aliases technosophist.github.com through to github.com";
+      ok =
+        lib.hasInfix "Host technosophist.github.com" sshConfig
+        && lib.hasInfix "HostName github.com" sshConfig
+        && lib.hasInfix "IdentityFile /nix/store/" sshConfig
+        && lib.hasInfix "id_ed25519_sk_ypa766_auth.pub" sshConfig
+        && lib.hasInfix "id_ed25519_sk_ypc940_auth.pub" sshConfig
+        && lib.hasInfix "IdentitiesOnly yes" sshConfig
+        && countOccurrences "ControlPersist 10m" sshConfig == 2;
+    }
+    {
+      name = "gitconfig opts git-lfs out of its own ssh multiplexing";
+      ok = lib.hasInfix "automultiplex = false" gitconfig;
+    }
+  ];
 
-    with subtest("gitconfig opts git-lfs out of its own ssh multiplexing"):
-        gitconfig = machine.succeed("cat /etc/gitconfig")
-        print(f"/etc/gitconfig:\n{gitconfig}")
-        assert "automultiplex = false" in gitconfig, "expected lfs.ssh.automultiplex = false"
-  '';
-}
+  failed = builtins.filter (c: !c.ok) checks;
+in
+if failed != [ ] then
+  throw ''
+    git test failed:
+    ${builtins.concatStringsSep "\n" (map (c: "  - ${c.name}") failed)}
+
+    /etc/ssh/ssh_config:
+    ${sshConfig}
+
+    /etc/gitconfig:
+    ${gitconfig}
+  ''
+else
+  nixpkgs.runCommand "git-test" { } "touch $out"

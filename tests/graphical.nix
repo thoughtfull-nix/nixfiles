@@ -1,8 +1,16 @@
-{ nixpkgs, self, ... }:
+# Lightweight nix eval check (not a nixosTest/VM boot) for graphical.nix's
+# networking wiring: NetworkManager enabled and user-controllable, but with
+# Wi-Fi handed off entirely to iwd (unmanaged by NetworkManager, its own IP
+# configuration, no competing wpa_supplicant backend).
+#
+# A VM boot was considered and rejected: the original VM test's own node
+# config wrote these config.* values into environment.etc files just so the
+# testScript could `cat` them back out inside the VM -- a sign the values
+# were already plain config, not runtime state, and readable directly here.
+{ self, nixpkgs, ... }:
 let
-  overlayModule = {
-    nixpkgs.overlays = [ self.overlays.thoughtfull ];
-  };
+  inherit (nixpkgs) lib;
+  inherit (self.inputs.nixpkgs.lib) nixosSystem;
 
   # Stub options defined in other thoughtfull modules that graphical.nix sets via mkDefault
   graphicalDepsStub =
@@ -39,77 +47,75 @@ let
       };
     };
 
-  imports = [
-    ../nixosModules/graphical.nix
-    graphicalDepsStub
-    overlayModule
-  ];
-in
-nixpkgs.testers.nixosTest {
-  name = "graphical";
-
-  skipTypeCheck = true;
-  skipLint = true;
-
-  nodes = {
-    enabled =
-      { config, lib, ... }:
-      {
-        inherit imports;
-        thoughtfull.graphical.enable = true;
-        # Disable heavy services to keep the test VM lightweight
-        hardware.bluetooth.enable = lib.mkForce false;
-        programs.firefox.enable = lib.mkForce false;
-        programs.sway.enable = lib.mkForce false;
-        services.emacs.enable = lib.mkForce false;
-        services.syncthing.enable = lib.mkForce false;
-        environment.etc."thoughtfull-user-extra-groups".text =
-          builtins.concatStringsSep "\n" config.thoughtfull.user.extraGroups;
-        environment.etc."networkmanager-unmanaged".text =
-          builtins.concatStringsSep "\n" config.networking.networkmanager.unmanaged;
-        environment.etc."wireless-enable".text = lib.boolToString config.networking.wireless.enable;
-        environment.etc."iwd-enable-network-configuration".text =
-          lib.boolToString config.networking.wireless.iwd.settings.General.EnableNetworkConfiguration;
-      };
-
-    disabled = {
-      inherit imports;
-      # thoughtfull.graphical.enable defaults to false
+  mkEval =
+    extraModule:
+    nixosSystem {
+      system = nixpkgs.stdenv.hostPlatform.system;
+      lib = self.lib;
+      modules = [
+        { nixpkgs.overlays = [ self.overlays.thoughtfull ]; }
+        ../nixosModules/graphical.nix
+        graphicalDepsStub
+        extraModule
+      ];
     };
-  };
 
-  testScript = ''
-    start_all()
-    enabled.wait_for_unit("multi-user.target")
-    disabled.wait_for_unit("multi-user.target")
+  enabled = mkEval (
+    { lib, ... }:
+    {
+      thoughtfull.graphical.enable = true;
+      # Disable heavy services irrelevant to this check
+      hardware.bluetooth.enable = lib.mkForce false;
+      programs.firefox.enable = lib.mkForce false;
+      programs.sway.enable = lib.mkForce false;
+      services.emacs.enable = lib.mkForce false;
+      services.syncthing.enable = lib.mkForce false;
+    }
+  );
+  disabled = mkEval { };
+  # thoughtfull.graphical.enable defaults to false
 
-    with subtest("graphical enabled: NetworkManager is configured"):
-        enabled.succeed("systemctl cat NetworkManager.service")
-
-    with subtest("graphical enabled: user can control NetworkManager"):
-        enabled.succeed("grep -Fx networkmanager /etc/thoughtfull-user-extra-groups")
-
-    with subtest(
-        "graphical enabled: iwd manages Wi-Fi directly, NetworkManager only manages ethernet"
-    ):
+  checks = [
+    {
+      name = "graphical enabled: NetworkManager is configured";
+      ok = enabled.config.networking.networkmanager.enable;
+    }
+    {
+      name = "graphical enabled: user can control NetworkManager";
+      ok = lib.elem "networkmanager" enabled.config.thoughtfull.user.extraGroups;
+    }
+    {
+      name = "graphical enabled: iwd manages Wi-Fi directly, NetworkManager only manages ethernet";
+      ok =
         # iwmenu (the Wi-Fi picker) talks to iwd's D-Bus API directly, so
-        # NetworkManager must not also be driving the same wifi device --
-        # the two fighting over the same iwd station is what broke wifi in
-        # the first place (see git history). NetworkManager keeps managing
+        # NetworkManager must not also be driving the same wifi device -- the
+        # two fighting over the same iwd station is what broke wifi in the
+        # first place (see git history). NetworkManager keeps managing
         # ethernet.
-        enabled.succeed("systemctl cat iwd.service")
-        enabled.succeed("grep -Fx type:wifi /etc/networkmanager-unmanaged")
-        # NetworkManager's module wants to enable this wpa_supplicant
-        # service itself whenever wifi.backend isn't "iwd" (deliberately
-        # not set here -- see graphical.nix for why), which would conflict
-        # with wireless.iwd.enable and break the build (`Only one wireless
-        # daemon is allowed at the time`).
-        enabled.succeed("grep -Fx false /etc/wireless-enable")
+        enabled.config.networking.wireless.iwd.enable
+        && lib.elem "type:wifi" enabled.config.networking.networkmanager.unmanaged
+        # NetworkManager's module wants to enable this wpa_supplicant service
+        # itself whenever wifi.backend isn't "iwd" (deliberately not set here
+        # -- see graphical.nix for why), which would conflict with
+        # wireless.iwd.enable and break the build (`Only one wireless daemon
+        # is allowed at the time`).
+        && !enabled.config.networking.wireless.enable
         # iwd does its own IP configuration now that NetworkManager isn't
         # managing the wifi device to run DHCP for it.
-        enabled.succeed("grep -Fx true /etc/iwd-enable-network-configuration")
+        && enabled.config.networking.wireless.iwd.settings.General.EnableNetworkConfiguration;
+    }
+    {
+      name = "graphical disabled: NetworkManager is not configured";
+      ok = !disabled.config.networking.networkmanager.enable;
+    }
+  ];
 
-    with subtest("graphical disabled: NetworkManager is not configured"):
-        disabled.fail("systemctl cat NetworkManager.service")
-  '';
-}
+  failed = builtins.filter (c: !c.ok) checks;
+in
+if failed != [ ] then
+  throw ''
+    graphical test failed:
+    ${builtins.concatStringsSep "\n" (map (c: "  - ${c.name}") failed)}
+  ''
+else
+  nixpkgs.runCommand "graphical-test" { } "touch $out"
