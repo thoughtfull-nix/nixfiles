@@ -1,216 +1,151 @@
-{ nixpkgs, self, ... }:
+# Lightweight nix eval check (not a nixosTest/VM boot) for system-pull.nix:
+# verifying the timer schedule, the unit's ExecStart/X-StopOnRemoval/
+# EnvironmentFile wiring, the nix.conf substituter/trusted-key wiring, and the
+# generated script's credential handling (dotenvy scoping, no sourcing, no
+# systemd-run, bucket/region/creds-path baked in).
+#
+# A VM boot was considered and rejected: none of the above depends on
+# system-pull actually running -- every assertion here reads either plain
+# config (timer/unit options, nix.conf settings) or the generated script's own
+# text. Reading that text does realize the (tiny, dependency-free) script
+# derivation via builtins.readFile, but that's a sub-second build, not a VM
+# boot, and it's the same generated file a VM's `cat` would have read anyway.
+{ self, nixpkgs, ... }:
 let
+  inherit (nixpkgs) lib;
+  inherit (self.inputs.nixpkgs.lib) nixosSystem;
   stubs = import ./stubs.nix;
 
-  # Apply the thoughtfull overlay so pkgs.thoughtfull.system-pull resolves.
-  overlayModule = {
-    nixpkgs.overlays = [ self.overlays.thoughtfull ];
-  };
-
-  imports = [
+  commonModules = [
+    { nixpkgs.overlays = [ self.overlays.thoughtfull ]; }
     ../nixosModules/binary-cache.nix
     ../nixosModules/system-pull.nix
     stubs.ageSecrets
     stubs.graphicalEnable
-    overlayModule
   ];
-in
-nixpkgs.testers.nixosTest {
-  name = "system-pull";
 
-  skipTypeCheck = true;
-  skipLint = true;
-
-  nodes = {
-    # Credentials configured, default `enable` propagates to true.
-    headless =
-      { pkgs, ... }:
-      {
-        inherit imports;
-        thoughtfull.binaryCache.awsCredentialsFile = pkgs.writeText "fake-creds" "AWS_ACCESS_KEY_ID=x\nAWS_SECRET_ACCESS_KEY=y\n";
-      };
-
-    graphical =
-      { pkgs, ... }:
-      {
-        inherit imports;
-        thoughtfull.graphical.enable = true;
-        thoughtfull.binaryCache.awsCredentialsFile = pkgs.writeText "fake-creds" "AWS_ACCESS_KEY_ID=x\nAWS_SECRET_ACCESS_KEY=y\n";
-      };
-
-    # No credentials => systemPull default is false, no timer/service.
-    noCredentials = {
-      inherit imports;
-      thoughtfull.binaryCache.awsCredentialsFile = null;
+  mkEval =
+    extraModule:
+    nixosSystem {
+      system = nixpkgs.stdenv.hostPlatform.system;
+      lib = self.lib;
+      modules = commonModules ++ [ extraModule ];
     };
-  };
 
-  testScript = ''
-    start_all()
-    headless.wait_for_unit("multi-user.target")
-    graphical.wait_for_unit("multi-user.target")
-    noCredentials.wait_for_unit("multi-user.target")
+  # Credentials configured, default `enable` propagates to true.
+  headless = mkEval (
+    { pkgs, ... }:
+    {
+      thoughtfull.binaryCache.awsCredentialsFile = pkgs.writeText "fake-creds" "AWS_ACCESS_KEY_ID=x\nAWS_SECRET_ACCESS_KEY=y\n";
+    }
+  );
+  graphical = mkEval (
+    { pkgs, ... }:
+    {
+      thoughtfull.graphical.enable = true;
+      thoughtfull.binaryCache.awsCredentialsFile = pkgs.writeText "fake-creds" "AWS_ACCESS_KEY_ID=x\nAWS_SECRET_ACCESS_KEY=y\n";
+    }
+  );
+  # No credentials => systemPull default is false, no timer/service.
+  noCredentials = mkEval { thoughtfull.binaryCache.awsCredentialsFile = null; };
 
-    with subtest("headless default: timer fires at 3am"):
-        timer = headless.succeed("systemctl cat system-pull.timer")
-        print(f"headless timer:\n{timer}")
-        assert "OnCalendar=*-*-* 03:00:00" in timer, (
-            "headless host should fire at 3am"
-        )
-        assert "RandomizedDelaySec=15min" in timer, (
-            "should have 15min randomized delay"
-        )
-        assert "Persistent=true" in timer, (
-            "timer should be Persistent so missed runs catch up"
-        )
+  headlessUnit = headless.config.systemd.services.system-pull;
+  headlessTimer = headless.config.systemd.timers.system-pull.timerConfig;
+  graphicalTimer = graphical.config.systemd.timers.system-pull.timerConfig;
 
-    with subtest("graphical default: timer fires at noon"):
-        timer = graphical.succeed("systemctl cat system-pull.timer")
-        print(f"graphical timer:\n{timer}")
-        assert "OnCalendar=*-*-* 12:00:00" in timer, (
-            "graphical host should fire at noon"
-        )
+  systemPullPkg = lib.head (
+    builtins.filter (p: (p.name or "") == "system-pull") headless.config.environment.systemPackages
+  );
+  script = builtins.readFile "${systemPullPkg}/bin/system-pull";
+  # Strip comment lines so checks aren't fooled by prose (mirrors the original
+  # VM test, which stripped comments from the same generated script).
+  code = lib.concatStringsSep "\n" (
+    builtins.filter (line: builtins.match "[[:space:]]*#.*" line == null) (lib.splitString "\n" script)
+  );
+  codeLines = lib.splitString "\n" code;
+  realiseLine = lib.findFirst (l: lib.hasInfix "--realise" l) "" codeLines;
+  switchLine = lib.findFirst (l: lib.hasInfix "switch-to-configuration" l) "" codeLines;
 
-    with subtest("service invokes system-pull with no arguments and keeps creds out of its environment"):
-        unit = headless.succeed("systemctl cat system-pull.service")
-        print(f"headless service:\n{unit}")
-        assert "EnvironmentFile=" not in unit, (
-            "AWS credentials must not be loaded into system-pull.service's "
-            "environment: they would leak into switch-to-configuration and the "
-            "activation scripts it runs. The script loads them scoped to the "
-            "pointer fetch instead."
-        )
-        exec_line = next(
-            line for line in unit.splitlines() if line.startswith("ExecStart=")
-        )
-        assert exec_line == "ExecStart=/run/current-system/sw/bin/system-pull", (
-            "ExecStart should invoke system-pull with no arguments (bucket, "
-            f"region, and creds path are baked in); got:\n{exec_line}"
-        )
-        assert "/nix/store/" not in exec_line, (
-            "ExecStart must not embed a store path, or activation would "
-            "stop system-pull.service mid-switch"
-        )
+  checks = [
+    {
+      name = "headless default: timer fires at 3am";
+      ok = headlessTimer.OnCalendar == "*-*-* 03:00:00";
+    }
+    {
+      name = "headless default: 15min randomized delay, persistent";
+      ok = headlessTimer.RandomizedDelaySec == "15min" && headlessTimer.Persistent;
+    }
+    {
+      name = "graphical default: timer fires at noon";
+      ok = graphicalTimer.OnCalendar == "*-*-* 12:00:00";
+    }
+    {
+      name = "service invokes system-pull with no arguments, no store path baked in";
+      ok = headlessUnit.serviceConfig.ExecStart == "/run/current-system/sw/bin/system-pull";
+    }
+    {
+      name = "AWS credentials must not be loaded into system-pull.service's environment";
+      ok = !(headlessUnit.serviceConfig ? EnvironmentFile);
+    }
+    {
+      name = "service opts out of stop-on-removal so an in-flight switch survives";
+      ok = headlessUnit.unitConfig."X-StopOnRemoval" == false;
+    }
+    {
+      name = "switch-to-configuration runs in-process, not via systemd-run";
+      ok = lib.hasInfix "switch-to-configuration" code && !(lib.hasInfix "systemd-run" code);
+    }
+    {
+      name = "credentials are loaded scoped via dotenvy, not sourced";
+      ok = lib.hasInfix "dotenvy -f" code && !(lib.hasInfix "source " code);
+    }
+    {
+      name = "the closure is realised with credentials scoped to that command";
+      ok = lib.hasInfix "dotenvy -f" realiseLine;
+    }
+    {
+      name = "switch-to-configuration does not receive the AWS credentials";
+      ok = !(lib.hasInfix "dotenvy" switchLine);
+    }
+    {
+      name = "bucket, region, and credentials path are baked into the script";
+      ok =
+        lib.hasInfix ''bucket="thoughtfull-nix-cache"'' script
+        && lib.hasInfix ''region="us-east-1"'' script
+        && lib.hasInfix ''creds_file="/run/agenix/nix-cache-credentials"'' script;
+    }
+    {
+      name = "nix.conf gets s3:// substituter and trusted public key";
+      ok =
+        lib.elem "s3://thoughtfull-nix-cache?region=us-east-1" headless.config.nix.settings.extra-substituters
+        && lib.any (
+          k: lib.hasPrefix "nix-cache.thoughtfull.systems-1:" k
+        ) headless.config.nix.settings.extra-trusted-public-keys;
+    }
+    {
+      name = "no credentials: no system-pull timer or service";
+      ok =
+        !(noCredentials.config.systemd.timers ? system-pull)
+        && !(noCredentials.config.systemd.services ? system-pull);
+    }
+    {
+      name = "no credentials: no s3 substituter";
+      ok =
+        !(lib.any (s: lib.hasInfix "s3://" s) (
+          noCredentials.config.nix.settings.extra-substituters or [ ]
+        ));
+    }
+  ];
 
-    with subtest("service opts out of stop-on-removal so an in-flight switch survives"):
-        # If a pulled generation removes system-pull.service, activation would
-        # otherwise SIGTERM it (X-StopOnRemoval defaults true) and kill the
-        # in-process switch. X-StopOnRemoval=false keeps the running instance
-        # alive until the switch it is running finishes.
-        unit = headless.succeed("systemctl cat system-pull.service")
-        assert "X-StopOnRemoval=false" in unit, (
-            "service must set X-StopOnRemoval=false so activation cannot stop "
-            "it mid-switch when a pulled generation removes the unit"
-        )
+  failed = builtins.filter (c: !c.ok) checks;
+in
+if failed != [ ] then
+  throw ''
+    system-pull test failed:
+    ${builtins.concatStringsSep "\n" (map (c: "  - ${c.name}") failed)}
 
-    with subtest("switch-to-configuration runs in-process, not via systemd-run"):
-        # The stable ExecStart keeps system-pull.service byte-identical across
-        # generations, so activation leaves it untouched. The switch can then
-        # run in-process and its output lands in system-pull.service's journal.
-        exec_start = headless.succeed(
-            "systemctl show system-pull.service -p ExecStart --value"
-        )
-        script_path = exec_start.split("argv[]=")[1].split()[0]
-        script = headless.succeed(f"cat {script_path}")
-        print(f"system-pull script:\n{script}")
-        # Strip comment lines so the check isn't fooled by prose.
-        code = "\n".join(
-            line for line in script.splitlines() if not line.lstrip().startswith("#")
-        )
-        assert "switch-to-configuration" in code, (
-            "system-pull must invoke switch-to-configuration"
-        )
-        assert "systemd-run" not in code, (
-            "system-pull must invoke switch-to-configuration in-process; the "
-            "stable ExecStart means activation won't kill it, so the "
-            "systemd-run transient-unit wrapper is no longer needed"
-        )
-
-    with subtest("credentials are loaded scoped via dotenvy, not sourced"):
-        # AWS creds are only needed for the pointer fetch, so load them into the
-        # environment of just that command with dotenvy (which parses the file
-        # rather than executing it) instead of sourcing the file or exporting
-        # the creds process-wide via EnvironmentFile.
-        exec_start = headless.succeed(
-            "systemctl show system-pull.service -p ExecStart --value"
-        )
-        script_path = exec_start.split("argv[]=")[1].split()[0]
-        script = headless.succeed(f"cat {script_path}")
-        code = "\n".join(
-            line for line in script.splitlines() if not line.lstrip().startswith("#")
-        )
-        assert "dotenvy -f" in code, (
-            "system-pull must load AWS credentials with 'dotenvy -f <file>' "
-            "scoped to the command that needs them"
-        )
-        assert "source " not in code, (
-            "system-pull must not source the credentials file"
-        )
-
-    with subtest("the closure is realised with credentials scoped to that command"):
-        # system-pull runs as root, whose `auto` store realises in-process
-        # rather than through nix-daemon, so `nix-store --realise` substitutes
-        # from the s3:// cache in its own process and must carry the AWS
-        # credentials itself -- the daemon's EnvironmentFile does not apply.
-        # Load them with dotenvy scoped to just the realise, so they stay out
-        # of switch-to-configuration and the activation scripts it runs.
-        exec_start = headless.succeed(
-            "systemctl show system-pull.service -p ExecStart --value"
-        )
-        script_path = exec_start.split("argv[]=")[1].split()[0]
-        script = headless.succeed(f"cat {script_path}")
-        code = "\n".join(
-            line for line in script.splitlines() if not line.lstrip().startswith("#")
-        )
-        realise_line = next(
-            line for line in code.splitlines() if "--realise" in line
-        )
-        assert "dotenvy -f" in realise_line, (
-            "nix-store --realise must be wrapped with 'dotenvy -f <file>' so "
-            "the in-process substitution from the s3:// cache has AWS "
-            f"credentials; got:\n{realise_line}"
-        )
-        switch_line = next(
-            line for line in code.splitlines() if "switch-to-configuration" in line
-        )
-        assert "dotenvy" not in switch_line, (
-            "switch-to-configuration must not receive the AWS credentials: "
-            "they are only needed to fetch the pointer and realise the closure"
-        )
-
-    with subtest("bucket, region, and credentials path are baked into the script"):
-        exec_start = headless.succeed(
-            "systemctl show system-pull.service -p ExecStart --value"
-        )
-        script_path = exec_start.split("argv[]=")[1].split()[0]
-        script = headless.succeed(f"cat {script_path}")
-        assert 'bucket="thoughtfull-nix-cache"' in script, (
-            f"bucket should be baked in; got:\n{script}"
-        )
-        assert 'region="us-east-1"' in script, (
-            f"region should be baked in; got:\n{script}"
-        )
-        assert 'creds_file="/run/agenix/nix-cache-credentials"' in script, (
-            f"credentials path should be baked in; got:\n{script}"
-        )
-
-    with subtest("nix.conf gets s3:// substituter and trusted public key"):
-        nix_conf = headless.succeed("cat /etc/nix/nix.conf")
-        print(f"headless nix.conf:\n{nix_conf}")
-        assert "s3://thoughtfull-nix-cache?region=us-east-1" in nix_conf, (
-            "nix.conf should include the s3 substituter"
-        )
-        assert "nix-cache.thoughtfull.systems-1:" in nix_conf, (
-            "nix.conf should trust the cache signing key"
-        )
-
-    with subtest("no credentials: no system-pull timer or service"):
-        noCredentials.fail("systemctl cat system-pull.timer")
-        noCredentials.fail("systemctl cat system-pull.service")
-        nix_conf = noCredentials.succeed("cat /etc/nix/nix.conf")
-        print(f"noCredentials nix.conf:\n{nix_conf}")
-        assert "s3://" not in nix_conf, (
-            "without credentials, the s3 substituter should not be configured"
-        )
-  '';
-}
+    generated script:
+    ${script}
+  ''
+else
+  nixpkgs.runCommand "system-pull-test" { } "touch $out"
