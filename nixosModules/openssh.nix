@@ -49,9 +49,15 @@ in
       # I have for sudo a separate key on my yubikey that requires touch.
       settings.auth_key_file = mkDefault "/etc/ssh/authorized_keys.d/\${ruser}_sudo";
     };
-    # I can ssh into a machine with agent forwarding and touch my yubikey locally to authenticate
-    # sudo.
-    services.sudo.rssh = mkDefault true;
+    services.sudo = {
+      # I can ssh into a machine with agent forwarding and touch my yubikey locally to authenticate
+      # sudo.
+      rssh = mkDefault true;
+      # Both u2f and rssh are "sufficient", so auth stops at whichever succeeds first: prefer
+      # touching the yubikey directly by running u2f before rssh. rssh then only kicks in as a
+      # fallback when the yubikey isn't directly plugged in, e.g. over agent-forwarded ssh.
+      rules.auth.u2f.order = config.security.pam.services.sudo.rules.auth.rssh.order - 10;
+    };
   };
   services.openssh.hostKeys = [
     {
