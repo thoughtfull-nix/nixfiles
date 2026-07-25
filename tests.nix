@@ -28,6 +28,7 @@ forEachSystem (
     minecraft-server = callTest ./tests/minecraft-server.nix;
     monitoring = callTest ./tests/monitoring.nix;
     nixfiles = callTest ./tests/nixfiles.nix;
+    openssh = callTest ./tests/openssh.nix;
     restic = callTest ./tests/restic.nix;
     system-pull = callTest ./tests/system-pull.nix;
     vpn = callTest ./tests/vpn.nix;
