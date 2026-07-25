@@ -12,7 +12,20 @@ in
 {
   environment.systemPackages = mkIf graphical.enable [ ssh-askpass ];
   programs.ssh = {
-    askPassword = mkIf graphical.enable "ssh-askpass";
+    # An absolute path, not just "ssh-askpass": the ssh-agent systemd unit's
+    # own askpass wrapper execs this with the unit's minimal generated PATH
+    # (no /run/current-system/sw/bin), so a bare command name silently fails
+    # to resolve there. That failure is invisible for touch-only FIDO2 keys
+    # (their notify-only prompt never needs a real answer) but breaks PIN
+    # (verify-required) keys: ssh-agent gets no PIN back and the signature
+    # is refused with a misleading "incorrect passphrase" error.
+    #
+    # /run/current-system/sw/bin/ssh-askpass rather than "${ssh-askpass}/bin/
+    # ssh-askpass": the long-lived ssh-agent systemd unit resolves this path
+    # fresh on every invocation, so it keeps working across a nixos-rebuild
+    # switch without needing a restart. A baked-in store path would go stale
+    # (and eventually be garbage-collected) the moment ssh-askpass rebuilds.
+    askPassword = mkIf graphical.enable "/run/current-system/sw/bin/ssh-askpass";
     enableAskPassword = mkDefault graphical.enable;
     extraConfig = ''
       VerifyHostKeyDNS yes
