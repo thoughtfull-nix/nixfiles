@@ -146,7 +146,7 @@ let
       ok =
         lib.hasInfix ''"technosophist:$(cat /run/agenix/u2f-key-0):$(cat /run/agenix/u2f-key-1)"'' withKeysScript.text
         && lib.hasInfix "/etc/u2f-mappings" withKeysScript.text
-        && lib.hasInfix "chmod 0400" withKeysScript.text;
+        && lib.hasInfix "chmod 0444" withKeysScript.text;
     }
     {
       name = "u2fKeyFiles set with a different username: activation script uses that host's name";

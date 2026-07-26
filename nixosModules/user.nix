@@ -68,12 +68,17 @@ in
     # yubikey.nix defaults security.pam.u2f.settings.authfile to this same
     # path; when u2fKeyFiles is empty, nothing writes it and pam_u2f simply
     # fails that auth line (sudo falls through to the rssh/ssh-agent rule).
+    #
+    # World-readable on purpose: pam_u2f is consulted by PAM stacks that run
+    # as the invoking user, not root (e.g. gtklock), so a root-only file
+    # breaks those. The key handle is safe to expose locally -- it's useless
+    # without the physical yubikey -- the encryption is only to keep it out
+    # of the public git repo, not off the installed machine.
     system.activationScripts.thoughtfullU2fMappings = mkIf (cfg.u2fKeyFiles != [ ]) {
       deps = [ "agenixChown" ];
       text = ''
-        umask 077
         printf '%s\n' "${cfg.name}:${u2fMappingLine}" > /etc/u2f-mappings
-        chmod 0400 /etc/u2f-mappings
+        chmod 0444 /etc/u2f-mappings
       '';
     };
     services.accounts-daemon.enable = mkDefault true;
@@ -188,10 +193,12 @@ in
 
         An activation script decrypts each one (via agenix), joins them
         with `:`, prefixes the (per-host) username, and writes the result
-        to /etc/u2f-mappings mode 0400 -- the path
-        `security.pam.u2f.settings.authfile` already defaults to in
-        yubikey.nix. The key handles never land in the Nix store in
-        plaintext.
+        (world-readable, matching pam_u2f's usual deployment -- non-root
+        PAM stacks like gtklock need to read it too) to /etc/u2f-mappings,
+        the path `security.pam.u2f.settings.authfile` already defaults to
+        in yubikey.nix. The key handles never land in the Nix store in
+        plaintext or in this git repo -- only on the installed machine,
+        where they're useless without the physical yubikey anyway.
 
         Defaults to the two shared technosophist yubikeys committed under
         nixosConfigurations/shared/secrets; set to `[ ]` to disable u2f sudo
