@@ -125,8 +125,12 @@ let
       ok = !(noKeysEval.config.age.secrets ? "u2f-key-0");
     }
     {
-      name = "u2fKeyFiles = []: no u2f-mappings activation script";
-      ok = !(noKeysEval.config.system.activationScripts ? thoughtfullU2fMappings);
+      name = "u2fKeyFiles = []: activation script still runs, removing any stale /etc/u2f-mappings";
+      ok =
+        let
+          text = noKeysEval.config.system.activationScripts.thoughtfullU2fMappings.text;
+        in
+        lib.hasInfix "rm -f /etc/u2f-mappings" text && !(lib.hasInfix "cat /run/agenix" text);
     }
     {
       name = "u2fKeyFiles set: one age secret registered per file, in order";

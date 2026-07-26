@@ -66,20 +66,29 @@ in
       systemPackages = [ templates ];
     };
     # yubikey.nix defaults security.pam.u2f.settings.authfile to this same
-    # path; when u2fKeyFiles is empty, nothing writes it and pam_u2f simply
-    # fails that auth line (sudo falls through to the rssh/ssh-agent rule).
+    # path; when u2fKeyFiles is empty, this removes any file left behind by a
+    # previous generation instead of just skipping the write -- otherwise
+    # flipping the option back to [ ] on a `nixos-rebuild switch` would leave
+    # the old credentials active until the next full boot (forever on
+    # non-impermanence hosts).
     #
     # World-readable on purpose: pam_u2f is consulted by PAM stacks that run
     # as the invoking user, not root (e.g. gtklock), so a root-only file
     # breaks those. The key handle is safe to expose locally -- it's useless
     # without the physical yubikey -- the encryption is only to keep it out
     # of the public git repo, not off the installed machine.
-    system.activationScripts.thoughtfullU2fMappings = mkIf (cfg.u2fKeyFiles != [ ]) {
+    system.activationScripts.thoughtfullU2fMappings = {
       deps = [ "agenixChown" ];
-      text = ''
-        printf '%s\n' "${cfg.name}:${u2fMappingLine}" > /etc/u2f-mappings
-        chmod 0444 /etc/u2f-mappings
-      '';
+      text =
+        if cfg.u2fKeyFiles != [ ] then
+          ''
+            printf '%s\n' "${cfg.name}:${u2fMappingLine}" > /etc/u2f-mappings
+            chmod 0444 /etc/u2f-mappings
+          ''
+        else
+          ''
+            rm -f /etc/u2f-mappings
+          '';
     };
     services.accounts-daemon.enable = mkDefault true;
     thoughtfull.impermanence.user.directories = mkIf graphical.enable [
