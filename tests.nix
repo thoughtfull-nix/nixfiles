@@ -31,6 +31,7 @@ forEachSystem (
     openssh = callTest ./tests/openssh.nix;
     restic = callTest ./tests/restic.nix;
     system-pull = callTest ./tests/system-pull.nix;
+    user = callTest ./tests/user.nix;
     vpn = callTest ./tests/vpn.nix;
     waybar = callTest ./tests/waybar.nix;
   }

@@ -66,7 +66,13 @@
             user.directories = [ ".aws" ];
           };
           programs.sway.kanshi.configFile = ./aegle/kanshi/config;
-          user.hashedPasswordFile = ./aegle/secrets/hashed-user-passphrase.age;
+          user = {
+            hashedPasswordFile = ./aegle/secrets/hashed-user-passphrase.age;
+            u2fKeyFiles = [
+              ./aegle/secrets/u2f-primary-ywa258.age
+              ./aegle/secrets/u2f-backup-ywc962.age
+            ];
+          };
         };
         virtualisation.docker.enable = true;
       }
