@@ -8,16 +8,21 @@ let
   inherit (config.age) secrets;
   inherit (config.thoughtfull) graphical;
   inherit (lib)
+    concatMapStringsSep
     elem
+    genList
+    imap0
+    listToAttrs
     mkDefault
     mkIf
     mkOption
     mkOptionDefault
+    nameValuePair
+    optionalAttrs
     types
     ;
   inherit (lib.thoughtfull) githubKeys;
   inherit (pkgs) runCommand writeText;
-  inherit (pkgs.lib.strings) join;
   cfg = config.thoughtfull.user;
   user = config.users.users.${cfg.name};
   wheel = elem "wheel" user.extraGroups;
@@ -39,16 +44,51 @@ let
     ln -s ${templateFile} administrator
     ln -s ${templateFile} standard
   '';
+  # Each u2fKeyFiles entry is age-encrypted separately (so a single key can be
+  # added/rotated/removed without re-encrypting the others) and named by
+  # position; the activation script below re-joins them with the (possibly
+  # per-host) username at runtime instead of baking it into the ciphertext.
+  u2fKeySecrets = listToAttrs (
+    imap0 (i: file: nameValuePair "u2f-key-${toString i}" { inherit file; }) cfg.u2fKeyFiles
+  );
+  u2fKeyPaths = genList (i: secrets."u2f-key-${toString i}".path) (builtins.length cfg.u2fKeyFiles);
+  u2fMappingLine = concatMapStringsSep ":" (path: "$(cat ${path})") u2fKeyPaths;
 in
 {
   config = {
-    age.secrets = mkIf (cfg.hashedPasswordFile != null) {
-      hashed-user-passphrase.file = cfg.hashedPasswordFile;
-    };
+    age.secrets =
+      optionalAttrs (cfg.hashedPasswordFile != null) {
+        hashed-user-passphrase.file = cfg.hashedPasswordFile;
+      }
+      // u2fKeySecrets;
     environment = {
-      etc.u2f-mappings.text = "${cfg.name}:${join ":" cfg.u2fKeys}";
-      etc."ssh/authorized_keys.d/${cfg.name}_sudo".text = join "\n" cfg.sudoKeys;
+      etc."ssh/authorized_keys.d/${cfg.name}_sudo".source = cfg.sudoKeysFile;
       systemPackages = [ templates ];
+    };
+    # yubikey.nix defaults security.pam.u2f.settings.authfile to this same
+    # path; when u2fKeyFiles is empty, this removes any file left behind by a
+    # previous generation instead of just skipping the write -- otherwise
+    # flipping the option back to [ ] on a `nixos-rebuild switch` would leave
+    # the old credentials active until the next full boot (forever on
+    # non-impermanence hosts).
+    #
+    # World-readable on purpose: pam_u2f is consulted by PAM stacks that run
+    # as the invoking user, not root (e.g. gtklock), so a root-only file
+    # breaks those. The key handle is safe to expose locally -- it's useless
+    # without the physical yubikey -- the encryption is only to keep it out
+    # of the public git repo, not off the installed machine.
+    system.activationScripts.thoughtfullU2fMappings = {
+      deps = [ "agenixChown" ];
+      text =
+        if cfg.u2fKeyFiles != [ ] then
+          ''
+            printf '%s\n' "${cfg.name}:${u2fMappingLine}" > /etc/u2f-mappings
+            chmod 0444 /etc/u2f-mappings
+          ''
+        else
+          ''
+            rm -f /etc/u2f-mappings
+          '';
     };
     services.accounts-daemon.enable = mkDefault true;
     thoughtfull.impermanence.user.directories = mkIf graphical.enable [
@@ -137,19 +177,44 @@ in
       default = null;
       type = types.nullOr types.str;
     };
-    sudoKeys = mkOption {
-      default = [
-        "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIHzxKqcMxNuT0xz2JmSHjnm9CRGUpg8Ruc4N6/n2aD36AAAAHXNzaDp0ZWNobm9zb3BoaXN0K3N1ZG9AeXBhNzY2 technosophist+sudo@ypa766"
-        "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAINFiiNn+Gl1hDcOb9NuwrpnKJsNgIcqwBjHxAEH0x0A0AAAAHXNzaDp0ZWNobm9zb3BoaXN0K3N1ZG9AeXBjOTQw technosophist+sudo@ypc940"
-      ];
-      type = types.listOf types.str;
+    sudoKeysFile = mkOption {
+      default = ./user/sudo_keys;
+      description = ''
+        Path to a file of authorized_keys-format public keys (one per line)
+        allowed to sudo, either directly via pam_rssh (ssh-agent forwarding)
+        or as the fallback identity behind the yubikey-touch pam_u2f check.
+        Public data -- not secret -- so this is a plain file, not an
+        age-encrypted one.
+      '';
+      type = types.path;
     };
-    u2fKeys = mkOption {
+    u2fKeyFiles = mkOption {
       default = [
-        "oT99wIYvvo+F72re33Fct85LkuAHjP5zsc1ctzwsrLKTHc7jdV+GcLRwR/PwcY3H59cyVzY9ZKqDGZDEfr9+NQ==,Re3sR6/+MGJiRdD5L27J4ZEyJ2vJsoedBYLW7jOVD/mdMyhRBFZ9defOFqGBY32AyjpAJiyKyW93EWt7JrXCvw==,es256,+presence+pin"
-        "prPeZJrJt9NnUSfzhkV5m/C6NW4drWhZEzWgD6XInGWklUfDdyRynsYgrCy8eY0xYGwetR+hE5rKB5n64W86IQ==,STWxyk82p42aqpQVg9PERPkKBB5s8HxuKA1sEwKU7801LYuHitYJH9plaEr0PY2aQF/aacOiO4mED1Huqb+vYg==,es256,+presence+pin"
+        ../nixosConfigurations/shared/secrets/u2f-primary-ypa766.age
+        ../nixosConfigurations/shared/secrets/u2f-backup-ypc940.age
       ];
-      type = types.listOf types.str;
+      description = ''
+        Paths to age-encrypted files, one per pam_u2f credential. Each
+        file's decrypted plaintext is a single credential fragment --
+        `keyHandle,publicKey,es256,+presence+pin` -- with no username and
+        no colons, so the same encrypted file can be shared across hosts
+        whose `thoughtfull.user.name` differs.
+
+        An activation script decrypts each one (via agenix), joins them
+        with `:`, prefixes the (per-host) username, and writes the result
+        (world-readable, matching pam_u2f's usual deployment -- non-root
+        PAM stacks like gtklock need to read it too) to /etc/u2f-mappings,
+        the path `security.pam.u2f.settings.authfile` already defaults to
+        in yubikey.nix. The key handles never land in the Nix store in
+        plaintext or in this git repo -- only on the installed machine,
+        where they're useless without the physical yubikey anyway.
+
+        Defaults to the two shared technosophist yubikeys committed under
+        nixosConfigurations/shared/secrets; set to `[ ]` to disable u2f sudo
+        authentication on a host, or override with the host's own encrypted
+        key files.
+      '';
+      type = types.listOf types.path;
     };
   };
 }
