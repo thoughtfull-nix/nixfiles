@@ -25,7 +25,10 @@ extendedNixpkgs.testers.nixosTest {
       { config, lib, ... }:
       {
         imports = [ defaultModule ];
-        # name must match the default keysHash so githubKeys hits the Nix store
+        # name must match the default keysHash so git.nix's githubKeys call
+        # (Host github.com's identities) hits the Nix store -- this is a full
+        # VM boot, so system.build.toplevel (and thus /etc/ssh/ssh_config)
+        # gets built, unlike the eval-only checks in tests/{user,openssh}.nix
         thoughtfull.user.name = "technosophist";
         # clear module-set nixpkgs.config to avoid the "external pkgs instance" assertion
         nixpkgs.config = lib.mkForce { };

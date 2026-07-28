@@ -21,7 +21,6 @@ let
     optionalAttrs
     types
     ;
-  inherit (lib.thoughtfull) githubKeys;
   inherit (pkgs) runCommand writeText;
   cfg = config.thoughtfull.user;
   user = config.users.users.${cfg.name};
@@ -99,7 +98,7 @@ in
       mutableUsers = lib.mkDefault false;
       users = {
         root = {
-          openssh.authorizedKeys.keys = mkIf wheel user.openssh.authorizedKeys.keys;
+          openssh.authorizedKeys.keyFiles = mkIf wheel user.openssh.authorizedKeys.keyFiles;
           password = null;
         };
         ${cfg.name} = {
@@ -111,10 +110,7 @@ in
           );
           home = mkDefault cfg.home;
           isNormalUser = mkDefault true;
-          openssh.authorizedKeys.keys = githubKeys {
-            sha256 = cfg.github.keysHash;
-            username = cfg.github.user;
-          };
+          openssh.authorizedKeys.keyFiles = mkDefault cfg.authorizedKeyFiles;
           password = mkDefault cfg.password;
           uid = mkDefault 1000;
         };
@@ -122,6 +118,19 @@ in
     };
   };
   options.thoughtfull.user = {
+    authorizedKeyFiles = mkOption {
+      default = [
+        ./user/ypa766/id_ed25519_sk_rk_auth_technosophist.pub
+        ./user/ypc940/id_ed25519_sk_rk_auth_technosophist.pub
+      ];
+      description = ''
+        Paths to authorized_keys-format public key files (one per file, as
+        consumed by openssh.authorizedKeys.keyFiles) allowed to log in as this
+        user -- and, since it's in the wheel group, as root. Public data --
+        not secret -- so these are plain files, not age-encrypted ones.
+      '';
+      type = types.listOf types.path;
+    };
     extraGroups = mkOption {
       default = [ ];
       type = types.listOf types.str;
@@ -133,7 +142,7 @@ in
     };
     github = {
       keysHash = mkOption {
-        default = "1dzq0125fmng19v088xv7pqq9c42wli75m44cglvxr2xayyz46mr";
+        default = "1h53v9l4182l3vk3r4r5s8fxljm95h8lgwflhxljjlv6kny7kcmp";
         type = types.str;
       };
       user = mkOption {

@@ -7,7 +7,7 @@
 let
   inherit (builtins) any;
   inherit (config.programs) git;
-  inherit (config.thoughtfull.user) github;
+  inherit (config.thoughtfull.user) authorizedKeyFiles github;
   inherit (lib)
     concatMapStringsSep
     filter
@@ -17,16 +17,17 @@ let
     ;
   inherit (lib.thoughtfull) githubKeys;
   hasSigningkey = any (c: c ? user.signingkey && c.user.signingkey != null) git.config;
-  # The same two keys on every machine, unlike the per-machine
-  # openssh.authorizedKeys.keys pulled from GitHub via thoughtfull.user.
-  identityFiles = [
-    ./git/id_ed25519_sk_ypa766_auth.pub
-    ./git/id_ed25519_sk_ypc940_auth.pub
-  ];
-  identityFileLines = concatMapStringsSep "\n" (f: "  IdentityFile ${f}") identityFiles;
-  # github.com itself is restricted to the keys pulled from GitHub for this
-  # machine's user (the same keys used for openssh.authorizedKeys), one file
-  # per key so each can be offered as its own IdentityFile.
+  # The same committed key files used to log into this host (see
+  # thoughtfull.user.authorizedKeyFiles) -- same on every machine, unlike
+  # githubIdentityFiles below. This couples git-push identity to the same
+  # option that gates interactive/root login: overriding authorizedKeyFiles
+  # on a host now affects both at once, unlike githubIdentityFiles (a live
+  # GitHub fetch) which stays independent of local login key changes.
+  identityFileLines = concatMapStringsSep "\n" (f: "  IdentityFile ${f}") authorizedKeyFiles;
+  # github.com itself is restricted to the keys pulled live from GitHub for
+  # this machine's user (used by, e.g., the nixfiles bootstrap script to
+  # authenticate its own clone/push of this repo), one file per key so each
+  # can be offered as its own IdentityFile.
   githubIdentityFiles = imap0 (i: key: pkgs.writeText "github-com-identity-${toString i}.pub" key) (
     filter (key: key != "") (githubKeys {
       sha256 = github.keysHash;
@@ -51,6 +52,14 @@ in
         # IdentitiesOnly yes below to lock github.com out of SSH auth entirely.
         assertion = githubIdentityFiles != [ ];
         message = "thoughtfull.user.github (user = \"${github.user}\") pulled no keys from GitHub";
+      }
+      {
+        # Same failure mode as githubIdentityFiles above, but for
+        # technosophist.github.com: an empty authorizedKeyFiles would silently
+        # combine with that block's own unconditional IdentitiesOnly yes to
+        # lock it out of SSH auth entirely.
+        assertion = authorizedKeyFiles != [ ];
+        message = "thoughtfull.user.authorizedKeyFiles is empty, which would lock technosophist.github.com out of SSH auth";
       }
     ];
     programs.git.config = {
