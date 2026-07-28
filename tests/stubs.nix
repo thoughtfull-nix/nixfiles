@@ -78,7 +78,7 @@
         };
         keysHash = lib.mkOption {
           type = lib.types.str;
-          default = "1dzq0125fmng19v088xv7pqq9c42wli75m44cglvxr2xayyz46mr";
+          default = "1h53v9l4182l3vk3r4r5s8fxljm95h8lgwflhxljjlv6kny7kcmp";
         };
       };
     };
