@@ -32,7 +32,8 @@ let
       (
         { lib, ... }:
         {
-          # name must match the default keysHash so githubKeys hits the Nix store
+          # thoughtfull.user.name has no default and must be set for eval to
+          # succeed; this test's checks don't depend on its particular value
           thoughtfull.user.name = "technosophist";
           # clear module-set nixpkgs.config to avoid the "external pkgs instance" assertion
           nixpkgs.config = lib.mkForce { };

@@ -47,6 +47,22 @@
       };
     };
 
+  # Stub thoughtfull.user.authorizedKeyFiles for tests that need the
+  # committed login SSH key files without importing the full user.nix module
+  # (accounts-daemon, icons, hashed passwords, etc.). Points at the real
+  # committed files so tests exercise genuine nix store paths.
+  userAuthorizedKeyFiles =
+    { lib, ... }:
+    {
+      options.thoughtfull.user.authorizedKeyFiles = lib.mkOption {
+        type = lib.types.listOf lib.types.path;
+        default = [
+          ../nixosModules/user/ypa766/id_ed25519_sk_rk_auth_technosophist.pub
+          ../nixosModules/user/ypc940/id_ed25519_sk_rk_auth_technosophist.pub
+        ];
+      };
+    };
+
   # Stub thoughtfull.user.github.{user,keysHash} for tests that need the
   # per-machine keys pulled from GitHub without importing the full user.nix
   # module (accounts-daemon, icons, hashed passwords, etc.). Mirrors the real

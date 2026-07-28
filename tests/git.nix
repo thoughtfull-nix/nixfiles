@@ -29,6 +29,7 @@ let
     modules = [
       ../nixosModules/git.nix
       stubs.impermanence
+      stubs.userAuthorizedKeyFiles
       stubs.userGithub
       {
         programs.git = {
@@ -77,8 +78,9 @@ let
         lib.hasInfix "Host technosophist.github.com" sshConfig
         && lib.hasInfix "HostName github.com" sshConfig
         && lib.hasInfix "IdentityFile /nix/store/" sshConfig
-        && lib.hasInfix "id_ed25519_sk_ypa766_auth.pub" sshConfig
-        && lib.hasInfix "id_ed25519_sk_ypc940_auth.pub" sshConfig
+        # Both files share this basename now (one per ypa766/ypc940 directory), so
+        # two distinct nix store paths -- not one -- confirms both are offered.
+        && countOccurrences "id_ed25519_sk_rk_auth_technosophist.pub" sshConfig == 2
         && lib.hasInfix "IdentitiesOnly yes" sshConfig
         && countOccurrences "ControlPersist 10m" sshConfig == 2;
     }

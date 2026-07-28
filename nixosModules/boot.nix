@@ -32,7 +32,7 @@ in
       boot.initrd = {
         network.ssh = {
           enable = mkDefault true;
-          authorizedKeys = config.users.users.root.openssh.authorizedKeys.keys;
+          authorizedKeyFiles = config.users.users.root.openssh.authorizedKeys.keyFiles;
           port = mkDefault 222;
         };
         systemd = {

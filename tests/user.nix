@@ -26,7 +26,8 @@ let
   baseModule =
     { lib, ... }:
     {
-      # name must match the default keysHash so githubKeys hits the Nix store
+      # name must match the hardcoded "technosophist" references in the checks
+      # below (authorized_keys.d/technosophist_sudo, users.users.technosophist)
       thoughtfull.user.name = "technosophist";
       # clear module-set nixpkgs.config to avoid the "external pkgs instance" assertion
       nixpkgs.config = lib.mkForce { };
@@ -89,6 +90,16 @@ let
 
   withKeysScript = withKeysEval.config.system.activationScripts.thoughtfullU2fMappings;
 
+  loginAuthorizedKeys = defaultEval.config.users.users.technosophist.openssh.authorizedKeys;
+  loginAuthorizedKeyFilesContent = map builtins.readFile loginAuthorizedKeys.keyFiles;
+  # Read independently of the module (by real repo path, not through config) so
+  # this check doesn't hardcode key comment text that can change independently
+  # of the wiring under test.
+  committedAuthorizedKeyFilesContent = [
+    (builtins.readFile ../nixosModules/user/ypa766/id_ed25519_sk_rk_auth_technosophist.pub)
+    (builtins.readFile ../nixosModules/user/ypc940/id_ed25519_sk_rk_auth_technosophist.pub)
+  ];
+
   checks = [
     {
       name = "default: sudo authorized_keys.d sources sudoKeysFile (not inline text)";
@@ -101,6 +112,18 @@ let
       ok =
         lib.hasInfix "technosophist+sudo@ypa766" sudoKeysContent
         && lib.hasInfix "technosophist+sudo@ypc940" sudoKeysContent;
+    }
+    {
+      name = "default: login authorized_keys sources authorizedKeyFiles (not a GitHub fetch)";
+      ok =
+        loginAuthorizedKeys.keyFiles == defaultEval.config.thoughtfull.user.authorizedKeyFiles
+        && loginAuthorizedKeys.keys == [ ];
+    }
+    {
+      name = "default: login authorized_keys content matches the two committed key files, in order";
+      ok =
+        builtins.length loginAuthorizedKeyFilesContent == 2
+        && loginAuthorizedKeyFilesContent == committedAuthorizedKeyFilesContent;
     }
     {
       name = "default: u2fKeyFiles resolves to two shared secrets, wired to matching age secrets";
