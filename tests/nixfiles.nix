@@ -12,6 +12,29 @@ let
     ssh-keygen -t ed25519 -N "" -C "test" -f $out/id_ed25519
   '';
 
+  # Stand-in for the real (FIDO2, resident) dedicated signing keypair `provision` points
+  # `user.signingkey` at
+  # (nixosModules/user/ypa766/id_ed25519_sk_rk_sign_technosophist.pub) -- a plain keypair
+  # here since the module's/script's signing logic is key-format-agnostic, and no FIDO2
+  # hardware is available in a VM. Its private half is loaded into the (real) ssh-agent
+  # `provision` starts, standing in for `ssh-add -K` downloading the resident credential, so
+  # the bootstrap commit carries a real, verifiable SSH signature end-to-end.
+  testSigningKey = pkgs.runCommand "test-signing-key" { nativeBuildInputs = [ pkgs.openssh ]; } ''
+    mkdir -p $out
+    ssh-keygen -t ed25519 -N "" -C "test-signing" -f $out/id_ed25519
+  '';
+
+  # Stand-in for the backup signing keypair
+  # (nixosModules/user/ypc940/id_ed25519_sk_rk_sign_technosophist.pub). Distinct from
+  # testSigningKey so its pubkey content can never coincidentally match what's loaded in
+  # ssh-agent -- provision's "primary preferred" scenario below should never fall back to it.
+  testBackupSigningKey =
+    pkgs.runCommand "test-backup-signing-key" { nativeBuildInputs = [ pkgs.openssh ]; }
+      ''
+        mkdir -p $out
+        ssh-keygen -t ed25519 -N "" -C "test-backup-signing" -f $out/id_ed25519
+      '';
+
   # Stand-in for master-recipients.txt / master-identities.txt. `remote-provision` only ever
   # *encrypts* against master-recipients.txt in this flow (LUKS/user passphrase secrets are
   # write-only for a brand-new host) -- the identity half is never exercised here.
@@ -61,13 +84,11 @@ let
   '';
 
   # Placeholders shared by every `nixfiles` test build; each build below overrides only the
-  # handful of commands (disko, gpg, ssh-add) it needs to stub differently.
+  # handful of commands (disko, ssh-add) it needs to stub differently.
   commonNixfilesArgs = {
     age = "${pkgs.age}/bin/age";
     git = "${pkgs.git}/bin/git";
-    gpgconf = "${pkgs.gnupg}/bin/gpgconf";
     phraze = "${pkgs.phraze}/bin/phraze";
-    pinentry = "${pkgs.pinentry-tty}/bin/pinentry-tty";
     raspberrypi-firmware = "";
     ssh-agent = "${pkgs.openssh}/bin/ssh-agent";
     uboot-rpi4 = "";
@@ -77,24 +98,25 @@ let
     commonNixfilesArgs
     // {
       disko = "${stubDisko}/bin/disko";
-      gpg = "${pkgs.gnupg}/bin/gpg";
       ssh-add = "${pkgs.openssh}/bin/ssh-add";
     }
   );
 
-  # `provision` bootstraps a GPG signing key off a Yubikey smartcard and loads a resident SSH key
-  # via `ssh-add -K` -- neither is available in a VM. Stub both: `gpg -k`/`-K` just need to report
-  # the hardcoded `gpg_key` ("DF2034C6") as already loaded so the fetch-key/insert-card loop is
-  # skipped entirely, and `ssh-add -K` just needs to succeed. Actual GPG commit signing is avoided
-  # separately, by pre-seeding an already-existing (not freshly cloned) repo checkout below, so
-  # `commit.gpgsign` never gets enabled in the first place.
-  stubGpg = pkgs.writeShellScriptBin "gpg" ''
-    echo "DF2034C6"
-    exit 0
-  '';
-
-  stubSshAdd = pkgs.writeShellScriptBin "ssh-add" ''
-    exit 0
+  # `provision` loads a resident SSH credential via `ssh-add -K`, unavailable in a VM. Stand in
+  # for the real hardware by loading `testSigningKey`'s private half for real instead, so the
+  # subsequent `git config user.signingkey`/`git commit` steps have a real credential to sign
+  # with in the (real) ssh-agent `provision` starts -- letting the bootstrap commit end up with an
+  # actual, verifiable SSH signature. ssh-add refuses to load a private key with the world-
+  # readable permissions every nix store path has, so stage a copy with 0600 first.
+  stubSshAddLoadTestSigningKey = pkgs.writeShellScriptBin "ssh-add" ''
+    set -euo pipefail
+    if [[ "''${1:-}" == "-K" ]]; then
+      key=$(mktemp)
+      cp ${testSigningKey}/id_ed25519 "$key"
+      chmod 600 "$key"
+      exec ${pkgs.openssh}/bin/ssh-add "$key"
+    fi
+    exec ${pkgs.openssh}/bin/ssh-add "$@"
   '';
 
   # `provision` (unlike `finish-remote-provision`) never writes a github access token anywhere --
@@ -109,10 +131,16 @@ let
     commonNixfilesArgs
     // {
       disko = "${stubDiskoForProvision}/bin/disko";
-      gpg = "${stubGpg}/bin/gpg";
-      ssh-add = "${stubSshAdd}/bin/ssh-add";
+      ssh-add = "${stubSshAddLoadTestSigningKey}/bin/ssh-add";
     }
   );
+
+  # The email `git config user.email` ends up as, hardcoded in nixfiles.bash's own
+  # `git_user_email` -- not something the test can override -- so the allowed_signers file used
+  # to verify the bootstrap commit's signature below has to match it.
+  testAllowedSigners = pkgs.writeText "test-allowed-signers" ''
+    technosophist@thoughtfull.systems namespaces="git" ${lib.fileContents "${testSigningKey}/id_ed25519.pub"}
+  '';
 
   # Stub the handful of destructive/hardware-specific commands `finish-remote-provision`
   # dispatches on the target, so the test exercises the script's own orchestration logic
@@ -172,7 +200,7 @@ pkgs.testers.nixosTest {
 
   nodes = {
     # Stands in for the already-configured personal laptop: git identity is set up, but
-    # deliberately no GPG signing key/Yubikey -- `remote-provision` must not need one.
+    # deliberately no SSH signing key/Yubikey -- `remote-provision` must not need one.
     personal =
       { ... }:
       {
@@ -229,7 +257,7 @@ pkgs.testers.nixosTest {
         '';
       };
 
-    # Stands in for the fully-console-based `provision` flow: everything (Yubikey/GPG bootstrap
+    # Stands in for the fully-console-based `provision` flow: everything (Yubikey SSH bootstrap
     # stubbed, disk formatting, commit, install) happens on one machine, no personal laptop or
     # network involved.
     standalone =
@@ -402,41 +430,62 @@ pkgs.testers.nixosTest {
         )
 
     # `provision` is the original, still-maintained console/Yubikey flow: unlike remote-provision,
-    # it runs entirely on one machine and bootstraps its own git/GPG signing setup. Pre-seed an
-    # already-existing checkout (rather than letting it clone fresh) so that bootstrap is skipped
-    # and `commit.gpgsign` never gets enabled -- gpg/ssh-add are stubbed for the parts that do run
-    # (the "is a key already loaded" checks), so no real Yubikey is needed.
-    with subtest("seed a pre-existing checkout for provision (skips its clone+gpgsign setup)"):
+    # it runs entirely on one machine and bootstraps its own git SSH signing setup by cloning the
+    # repo fresh. Seed a bare "origin" repo (standing in for GitHub) with fixture content,
+    # including a stand-in signing pubkey at the path the real repo carries one
+    # (nixosModules/user/ypa766/id_ed25519_sk_rk_sign_technosophist.pub), for provision to
+    # clone from and push back to -- exercising its clone+signing-config path for real,
+    # rather than pre-seeding an already-cloned checkout to dodge it.
+    with subtest("seed provision's origin repo, including a stand-in signing pubkey"):
         standalone.succeed("git init --bare /root/origin.git")
         standalone.succeed(
-            "git init -b main /root/nixfiles-standalone && "
-            "git -C /root/nixfiles-standalone config user.name test && "
-            "git -C /root/nixfiles-standalone config user.email test@example.com && "
-            "mkdir -p /root/nixfiles-standalone/nixosConfigurations/shared/secrets"
+            "git init -b main /root/origin-seed && "
+            "git -C /root/origin-seed config user.name test && "
+            "git -C /root/origin-seed config user.email test@example.com && "
+            "mkdir -p /root/origin-seed/nixosConfigurations/shared/secrets "
+            "/root/origin-seed/nixosModules/user/ypa766 "
+            "/root/origin-seed/nixosModules/user/ypc940"
         )
         standalone.copy_from_host(
-            "${bootstrapNixFile}", "/root/nixfiles-standalone/nixosConfigurations/bootstrap.nix"
+            "${bootstrapNixFile}", "/root/origin-seed/nixosConfigurations/bootstrap.nix"
         )
         standalone.copy_from_host(
-            "${testAgeKey}/recipient.txt", "/root/nixfiles-standalone/master-recipients.txt"
+            "${testAgeKey}/recipient.txt", "/root/origin-seed/master-recipients.txt"
         )
         standalone.copy_from_host("${testAgeKey}/identity.txt", "/root/master-identity.txt")
+        standalone.copy_from_host(
+            "${testSigningKey}/id_ed25519.pub",
+            "/root/origin-seed/nixosModules/user/ypa766/id_ed25519_sk_rk_sign_technosophist.pub",
+        )
+        standalone.copy_from_host(
+            "${testBackupSigningKey}/id_ed25519.pub",
+            "/root/origin-seed/nixosModules/user/ypc940/id_ed25519_sk_rk_sign_technosophist.pub",
+        )
         standalone.succeed(
-            "git -C /root/nixfiles-standalone add . && "
-            "git -C /root/nixfiles-standalone commit -m 'seed fixture' && "
-            "git -C /root/nixfiles-standalone remote add origin /root/origin.git && "
-            "git -C /root/nixfiles-standalone push origin HEAD:main && "
-            "git -C /root/nixfiles-standalone branch --set-upstream-to=origin/main main"
+            "git -C /root/origin-seed add . && "
+            "git -C /root/origin-seed commit -m 'seed fixture' && "
+            "git -C /root/origin-seed remote add origin /root/origin.git && "
+            "git -C /root/origin-seed push origin HEAD:main"
         )
 
-    with subtest("provision runs entirely on one machine, no personal laptop needed"):
+    with subtest("provision clones fresh, no personal laptop needed"):
         log = standalone.succeed(
             "(yes yes || true) | nixfiles provision provision-host "
-            "--nixfiles-path=/root/nixfiles-standalone --nixfiles-git-branch=main "
-            "--age-identity=/root/master-identity.txt "
+            "--nixfiles-path=/root/nixfiles-standalone --nixfiles-git-url=/root/origin.git "
+            "--nixfiles-git-branch=main --age-identity=/root/master-identity.txt "
             "2>&1"
         )
         print(f"provision output:\n{log}")
+
+    with subtest("provision configured SSH commit signing on the freshly cloned repo"):
+        gitconfig = standalone.succeed("git -C /root/nixfiles-standalone config --list")
+        print(f"git config:\n{gitconfig}")
+        assert (
+            "user.signingkey=/root/nixfiles-standalone/nixosModules/user/ypa766/"
+            "id_ed25519_sk_rk_sign_technosophist.pub"
+        ) in gitconfig, "expected user.signingkey to point at the cloned repo's own pubkey file"
+        assert "commit.gpgsign=true" in gitconfig
+        assert "gpg.format=ssh" in gitconfig
 
     with subtest("provision generated its own hardware-configuration.nix locally"):
         hwconfig = standalone.succeed(
@@ -479,6 +528,17 @@ pkgs.testers.nixosTest {
         log = standalone.succeed("git --git-dir=/root/origin.git log --oneline main")
         print(f"origin log:\n{log}")
         assert "Provision provision-host" in log
+
+    # Ed25519 can't exercise a FIDO2 key's touch/PIN prompt, but that's OpenSSH's concern, not
+    # this script's -- verifying end-to-end that the bootstrap commit is a real, valid SSH
+    # signature (checked against the stand-in pubkey, independent of what provision itself wrote
+    # to gpg.ssh.allowedSignersFile, since it doesn't set one) is what matters here.
+    with subtest("provision's bootstrap commit carries a valid SSH signature"):
+        standalone.succeed(
+            "git -C /root/nixfiles-standalone "
+            "-c gpg.ssh.allowedSignersFile=${testAllowedSigners} "
+            "verify-commit HEAD"
+        )
 
     with subtest("provision's stubbed disko and nixos-install were invoked correctly"):
         calls = standalone.succeed("cat /tmp/stub-calls.log")
