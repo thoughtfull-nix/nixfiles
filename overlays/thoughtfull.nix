@@ -5,11 +5,9 @@ let
     argc
     bash
     git
-    gnupg
     netcat
     openssh
     phraze
-    pinentry-tty
     qemu
     replaceVars
     runCommandLocal
@@ -132,10 +130,7 @@ in
         age = "${age}/bin/age";
         disko = "${disko}/bin/disko";
         git = "${git}/bin/git";
-        gpg = "${gnupg}/bin/gpg";
-        gpgconf = "${gnupg}/bin/gpgconf";
         phraze = "${phraze}/bin/phraze";
-        pinentry = "${pinentry-tty}/bin/pinentry-tty";
         raspberrypi-firmware = "";
         ssh-add = "${openssh}/bin/ssh-add";
         ssh-agent = "${openssh}/bin/ssh-agent";

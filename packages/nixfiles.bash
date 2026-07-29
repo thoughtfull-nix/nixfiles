@@ -29,18 +29,10 @@ ensure-tmpdir() {
   log "Using temporary directory ${TMPDIR}"
 }
 
-# `tty` fails (and, under `set -e`, would otherwise abort the whole script) when there's no
-# controlling terminal, e.g. under non-interactive/scripted invocation.  GPG_TTY is only needed
-# for interactive Yubikey/pinentry prompts, so leaving it empty in that case is harmless.
-GPG_TTY=$(tty 2>/dev/null || true)
-export GPG_TTY
-
 GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new"
 export GIT_SSH_COMMAND
 
 ### CUSTOMIZE THESE ################################################################################
-gpg_key="DF2034C6"
-gpg_key_url="https://raw.githubusercontent.com/thoughtfull-nix/nixfiles/refs/heads/main/DF2034C6.pub"
 git_user_name="technosophist"
 git_user_email="technosophist@thoughtfull.systems"
 ####################################################################################################
@@ -48,8 +40,8 @@ git_user_email="technosophist@thoughtfull.systems"
 ## @cmd Setup and install NixOS onto a new host.
 ##
 ## Setup and configuration revolves around a Yubikey device.  The Yubikey is used for SSH keys to
-## clone a nixfiles repository, and a GPG key to commit to and push the repository.  The Yubikey is
-## also setup to unlock the LUKS partition with FIDO2.
+## clone the nixfiles repository and to sign the commit made to it.  The Yubikey is also setup to
+## unlock the LUKS partition with FIDO2.
 ##
 ## A LUKS recovery code is generated, encrypted, and committed to the
 ## repository along with a bootstrapped NixOS configuration and generated
@@ -83,56 +75,37 @@ provision() {
   addtrap "log 'Killing ssh-agent'; kill ${SSH_AGENT_PID}"
   log "Ensure SSH keys are loaded"
   @ssh-add@ -K || die "Failed to add SSH keys to agent"
-  # == Ensure GnuPG home exists
-  log "Ensure GnuPG home exists"
-  if [[ ! -d "${HOME}/.gnupg" ]]; then
-    log "Creating GnuPG home"
-    mkdir "${HOME}/.gnupg" -m 0700 || die "Failed to create GnuPG home"
-  fi
-  # == Ensure scdaemon is configured
-  log "Ensure scdaemon is configured"
-  if [[ ! -e "${HOME}/.gnupg/scdaemon.conf" ]]; then
-    log "Configuring scdaemon"
-    echo "disable-ccid" >"${HOME}/.gnupg/scdaemon.conf"
-    @gpgconf@ --kill scdaemon || die "Failed to configure gpg-agent"
-  fi
-  # == Ensure gpg-agent is configured
-  log "Ensure gpg-agent is configured"
-  if [[ ! -e "${HOME}/.gnupg/gpg-agent.conf" ]]; then
-    log "Configuring gpg-agent"
-    echo "pinentry-program @pinentry@" >"${HOME}/.gnupg/gpg-agent.conf"
-    @gpgconf@ --kill gpg-agent || die "Failed to configure gpg-agent"
-  fi
-  # == Ensure GPG public key is loaded
-  log "Ensure GPG public key is loaded"
-  if ! gpg -k | grep "${gpg_key}"; then
-    log "Fetching GPG public key"
-    gpg --fetch-keys "${gpg_key_url}" ||
-      die "Failed to fetch PGP public key"
-  fi
-  # == Ensure GPG private key is loaded
-  log "Ensure GPG private key is loaded"
-  if ! gpg -K | grep "${gpg_key}"; then
-    log "Finding GPG private key on key card"
-    gpg --card-status || true
-    while ! gpg -K | grep "${gpg_key}"; do
-      echo "Please insert key card containing ${gpg_key}..."
-      confirm
-      gpg --card-status || true
-    done
-  fi
   # == Ensure nixfiles is cloned
   log "Ensure nixfiles is cloned"
   if [[ ! -d ${argc_nixfiles_path} ]]; then
     log "Cloning nixfiles repo"
     @git@ clone "${argc_nixfiles_git_url}" "${argc_nixfiles_path}" ||
       die "Failed to clone nixfiles repo: ${argc_nixfiles_git_url}"
+    # Sign with whichever dedicated resident FIDO2 signing credential ssh-add -K just loaded
+    # alongside the auth keys -- both public halves are already committed to the repo, so no
+    # key-fetch step is needed. Prefers the primary key, falling back to the backup, mirroring
+    # nixosModules/git.nix's git-signing-key script -- but checked inline here rather than
+    # reusing that script, since it's only installed via environment.systemPackages,
+    # unavailable this early in bootstrap. realpath rather than the raw (possibly relative or
+    # ~-prefixed) nixfiles-path: git reads user.signingkey relative to the current directory
+    # at signing time, which won't always be this one.
+    repo_path="$(realpath "${argc_nixfiles_path}")"
+    primary_signing_key_path="${repo_path}/nixosModules/user/ypa766/id_ed25519_sk_rk_sign_technosophist.pub"
+    backup_signing_key_path="${repo_path}/nixosModules/user/ypc940/id_ed25519_sk_rk_sign_technosophist.pub"
+    loaded_keys="$(@ssh-add@ -L 2>/dev/null || true)"
+    if grep -qF "$(cut -d' ' -f1-2 "${primary_signing_key_path}")" <<<"${loaded_keys}"; then
+      signing_key_path="${primary_signing_key_path}"
+    elif grep -qF "$(cut -d' ' -f1-2 "${backup_signing_key_path}")" <<<"${loaded_keys}"; then
+      signing_key_path="${backup_signing_key_path}"
+    else
+      die "No configured signing key (primary or backup) is loaded in ssh-agent -- insert the primary or backup YubiKey"
+    fi
     {
       git config user.name "${git_user_name}" &&
         git config user.email "${git_user_email}" &&
-        git config user.signingkey "${gpg_key}" &&
+        git config user.signingkey "${signing_key_path}" &&
         git config commit.gpgsign true &&
-        git config gpg.openpgp.program @gpg@
+        git config gpg.format ssh
     } ||
       die "Failed to configure nixfiles repo"
   fi
@@ -184,9 +157,9 @@ provision() {
 
 ## @cmd Provision a remote work machine from this (personal) laptop, over SSH.
 ##
-## Runs entirely on this laptop, which is assumed to already have git, GPG, and a Yubikey signing
+## Runs entirely on this laptop, which is assumed to already have git and a Yubikey SSH signing
 ## key configured -- unlike `provision`, this never sets any of that up, and never sends a commit
-## or push credential, or a GPG signing key, to the target.
+## or push credential, or a signing key, to the target.
 ##
 ## The target is SSHed into only for the handful of things that must run on its real hardware:
 ## generating an accurate hardware-configuration.nix, and delivering the target's new SSH host
@@ -324,7 +297,7 @@ EXAMPLE
 ## `remote-provision` has pushed its configuration and delivered this host's SSH private key to
 ## /tmp.  Clones the (public) nixfiles repository read-only, decrypts the shared github access
 ## token and this host's own secrets using that key, then formats disks, enrolls FIDO2, and
-## installs NixOS.  Never needs git commit access, a GPG key, or the Yubikey master age identity.
+## installs NixOS.  Never needs git commit access, a signing key, or the Yubikey master age identity.
 ##
 ## @arg hostname!
 ## name of host to finish provisioning
@@ -512,7 +485,7 @@ commit-and-push() {
       commit_attempts=$((commit_attempts + 1))
       # A commit can fail because a pre-commit hook modified a file (e.g. a formatter fixup) --
       # re-stage before retrying so that fix actually gets included.  Cap retries so a
-      # persistently failing hook (or a GPG card that never gets inserted) doesn't loop forever.
+      # persistently failing hook (or a signing YubiKey that's never inserted) doesn't loop forever.
       ((commit_attempts < 5)) ||
         die "Failed to commit changes after ${commit_attempts} attempts"
       echo "Failed to commit changes.  Trying again"
@@ -794,10 +767,6 @@ age() {
 
 git() {
   @git@ "${git_opts[@]}" "$@"
-}
-
-gpg() {
-  @gpg@ "$@"
 }
 
 phraze() {

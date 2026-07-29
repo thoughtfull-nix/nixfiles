@@ -140,9 +140,15 @@ in
       internal = true;
       type = types.attrsOf types.anything;
     };
+    # Not read anywhere in this repo -- nixosModules/git.nix stopped
+    # consuming it when github.com/technosophist.github.com switched to
+    # hardcoded/authorizedKeyFiles-based identities. Kept because the
+    # private kryptonix flake input's per-host modules (hydor/sedna/tislit)
+    # still set thoughtfull.user.github.user, and removing the option
+    # breaks nixosConfigurations evaluation for those hosts.
     github = {
       keysHash = mkOption {
-        default = "1h53v9l4182l3vk3r4r5s8fxljm95h8lgwflhxljjlv6kny7kcmp";
+        default = "1g4ap2gn2hd352xp4cbi3ids0s0i32m10sfrjsm8zra469z9b50p";
         type = types.str;
       };
       user = mkOption {

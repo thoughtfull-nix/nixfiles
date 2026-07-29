@@ -65,7 +65,16 @@
             };
             user.directories = [ ".aws" ];
           };
-          programs.sway.kanshi.configFile = ./aegle/kanshi/config;
+          programs = {
+            git = {
+              signing.enable = true;
+              personal = {
+                directory = "~/src/personal/**";
+                enable = true;
+              };
+            };
+            sway.kanshi.configFile = ./aegle/kanshi/config;
+          };
           user = {
             hashedPasswordFile = ./aegle/secrets/hashed-user-passphrase.age;
             u2fKeyFiles = [
