@@ -13,7 +13,7 @@
   inputs = {
     agenix.url = "github:ryantm/agenix";
     claude-desktop.url = "github:aaddrick/claude-desktop-debian";
-    devenv.url = "github:cachix/devenv";
+    devenv.url = "github:cachix/devenv/v2.2";
     disko.url = "github:nix-community/disko";
     flake-utils.url = "github:numtide/flake-utils";
     impermanence.url = "github:nix-community/impermanence";

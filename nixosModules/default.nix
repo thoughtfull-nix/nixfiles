@@ -120,6 +120,7 @@ in
     config.allowUnfree = mkDefault true;
     overlays = [
       inputs.claude-desktop.overlays.default
+      inputs.devenv.overlays.default
       inputs.llm-agents.overlays.shared-nixpkgs
       self.overlays.emacs
       self.overlays.thoughtfull
