@@ -5,6 +5,7 @@ let
     fuzzel
     gawk
     jq
+    makeDesktopItem
     networkmanager
     networkmanagerapplet
     symlinkJoin
@@ -52,6 +53,15 @@ let
     };
     src = ./waybar-network/wifi-menu.bash;
   };
+  waybar-network-wifi-menu-desktop = makeDesktopItem {
+    name = "waybar-network-wifi-menu";
+    desktopName = "Wi-Fi Networks";
+    exec = "${waybar-network-wifi-menu}/bin/waybar-network-wifi-menu";
+    icon = "network-wireless";
+    terminal = false;
+    type = "Application";
+    categories = [ "Network" ];
+  };
   waybar-network-ethernet = writeFileScriptBin {
     name = "waybar-network-ethernet";
     replacements = {
@@ -79,6 +89,15 @@ let
     };
     src = ./waybar-network/ethernet-menu.bash;
   };
+  waybar-network-ethernet-menu-desktop = makeDesktopItem {
+    name = "waybar-network-ethernet-menu";
+    desktopName = "Ethernet Networks";
+    exec = "${waybar-network-ethernet-menu}/bin/waybar-network-ethernet-menu";
+    icon = "network-wired";
+    terminal = false;
+    type = "Application";
+    categories = [ "Network" ];
+  };
   waybar-network-vpn = writeFileScriptBin {
     name = "waybar-network-vpn";
     replacements = {
@@ -102,11 +121,13 @@ symlinkJoin {
     network-device
     waybar-network-ethernet
     waybar-network-ethernet-menu
+    waybar-network-ethernet-menu-desktop
     waybar-network-ethernet-toggle
     waybar-network-vpn
     waybar-network-vpn-toggle
     waybar-network-wifi
     waybar-network-wifi-menu
+    waybar-network-wifi-menu-desktop
     waybar-network-wifi-toggle
   ];
 }
