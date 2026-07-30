@@ -85,24 +85,23 @@ let
       ok = lib.elem "networkmanager" enabled.config.thoughtfull.user.extraGroups;
     }
     {
-      name = "graphical enabled: iwd manages Wi-Fi directly, NetworkManager only manages ethernet";
+      name = "graphical enabled: NetworkManager manages Wi-Fi directly, no iwd";
       ok =
-        # iwmenu (the Wi-Fi picker) talks to iwd's D-Bus API directly, so
-        # NetworkManager must not also be driving the same wifi device -- the
-        # two fighting over the same iwd station is what broke wifi in the
-        # first place (see git history). NetworkManager keeps managing
-        # ethernet.
-        enabled.config.networking.wireless.iwd.enable
-        && lib.elem "type:wifi" enabled.config.networking.networkmanager.unmanaged
-        # NetworkManager's module wants to enable this wpa_supplicant service
-        # itself whenever wifi.backend isn't "iwd" (deliberately not set here
-        # -- see graphical.nix for why), which would conflict with
-        # wireless.iwd.enable and break the build (`Only one wireless daemon
-        # is allowed at the time`).
-        && !enabled.config.networking.wireless.enable
-        # iwd does its own IP configuration now that NetworkManager isn't
-        # managing the wifi device to run DHCP for it.
-        && enabled.config.networking.wireless.iwd.settings.General.EnableNetworkConfiguration;
+        # Wi-Fi used to be carved out to iwd directly (unmanaged by
+        # NetworkManager) because iwmenu talked to iwd's D-Bus API and the
+        # two daemons fought over the same station if both were active (see
+        # git history). iwmenu is gone -- the fuzzel Wi-Fi picker now talks
+        # to NetworkManager via nmcli, the same as the Ethernet picker
+        # already did -- so nothing needs to unmanage Wi-Fi or run iwd
+        # anymore.
+        #
+        # networking.wireless.enable ends up true here regardless -- that's
+        # nixpkgs' NetworkManager module itself enabling a dbus-controlled
+        # wpa_supplicant service as its own default (non-iwd) backend, not
+        # the standalone wpa_supplicant management iwd used to conflict
+        # with, so it's not asserted on either way.
+        !enabled.config.networking.wireless.iwd.enable
+        && !(lib.elem "type:wifi" enabled.config.networking.networkmanager.unmanaged);
     }
     {
       name = "graphical disabled: NetworkManager is not configured";

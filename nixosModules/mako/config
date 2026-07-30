@@ -35,13 +35,6 @@ border-size=0
 on-notify=none
 border-size=0
 
-# iwmenu (waybar-network-wifi-menu) fires a desktop notification for every
-# network action (connect, disconnect, adapter power, etc.) with no CLI
-# flag to disable them, so suppress them outright here instead.
-[app-name=iwmenu]
-invisible=1
-on-notify=none
-
 [urgency=high]
 background-color=#c01c28
 border-color=#c01c28

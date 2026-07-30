@@ -72,7 +72,7 @@ in
       hideMounts = mkDefault true;
       directories = [
         "/etc/NetworkManager/system-connections"
-        "/var/lib/iwd"
+        "/var/lib/NetworkManager"
         "/var/lib/nixos"
         "/var/lib/systemd/backlight"
         "/var/lib/systemd/coredump"

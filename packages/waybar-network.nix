@@ -20,21 +20,13 @@ let
     };
     src = ./waybar-network/network-device.bash;
   };
-  wifi-device = writeFileScriptBin {
-    name = "waybar-network-wifi-device";
-    replacements = {
-      bash = "${bash}/bin/bash";
-      busctl = "${systemd}/bin/busctl";
-      jq = "${jq}/bin/jq";
-    };
-    src = ./waybar-network/wifi-device.bash;
-  };
   waybar-network-wifi = writeFileScriptBin {
     name = "waybar-network-wifi";
     replacements = {
       bash = "${bash}/bin/bash";
       jq = "${jq}/bin/jq";
-      wifi-device = "${wifi-device}/bin/waybar-network-wifi-device";
+      network-device = "${network-device}/bin/waybar-network-device";
+      nmcli = "${networkmanager}/bin/nmcli";
     };
     src = ./waybar-network/wifi-status.bash;
   };
@@ -42,10 +34,9 @@ let
     name = "waybar-network-wifi-toggle";
     replacements = {
       bash = "${bash}/bin/bash";
-      busctl = "${systemd}/bin/busctl";
-      jq = "${jq}/bin/jq";
+      network-device = "${network-device}/bin/waybar-network-device";
+      nmcli = "${networkmanager}/bin/nmcli";
       systemctl = "${systemd}/bin/systemctl";
-      wifi-device = "${wifi-device}/bin/waybar-network-wifi-device";
     };
     src = ./waybar-network/wifi-toggle.bash;
   };
@@ -53,9 +44,11 @@ let
     name = "waybar-network-wifi-menu";
     replacements = {
       bash = "${bash}/bin/bash";
-      busctl = "${systemd}/bin/busctl";
+      fuzzel = "${fuzzel}/bin/fuzzel";
+      network-device = "${network-device}/bin/waybar-network-device";
+      "nm-connection-editor" = "${networkmanagerapplet}/bin/nm-connection-editor";
+      nmcli = "${networkmanager}/bin/nmcli";
       systemctl = "${systemd}/bin/systemctl";
-      wifi-device = "${wifi-device}/bin/waybar-network-wifi-device";
     };
     src = ./waybar-network/wifi-menu.bash;
   };
@@ -115,6 +108,5 @@ symlinkJoin {
     waybar-network-wifi
     waybar-network-wifi-menu
     waybar-network-wifi-toggle
-    wifi-device
   ];
 }

@@ -13,7 +13,6 @@ let
     curl
     font-awesome
     fuzzel
-    iwmenu
     networkmanager
     networkmanagerapplet
     pulseaudio
@@ -38,7 +37,6 @@ in
     };
     systemPackages = [
       font-awesome
-      iwmenu
       networkmanager
       networkmanagerapplet
       power-menu
@@ -86,7 +84,6 @@ in
           curl
           fuzzel
           gtklock.package
-          iwmenu
           networkmanager
           networkmanagerapplet
           power-menu
