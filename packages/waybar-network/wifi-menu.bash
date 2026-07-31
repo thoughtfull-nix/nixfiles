@@ -9,7 +9,7 @@ set -euo pipefail
 # the same glyph set ethernet-menu.bash already uses for connect/disconnect/
 # back/settings, so this looks the same as before.
 
-icon_scan=""
+icon_scan=""
 icon_settings="󰒓"
 icon_connect="󰌷"
 icon_disconnect="󰌸"
@@ -56,9 +56,17 @@ radio=$(@nmcli@ -g WIFI general status 2>/dev/null) || radio=""
 if [[ ${radio} != "enabled" ]]; then
   @nmcli@ radio wifi on || true
   @systemctl@ --user kill --signal=RTMIN+5 waybar.service || true
+  # Poll the device's own STATE, not just its presence: nmcli lists a wifi
+  # device regardless of whether the radio is powered (dev above was
+  # already resolved before this check), but STATE is "unavailable" until
+  # the driver/firmware actually comes up after power-on -- the nmcli
+  # analog of the old iwd-based wrapper's Station Scanning poll, which
+  # waited on a signal that genuinely changed after power-on rather than
+  # one already true beforehand.
   for _ in $(seq 1 20); do
     mapfile -t devfields < <(@network-device@ wifi)
-    [[ -n ${devfields[0]:-} ]] && break
+    state="${devfields[1]:-}"
+    [[ -n ${state} && ${state} != "unavailable" ]] && break
     sleep 0.25
   done
 fi

@@ -174,6 +174,77 @@ let
     src = ../packages/waybar-network/wifi-menu.bash;
   };
 
+  # Stateful nmcli stub for the wifi-menu radio-poll regression test below:
+  # unlike stubNmcli above (a stateless case dispatch), the device-status
+  # response here has to change across repeated calls within a single
+  # script run, to simulate the driver actually coming up after `radio
+  # wifi on` rather than being ready immediately.
+  stubNmcliRadioPoll = testPkgs.writeShellScriptBin "nmcli" ''
+    set -euo pipefail
+    echo "nmcli $*" >>/tmp/nmcli-calls.log
+    case "$*" in
+      "-g WIFI general status")
+        if [[ -f /tmp/radio-poll-on ]]; then
+          echo "enabled"
+        else
+          echo "disabled"
+        fi
+        ;;
+      "radio wifi on")
+        touch /tmp/radio-poll-on
+        ;;
+      "-t -f DEVICE,TYPE,STATE device status")
+        # nmcli lists a wifi device regardless of whether the radio is
+        # powered (DEVICE is always present), but STATE stays "unavailable"
+        # until the driver actually comes up -- for the first two calls
+        # here, then "disconnected" (ready) from the third call on, so a
+        # caller that polls STATE itself (not just device presence, which
+        # is already true on the very first call) has to loop more than
+        # once before it sees readiness.
+        count_file=/tmp/radio-poll-status-calls
+        count=$(($(cat "''${count_file}" 2>/dev/null || echo 0) + 1))
+        echo "''${count}" >"''${count_file}"
+        if ((count < 3)); then
+          echo "wlan0:wifi:unavailable"
+        else
+          echo "wlan0:wifi:disconnected"
+        fi
+        ;;
+      "-t -f UUID,TYPE connection show") ;;
+      "--escape no -t -f IN-USE,SIGNAL,SECURITY,SSID device wifi list ifname wlan0")
+        echo ':50:--:Ready Network'
+        ;;
+      *) ;;
+    esac
+  '';
+
+  # network-device.bash and wifi-menu.bash rebuilt against stubNmcliRadioPoll
+  # instead of stubNmcli, so this one scenario's stateful device-status
+  # progression doesn't have to be threaded through the shared stub above
+  # (which every other wifi-menu/status/toggle test also relies on staying
+  # simple and stateless).
+  testNetworkDeviceRadioPoll = testPkgs.thoughtfull.writeFileScriptBin {
+    name = "waybar-network-device-radio-poll-test";
+    replacements = {
+      awk = "${testPkgs.gawk}/bin/awk";
+      bash = "${testPkgs.bash}/bin/bash";
+      nmcli = "${stubNmcliRadioPoll}/bin/nmcli";
+    };
+    src = ../packages/waybar-network/network-device.bash;
+  };
+  testWifiMenuRadioPoll = testPkgs.thoughtfull.writeFileScriptBin {
+    name = "waybar-network-wifi-menu-radio-poll-test";
+    replacements = {
+      bash = "${testPkgs.bash}/bin/bash";
+      fuzzel = "${stubFuzzel}/bin/fuzzel";
+      "network-device" = "${testNetworkDeviceRadioPoll}/bin/waybar-network-device-radio-poll-test";
+      "nm-connection-editor" = "${stubNmConnectionEditor}/bin/nm-connection-editor";
+      nmcli = "${stubNmcliRadioPoll}/bin/nmcli";
+      systemctl = "${testPkgs.systemd}/bin/systemctl";
+    };
+    src = ../packages/waybar-network/wifi-menu.bash;
+  };
+
   # Fixture-driven stand-in for pactl, used by the audio widget script tests
   # below. Every invocation is logged (mirroring stubNmcli) so tests can
   # assert on set-default-sink/move-sink-input calls without a real
@@ -292,6 +363,7 @@ testPkgs.testers.nixosTest {
           testSpeakerMenu
           testSpeakerStatus
           testWifiMenu
+          testWifiMenuRadioPoll
         ];
 
         # Create a test user for user services
@@ -776,6 +848,16 @@ testPkgs.testers.nixosTest {
             f"the connected network should carry the connected marker, got: {top_level}"
         )
 
+        # "Scan" in top_level above is a substring match, so it alone can't
+        # tell an icon-prefixed line ("<icon> Scan") apart from a bare one
+        # with no icon at all (" Scan", from an empty icon_scan) --
+        # regression test for exactly that: icon_scan was left empty while
+        # every other icon_* in the script carried a real glyph.
+        scan_line = next(line for line in top_level.splitlines() if line.endswith("Scan"))
+        assert not scan_line.startswith(" "), (
+            f"Scan should be prefixed by an icon, not a bare leading space, got: {scan_line!r}"
+        )
+
         # Selecting the connected known network (list line 2, since Scan is
         # line 1) then Disconnect (submenu line 1) resolves to its uuid via
         # --index, not label text.
@@ -855,6 +937,48 @@ testPkgs.testers.nixosTest {
         calls = machine.succeed("cat /tmp/nmcli-calls.log")
         assert "nm-connection-editor -t 802-11-wireless -s" in calls, (
             f"expected the Wi-Fi-only settings call, got: {calls}"
+        )
+
+    with subtest(
+        "waybar-network-wifi-menu polls device readiness after powering on the radio, not just device presence"
+    ):
+        # Regression test: nmcli lists a wifi device regardless of whether
+        # the radio is powered, so a poll loop that only checks device
+        # presence (an earlier version of this script did exactly that)
+        # breaks after a single iteration -- it never actually waits for
+        # the driver to come up. Exercises
+        # waybar-network-wifi-menu-radio-poll-test (built from the same
+        # source with a stateful nmcli stub -- see stubNmcliRadioPoll
+        # above -- whose device-status STATE stays "unavailable" for the
+        # first two calls, then reports ready).
+        machine.succeed(
+            "rm -f /tmp/nmcli-calls.log /tmp/radio-poll-on /tmp/radio-poll-status-calls"
+        )
+        machine.succeed("printf '%s\\n' CANCEL >/tmp/fuzzel-wifi-answers")
+        machine.succeed(
+            "FUZZEL_LOG=/tmp/fuzzel-wifi-menu.log FUZZEL_ANSWERS=/tmp/fuzzel-wifi-answers "
+            "waybar-network-wifi-menu-radio-poll-test"
+        )
+        calls = machine.succeed("cat /tmp/nmcli-calls.log")
+        assert "radio wifi on" in calls, f"expected the radio to be powered on, got: {calls}"
+
+        # The old, buggy poll loop broke after checking device status just
+        # twice total (once before the radio check, once inside the loop --
+        # both already non-empty on DEVICE regardless of STATE) -- the
+        # fixed loop keeps polling until STATE itself is ready, which this
+        # fixture doesn't happen until the third call.
+        status_calls = calls.count("nmcli -t -f DEVICE,TYPE,STATE device status")
+        assert status_calls >= 3, (
+            f"expected the poll loop to check device status at least 3 times "
+            f"(proving it waited on STATE, not just device presence), got "
+            f"{status_calls} calls: {calls}"
+        )
+
+        # Only after readiness should the script proceed to scan and show
+        # the (now-ready) network in the menu.
+        fuzzel_log = machine.succeed("cat /tmp/fuzzel-wifi-menu.log")
+        assert "Ready Network" in fuzzel_log, (
+            f"expected the menu to reach the scan step and show the network, got: {fuzzel_log}"
         )
 
     with subtest(
