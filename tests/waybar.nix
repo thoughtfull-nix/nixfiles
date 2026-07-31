@@ -84,6 +84,14 @@ let
           ':40:WPA2:Secure New' \
           ':30:--:Open New'
         ;;
+      # "Known Other" starts with autoconnect=no (see the connection.autoconnect
+      # fixture above), so toggling it tries to turn autoconnect *on* --
+      # fixture-rigged to fail, for the regression test below that this
+      # must not flip the script's own local known_autoconnect state when
+      # nmcli itself reports the change never took.
+      "connection modify uuid wifi-uuid-known-other connection.autoconnect yes")
+        exit 1
+        ;;
       *) ;;
     esac
   '';
@@ -886,6 +894,41 @@ testPkgs.testers.nixosTest {
         calls = machine.succeed("cat /tmp/nmcli-calls.log")
         assert "connection delete uuid wifi-uuid-known-other" in calls, (
             f"expected forget/delete call, got: {calls}"
+        )
+
+    with subtest(
+        "waybar-network-wifi-menu keeps the autoconnect label in sync when nmcli modify fails"
+    ):
+        fuzzel_log = "/tmp/fuzzel-wifi-menu.log"
+        answers = "/tmp/fuzzel-wifi-answers"
+
+        def run_wifi_menu(*choices):
+            machine.succeed(f"rm -f {fuzzel_log} /tmp/nmcli-calls.log")
+            machine.succeed("printf '%s\\n' " + " ".join(choices) + f" >{answers}")
+            machine.succeed(
+                f"FUZZEL_LOG={fuzzel_log} FUZZEL_ANSWERS={answers} "
+                "waybar-network-wifi-menu-test"
+            )
+
+        # Known Other (top-level line 3) starts with autoconnect=no, so its
+        # submenu opens on "Enable autoconnect" (submenu line 3). Selecting
+        # it triggers a `connection modify ... autoconnect yes` call that
+        # the fixture nmcli is rigged to fail, then Back (submenu line 4,
+        # since toggling redisplays the same submenu rather than exiting)
+        # to inspect the label without ever exiting the script.
+        run_wifi_menu("3", "3", "4")
+        submenu_log = machine.succeed(f"cat {fuzzel_log}")
+        # The submenu is shown twice: once before the failed toggle, once
+        # after. Both should still say "Enable autoconnect" -- if the
+        # script's local state had flipped despite nmcli reporting failure,
+        # the second showing would say "Disable autoconnect" instead.
+        assert submenu_log.count("Enable autoconnect") == 2, (
+            f"expected the autoconnect label to stay in sync after a failed "
+            f"modify call, got: {submenu_log}"
+        )
+        assert "Disable autoconnect" not in submenu_log, (
+            f"local autoconnect state should not flip when nmcli modify "
+            f"fails, got: {submenu_log}"
         )
 
     with subtest(

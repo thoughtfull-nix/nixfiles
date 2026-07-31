@@ -226,12 +226,20 @@ while true; do
           exit 0
           ;;
         "${autoconnect_label}")
+          # known_autoconnect must only flip once nmcli confirms the change
+          # actually took (permission error, connection deleted
+          # concurrently, etc. otherwise leave it silently out of sync with
+          # reality) -- so the exit status is checked, not swallowed with
+          # `|| true` the way state-changing calls elsewhere in this script
+          # are, since none of those also update local state afterwards.
           if [[ ${known_autoconnect[${ssid}]} == "yes" ]]; then
-            @nmcli@ connection modify uuid "${uuid}" connection.autoconnect no || true
-            known_autoconnect[${ssid}]="no"
+            if @nmcli@ connection modify uuid "${uuid}" connection.autoconnect no; then
+              known_autoconnect[${ssid}]="no"
+            fi
           else
-            @nmcli@ connection modify uuid "${uuid}" connection.autoconnect yes || true
-            known_autoconnect[${ssid}]="yes"
+            if @nmcli@ connection modify uuid "${uuid}" connection.autoconnect yes; then
+              known_autoconnect[${ssid}]="yes"
+            fi
           fi
           continue
           ;;
