@@ -11,21 +11,89 @@ let
     }
   );
 
-  # Fixture nmcli output for the ethernet-menu regression test below: one
-  # already-connected profile, plus profiles whose NAME exercises nmcli's
-  # terse-output escaping (an escaped colon, an escaped backslash, and both
-  # adjacent to each other) that ethernet-menu.bash must undo when it
-  # displays the name.
+  # Fixture nmcli output for the ethernet-menu and wifi-menu regression tests
+  # below, dispatched on the full argument string (mirroring stubPactl's
+  # `case "$*"` style further down) since both menus now issue several
+  # distinct `-t`/`-g` queries that each need their own canned response.
   stubNmcli = testPkgs.writeShellScriptBin "nmcli" ''
     set -euo pipefail
     echo "nmcli $*" >>/tmp/nmcli-calls.log
-    if [[ "$1" == "-t" ]]; then
-      printf '%s\n' \
-        'uuid-plain:802-3-ethernet:eth0:Plain' \
-        'uuid-colon:802-3-ethernet::foo\:bar' \
-        'uuid-backslash:802-3-ethernet::back\\slash' \
-        'uuid-both:802-3-ethernet::a\\\:b'
-    fi
+    case "$*" in
+      # ethernet-menu.bash's connection list: one already-connected profile,
+      # plus profiles whose NAME exercises nmcli's terse-output escaping (an
+      # escaped colon, an escaped backslash, and both adjacent to each
+      # other) that ethernet-menu.bash must undo when it displays the name.
+      "-t -f UUID,TYPE,DEVICE,NAME connection show")
+        printf '%s\n' \
+          'uuid-plain:802-3-ethernet:eth0:Plain' \
+          'uuid-colon:802-3-ethernet::foo\:bar' \
+          'uuid-backslash:802-3-ethernet::back\\slash' \
+          'uuid-both:802-3-ethernet::a\\\:b'
+        ;;
+      # network-device.bash's device list, shared by wifi-status/-toggle/-menu.
+      "-t -f DEVICE,TYPE,STATE device status")
+        printf '%s\n' \
+          'eth0:ethernet:connected' \
+          'wlan0:wifi:connected'
+        ;;
+      "-g WIFI general status")
+        echo "enabled"
+        ;;
+      # wifi-menu.bash's known-network profiles, keyed by uuid rather than
+      # NAME -- two profiles, one for the network currently in range and
+      # connected, one for a known network that isn't.
+      "-t -f UUID,TYPE connection show")
+        printf '%s\n' \
+          'wifi-uuid-known-connected:802-11-wireless' \
+          'wifi-uuid-known-other:802-11-wireless'
+        ;;
+      "--escape no -g 802-11-wireless.ssid connection show wifi-uuid-known-connected")
+        echo "Known Connected"
+        ;;
+      "--escape no -g 802-11-wireless.ssid connection show wifi-uuid-known-other")
+        echo "Known Other"
+        ;;
+      "-g connection.autoconnect connection show wifi-uuid-known-connected")
+        echo "yes"
+        ;;
+      "-g connection.autoconnect connection show wifi-uuid-known-other")
+        echo "no"
+        ;;
+      # wifi-status.bash's scan list: just the in-use AP.
+      "--escape no -t -f IN-USE,SIGNAL,SSID device wifi list ifname wlan0")
+        echo '*:90:Known Connected'
+        ;;
+      # wifi-menu.bash's scan list: the two known networks above (one
+      # in-use), plus a secure and an open network with no saved profile.
+      # "New Strong" outranks every known network on raw signal (95 vs 90/60)
+      # but has no saved profile -- nmcli's own signal-sorted order lists it
+      # first, so it's the case that actually distinguishes "known networks
+      # before new ones" (what this menu must do, matching iwmenu) from
+      # "raw signal order" (what a naive pass-through would do instead).
+      # "Known Connected" also gets a second, stronger BSSID row that isn't
+      # the one actually in use (a mesh/repeater AP broadcasting the same
+      # SSID) -- regression fixture for a real bug where keeping only the
+      # first-seen row per SSID silently dropped the in-use marker whenever
+      # that first row wasn't the connected one.
+      "--escape no -t -f IN-USE,SIGNAL,SECURITY,SSID device wifi list ifname wlan0")
+        printf '%s\n' \
+          ':95:WPA2:New Strong' \
+          ':92:WPA2:Known Connected' \
+          '*:90:WPA2:Known Connected' \
+          ':60:--:Known Other' \
+          ':40:WPA2:Secure New' \
+          ':30:--:Open New'
+        ;;
+      # "Known Other" starts with autoconnect=no (see the connection.autoconnect
+      # fixture above), so toggling it tries to turn autoconnect *on* --
+      # fixture-rigged to fail, for the regression test below that this
+      # must not flip the script's own local known_autoconnect state when
+      # nmcli itself reports the change never took.
+      "connection modify uuid wifi-uuid-known-other connection.autoconnect yes")
+        exit 1
+        ;;
+      *) ;;
+    esac
   '';
 
   # Stands in for the interactive fuzzel picker. Logs whatever menu it was
@@ -33,7 +101,11 @@ let
   # regression test below observes the decoded profile names without a real
   # Wayland session) and answers from a queue of 1-based line numbers in
   # $FUZZEL_ANSWERS, one per invocation; "CANCEL" reproduces fuzzel's
-  # non-zero dmenu-cancel exit code instead of picking a line.
+  # non-zero dmenu-cancel exit code instead of picking a line, and
+  # "TYPE:<text>" reproduces fuzzel's dmenu-mode behavior of returning
+  # whatever was typed when it doesn't match any candidate -- real fuzzel
+  # does this for wifi-menu.bash's passphrase prompt, which shows no
+  # candidates at all (empty stdin) for the user to type into.
   stubFuzzel = testPkgs.writeShellScriptBin "fuzzel" ''
     set -euo pipefail
     input=$(cat)
@@ -46,6 +118,11 @@ let
     sed -i '1d' "$FUZZEL_ANSWERS"
 
     [[ ''${choice} == "CANCEL" ]] && exit 2
+
+    if [[ ''${choice} == TYPE:* ]]; then
+      printf '%s\n' "''${choice#TYPE:}"
+      exit 0
+    fi
 
     for arg in "$@"; do
       if [[ ''${arg} == "--index" ]]; then
@@ -72,6 +149,108 @@ let
       nmcli = "${stubNmcli}/bin/nmcli";
     };
     src = ../packages/waybar-network/ethernet-menu.bash;
+  };
+
+  # network-device.bash rebuilt against stubNmcli, so wifi-menu-test below
+  # (which shares this device-discovery helper with the real
+  # waybar-network-wifi/-toggle) resolves "wlan0" from the same fixture data
+  # instead of querying real hardware.
+  testNetworkDevice = testPkgs.thoughtfull.writeFileScriptBin {
+    name = "waybar-network-device-test";
+    replacements = {
+      awk = "${testPkgs.gawk}/bin/awk";
+      bash = "${testPkgs.bash}/bin/bash";
+      nmcli = "${stubNmcli}/bin/nmcli";
+    };
+    src = ../packages/waybar-network/network-device.bash;
+  };
+
+  # The real wifi-menu.bash rebuilt with nmcli/fuzzel/nm-connection-editor
+  # replaced by the stubs above (and network-device pointed at the
+  # stub-wired build just above), exercising the real known/new-network
+  # join, submenu, and passphrase-prompt logic end to end.
+  testWifiMenu = testPkgs.thoughtfull.writeFileScriptBin {
+    name = "waybar-network-wifi-menu-test";
+    replacements = {
+      bash = "${testPkgs.bash}/bin/bash";
+      fuzzel = "${stubFuzzel}/bin/fuzzel";
+      "network-device" = "${testNetworkDevice}/bin/waybar-network-device-test";
+      "nm-connection-editor" = "${stubNmConnectionEditor}/bin/nm-connection-editor";
+      nmcli = "${stubNmcli}/bin/nmcli";
+      systemctl = "${testPkgs.systemd}/bin/systemctl";
+    };
+    src = ../packages/waybar-network/wifi-menu.bash;
+  };
+
+  # Stateful nmcli stub for the wifi-menu radio-poll regression test below:
+  # unlike stubNmcli above (a stateless case dispatch), the device-status
+  # response here has to change across repeated calls within a single
+  # script run, to simulate the driver actually coming up after `radio
+  # wifi on` rather than being ready immediately.
+  stubNmcliRadioPoll = testPkgs.writeShellScriptBin "nmcli" ''
+    set -euo pipefail
+    echo "nmcli $*" >>/tmp/nmcli-calls.log
+    case "$*" in
+      "-g WIFI general status")
+        if [[ -f /tmp/radio-poll-on ]]; then
+          echo "enabled"
+        else
+          echo "disabled"
+        fi
+        ;;
+      "radio wifi on")
+        touch /tmp/radio-poll-on
+        ;;
+      "-t -f DEVICE,TYPE,STATE device status")
+        # nmcli lists a wifi device regardless of whether the radio is
+        # powered (DEVICE is always present), but STATE stays "unavailable"
+        # until the driver actually comes up -- for the first two calls
+        # here, then "disconnected" (ready) from the third call on, so a
+        # caller that polls STATE itself (not just device presence, which
+        # is already true on the very first call) has to loop more than
+        # once before it sees readiness.
+        count_file=/tmp/radio-poll-status-calls
+        count=$(($(cat "''${count_file}" 2>/dev/null || echo 0) + 1))
+        echo "''${count}" >"''${count_file}"
+        if ((count < 3)); then
+          echo "wlan0:wifi:unavailable"
+        else
+          echo "wlan0:wifi:disconnected"
+        fi
+        ;;
+      "-t -f UUID,TYPE connection show") ;;
+      "--escape no -t -f IN-USE,SIGNAL,SECURITY,SSID device wifi list ifname wlan0")
+        echo ':50:--:Ready Network'
+        ;;
+      *) ;;
+    esac
+  '';
+
+  # network-device.bash and wifi-menu.bash rebuilt against stubNmcliRadioPoll
+  # instead of stubNmcli, so this one scenario's stateful device-status
+  # progression doesn't have to be threaded through the shared stub above
+  # (which every other wifi-menu/status/toggle test also relies on staying
+  # simple and stateless).
+  testNetworkDeviceRadioPoll = testPkgs.thoughtfull.writeFileScriptBin {
+    name = "waybar-network-device-radio-poll-test";
+    replacements = {
+      awk = "${testPkgs.gawk}/bin/awk";
+      bash = "${testPkgs.bash}/bin/bash";
+      nmcli = "${stubNmcliRadioPoll}/bin/nmcli";
+    };
+    src = ../packages/waybar-network/network-device.bash;
+  };
+  testWifiMenuRadioPoll = testPkgs.thoughtfull.writeFileScriptBin {
+    name = "waybar-network-wifi-menu-radio-poll-test";
+    replacements = {
+      bash = "${testPkgs.bash}/bin/bash";
+      fuzzel = "${stubFuzzel}/bin/fuzzel";
+      "network-device" = "${testNetworkDeviceRadioPoll}/bin/waybar-network-device-radio-poll-test";
+      "nm-connection-editor" = "${stubNmConnectionEditor}/bin/nm-connection-editor";
+      nmcli = "${stubNmcliRadioPoll}/bin/nmcli";
+      systemctl = "${testPkgs.systemd}/bin/systemctl";
+    };
+    src = ../packages/waybar-network/wifi-menu.bash;
   };
 
   # Fixture-driven stand-in for pactl, used by the audio widget script tests
@@ -188,8 +367,11 @@ testPkgs.testers.nixosTest {
           testEthernetMenu
           testMicMenu
           testMicStatus
+          testNetworkDevice
           testSpeakerMenu
           testSpeakerStatus
+          testWifiMenu
+          testWifiMenuRadioPoll
         ];
 
         # Create a test user for user services
@@ -567,7 +749,6 @@ testPkgs.testers.nixosTest {
         dropin = machine.succeed("cat /etc/systemd/user/waybar.service.d/*.conf")
         for tool in [
             "fuzzel",
-            "iwmenu",
             "networkmanager",
             "network-manager-applet",
             "waybar-network",
@@ -609,12 +790,12 @@ testPkgs.testers.nixosTest {
         assert "#custom-audio-mic.disabled" in style, "disabled mic should be dimmed"
         assert "#custom-audio-speaker.disabled" in style, "disabled speaker should be dimmed"
 
-    with subtest("waybar-network-wifi reports a disabled state when iwd is unavailable"):
-        # This test node doesn't enable networking.wireless.iwd, so there's
-        # no iwd daemon on the system bus for busctl to talk to -- the
-        # widget should degrade gracefully rather than crash waybar's exec
-        # loop. Wifi is queried via iwd directly (not nmcli/NetworkManager,
-        # which only manages ethernet -- see graphical.nix and tests/graphical.nix).
+    with subtest("waybar-network-wifi reports a disabled state when NetworkManager is unavailable"):
+        # This test node never sets networking.networkmanager.enable, so
+        # nmcli exists on PATH (installed unconditionally by waybar.nix) but
+        # there's no live NetworkManager D-Bus service for it to talk to --
+        # the widget should degrade gracefully rather than crash waybar's
+        # exec loop, exactly like the Ethernet widget below.
         out = machine.succeed("waybar-network-wifi").strip()
         print(f"waybar-network-wifi output: {out}")
         status = json.loads(out)
@@ -626,6 +807,222 @@ testPkgs.testers.nixosTest {
         ).strip()
         for icon in ["󰤟", "󰤢", "󰤥", "󰤨", "󰤯", "󰤭"]:
             machine.succeed(f"grep -R -q '{icon}' {waybar_network_dir}")
+
+    with subtest(
+        "waybar-network-wifi-menu lists Scan/known/new networks and manages known-network connections"
+    ):
+        # Exercises the real script (waybar-network-wifi-menu-test, built
+        # from the same source as waybar-network-wifi-menu but with
+        # nmcli/fuzzel/nm-connection-editor replaced by stubs -- see
+        # stubNmcli/stubFuzzel/testNetworkDevice above) against fixture
+        # nmcli output, without real NetworkManager hardware or a Wayland
+        # compositor.
+        fuzzel_log = "/tmp/fuzzel-wifi-menu.log"
+        answers = "/tmp/fuzzel-wifi-answers"
+
+        def run_wifi_menu(*choices):
+            machine.succeed(f"rm -f {fuzzel_log} /tmp/nmcli-calls.log")
+            machine.succeed("printf '%s\\n' " + " ".join(choices) + f" >{answers}")
+            machine.succeed(
+                f"FUZZEL_LOG={fuzzel_log} FUZZEL_ANSWERS={answers} "
+                "waybar-network-wifi-menu-test"
+            )
+
+        # Cancelling the very first prompt is enough to inspect the
+        # top-level list: Scan first, then known networks before new ones,
+        # then Settings last. "New Strong" has the strongest raw signal of
+        # any fixture network (95%) but no saved profile, so it landing
+        # after both known networks (rather than first, which is where
+        # nmcli's own signal-sorted scan order would put it) is what proves
+        # this groups known-before-new like iwmenu does, rather than just
+        # passing nmcli's order straight through. The currently connected
+        # known network also carries iwmenu's trailing connected marker.
+        run_wifi_menu("CANCEL")
+        top_level = machine.succeed(f"cat {fuzzel_log}")
+        for label in ["Scan", "Known Connected", "Known Other", "New Strong", "Secure New", "Open New", "Settings"]:
+            assert label in top_level, f"expected {label!r} in the main menu, got: {top_level}"
+        assert (
+            top_level.index("Scan")
+            < top_level.index("Known Connected")
+            < top_level.index("Known Other")
+            < top_level.index("New Strong")
+            < top_level.index("Settings")
+        ), (
+            f"expected Scan, then known networks, then new networks (New Strong "
+            f"included, despite outranking every known network on signal), then "
+            f"Settings, got: {top_level}"
+        )
+        assert "Known Connected ⏺" in top_level, (
+            f"the connected network should carry the connected marker, got: {top_level}"
+        )
+
+        # "Scan" in top_level above is a substring match, so it alone can't
+        # tell an icon-prefixed line ("<icon> Scan") apart from a bare one
+        # with no icon at all (" Scan", from an empty icon_scan) --
+        # regression test for exactly that: icon_scan was left empty while
+        # every other icon_* in the script carried a real glyph.
+        scan_line = next(line for line in top_level.splitlines() if line.endswith("Scan"))
+        assert not scan_line.startswith(" "), (
+            f"Scan should be prefixed by an icon, not a bare leading space, got: {scan_line!r}"
+        )
+
+        # Selecting the connected known network (list line 2, since Scan is
+        # line 1) then Disconnect (submenu line 1) resolves to its uuid via
+        # --index, not label text.
+        run_wifi_menu("2", "1")
+        calls = machine.succeed("cat /tmp/nmcli-calls.log")
+        assert "connection down uuid wifi-uuid-known-connected" in calls, (
+            f"expected disconnect call, got: {calls}"
+        )
+
+        # Selecting the disconnected known network (list line 3) then
+        # Connect (submenu line 1) does the opposite. ifname must be passed
+        # explicitly here -- regression test for a real bug where its
+        # absence made nmcli's automatic device selection skip wlan0
+        # whenever it was already active with a different network (exactly
+        # the case this menu item exists for) and fail instead of
+        # switching it over.
+        run_wifi_menu("3", "1")
+        calls = machine.succeed("cat /tmp/nmcli-calls.log")
+        assert "connection up uuid wifi-uuid-known-other ifname wlan0" in calls, (
+            f"expected connect call targeting wlan0 explicitly, got: {calls}"
+        )
+
+        # Forgetting a known network (submenu line 2) deletes the right
+        # uuid, not a neighboring one.
+        run_wifi_menu("3", "2")
+        calls = machine.succeed("cat /tmp/nmcli-calls.log")
+        assert "connection delete uuid wifi-uuid-known-other" in calls, (
+            f"expected forget/delete call, got: {calls}"
+        )
+
+    with subtest(
+        "waybar-network-wifi-menu keeps the autoconnect label in sync when nmcli modify fails"
+    ):
+        fuzzel_log = "/tmp/fuzzel-wifi-menu.log"
+        answers = "/tmp/fuzzel-wifi-answers"
+
+        def run_wifi_menu(*choices):
+            machine.succeed(f"rm -f {fuzzel_log} /tmp/nmcli-calls.log")
+            machine.succeed("printf '%s\\n' " + " ".join(choices) + f" >{answers}")
+            machine.succeed(
+                f"FUZZEL_LOG={fuzzel_log} FUZZEL_ANSWERS={answers} "
+                "waybar-network-wifi-menu-test"
+            )
+
+        # Known Other (top-level line 3) starts with autoconnect=no, so its
+        # submenu opens on "Enable autoconnect" (submenu line 3). Selecting
+        # it triggers a `connection modify ... autoconnect yes` call that
+        # the fixture nmcli is rigged to fail, then Back (submenu line 4,
+        # since toggling redisplays the same submenu rather than exiting)
+        # to inspect the label without ever exiting the script.
+        run_wifi_menu("3", "3", "4")
+        submenu_log = machine.succeed(f"cat {fuzzel_log}")
+        # The submenu is shown twice: once before the failed toggle, once
+        # after. Both should still say "Enable autoconnect" -- if the
+        # script's local state had flipped despite nmcli reporting failure,
+        # the second showing would say "Disable autoconnect" instead.
+        assert submenu_log.count("Enable autoconnect") == 2, (
+            f"expected the autoconnect label to stay in sync after a failed "
+            f"modify call, got: {submenu_log}"
+        )
+        assert "Disable autoconnect" not in submenu_log, (
+            f"local autoconnect state should not flip when nmcli modify "
+            f"fails, got: {submenu_log}"
+        )
+
+    with subtest(
+        "waybar-network-wifi-menu connects to new networks, prompting for a passphrase only when secure"
+    ):
+        fuzzel_log = "/tmp/fuzzel-wifi-menu.log"
+        answers = "/tmp/fuzzel-wifi-answers"
+
+        def run_wifi_menu(*choices):
+            machine.succeed(f"rm -f {fuzzel_log} /tmp/nmcli-calls.log")
+            machine.succeed("printf '%s\\n' " + " ".join(choices) + f" >{answers}")
+            machine.succeed(
+                f"FUZZEL_LOG={fuzzel_log} FUZZEL_ANSWERS={answers} "
+                "waybar-network-wifi-menu-test"
+            )
+
+        # Open New is list line 6 (Scan, Known Connected, Known Other, New
+        # Strong, Secure New, Open New) and has no saved profile, so
+        # selecting it connects straight away with no submenu and no
+        # password.
+        run_wifi_menu("6")
+        calls = machine.succeed("cat /tmp/nmcli-calls.log")
+        assert "device wifi connect Open New ifname wlan0" in calls, (
+            f"expected an open connect call, got: {calls}"
+        )
+        assert "password" not in calls, (
+            f"an open network should not prompt for or send a password, got: {calls}"
+        )
+
+        # Secure New is list line 5 and must prompt for a passphrase (via
+        # fuzzel --password) before connecting.
+        run_wifi_menu("5", "TYPE:supersecret")
+        calls = machine.succeed("cat /tmp/nmcli-calls.log")
+        assert "device wifi connect Secure New ifname wlan0 password supersecret" in calls, (
+            f"expected a secure connect call with the typed passphrase, got: {calls}"
+        )
+        prompt_log = machine.succeed(f"cat {fuzzel_log}")
+        assert "--password" in prompt_log, (
+            f"expected the passphrase prompt to use --password, got: {prompt_log}"
+        )
+
+    with subtest("waybar-network-wifi-menu Settings opens nm-connection-editor with only Wi-Fi expanded"):
+        machine.succeed("rm -f /tmp/nmcli-calls.log")
+        machine.succeed("printf '%s\\n' 7 >/tmp/fuzzel-wifi-answers")
+        machine.succeed(
+            "FUZZEL_LOG=/tmp/fuzzel-wifi-menu.log FUZZEL_ANSWERS=/tmp/fuzzel-wifi-answers "
+            "waybar-network-wifi-menu-test"
+        )
+        calls = machine.succeed("cat /tmp/nmcli-calls.log")
+        assert "nm-connection-editor -t 802-11-wireless -s" in calls, (
+            f"expected the Wi-Fi-only settings call, got: {calls}"
+        )
+
+    with subtest(
+        "waybar-network-wifi-menu polls device readiness after powering on the radio, not just device presence"
+    ):
+        # Regression test: nmcli lists a wifi device regardless of whether
+        # the radio is powered, so a poll loop that only checks device
+        # presence (an earlier version of this script did exactly that)
+        # breaks after a single iteration -- it never actually waits for
+        # the driver to come up. Exercises
+        # waybar-network-wifi-menu-radio-poll-test (built from the same
+        # source with a stateful nmcli stub -- see stubNmcliRadioPoll
+        # above -- whose device-status STATE stays "unavailable" for the
+        # first two calls, then reports ready).
+        machine.succeed(
+            "rm -f /tmp/nmcli-calls.log /tmp/radio-poll-on /tmp/radio-poll-status-calls"
+        )
+        machine.succeed("printf '%s\\n' CANCEL >/tmp/fuzzel-wifi-answers")
+        machine.succeed(
+            "FUZZEL_LOG=/tmp/fuzzel-wifi-menu.log FUZZEL_ANSWERS=/tmp/fuzzel-wifi-answers "
+            "waybar-network-wifi-menu-radio-poll-test"
+        )
+        calls = machine.succeed("cat /tmp/nmcli-calls.log")
+        assert "radio wifi on" in calls, f"expected the radio to be powered on, got: {calls}"
+
+        # The old, buggy poll loop broke after checking device status just
+        # twice total (once before the radio check, once inside the loop --
+        # both already non-empty on DEVICE regardless of STATE) -- the
+        # fixed loop keeps polling until STATE itself is ready, which this
+        # fixture doesn't happen until the third call.
+        status_calls = calls.count("nmcli -t -f DEVICE,TYPE,STATE device status")
+        assert status_calls >= 3, (
+            f"expected the poll loop to check device status at least 3 times "
+            f"(proving it waited on STATE, not just device presence), got "
+            f"{status_calls} calls: {calls}"
+        )
+
+        # Only after readiness should the script proceed to scan and show
+        # the (now-ready) network in the menu.
+        fuzzel_log = machine.succeed("cat /tmp/fuzzel-wifi-menu.log")
+        assert "Ready Network" in fuzzel_log, (
+            f"expected the menu to reach the scan step and show the network, got: {fuzzel_log}"
+        )
 
     with subtest(
         "waybar-network-ethernet reports a disabled state when NetworkManager is unavailable"
