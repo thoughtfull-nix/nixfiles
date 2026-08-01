@@ -12,9 +12,6 @@ let
   sshAgentAddKeysScript = writeFileScriptBin {
     name = "ssh-agent-add-keys";
     src = ./openssh/ssh-agent-add-keys.bash;
-    replacements = {
-      username = user.name;
-    };
   };
 in
 {

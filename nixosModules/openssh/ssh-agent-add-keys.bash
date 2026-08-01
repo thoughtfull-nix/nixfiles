@@ -3,8 +3,8 @@ set -euo pipefail
 
 shopt -s nullglob
 keys=(
-  "$HOME"/.ssh/*/*_auth_@username@
-  "$HOME"/.ssh/*/*_sign_@username@
+  "$HOME"/.ssh/*/*_auth_*
+  "$HOME"/.ssh/*/*_sign_*
 )
 
 # Load keys one at a time so a token that's unplugged for one yubikey's stub
@@ -13,6 +13,7 @@ keys=(
 # rather than hiding that signal behind a blanket `|| true`.
 status=0
 for key in "${keys[@]}"; do
+  [[ ${key} == *.pub ]] && continue
   ssh-add "$key" || status=1
 done
 
