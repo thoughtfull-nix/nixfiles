@@ -149,12 +149,17 @@ let
       ok = lib.hasInfix "/bin/ssh-agent-add-keys" keyLoader.serviceConfig.ExecStart;
     }
     {
-      name = "graphical: ssh-agent-add-keys gets DISPLAY/SSH_ASKPASS for PIN-protected keys";
+      # No DISPLAY assertion: it's deliberately left unset here so the unit
+      # inherits whatever the systemd --user manager's environment already
+      # has (a real DISPLAY once sway imports it, nothing at boot) -- a
+      # placeholder value wouldn't let the askpass helper actually open a
+      # window. See nixosModules/openssh.nix.
+      name = "graphical: ssh-agent-add-keys gets SSH_ASKPASS for PIN-protected keys";
       ok =
         let
           env = graphicalEval.config.systemd.user.services.ssh-agent-add-keys.environment;
         in
-        env.DISPLAY == "fake" && env.SSH_ASKPASS == "/run/current-system/sw/bin/ssh-askpass";
+        !(env ? DISPLAY) && env.SSH_ASKPASS == "/run/current-system/sw/bin/ssh-askpass";
     }
     {
       name = "no agent: ssh-agent-add-keys does not exist when startAgent is disabled";

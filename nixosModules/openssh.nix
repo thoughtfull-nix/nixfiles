@@ -153,13 +153,21 @@ in
         pkgs.bash
         ssh.package
       ];
-      # Mirrors the ssh-agent unit itself (both the socket location and the
-      # askpass wiring): without SSH_AUTH_SOCK this would talk to no agent at
-      # all, and without DISPLAY/SSH_ASKPASS a PIN-protected (verify-required)
-      # FIDO2 key has no way to prompt from this non-interactive oneshot unit.
       environment = {
+        # Without this, this non-interactive oneshot unit would talk to no
+        # agent at all.
         SSH_AUTH_SOCK = "%t/ssh-agent";
-        DISPLAY = mkIf graphical.enable "fake";
+        # No DISPLAY here: the askpass helper (packages/ssh-askpass.bash) execs
+        # x11-ssh-askpass directly, which needs a real X11 display to open a
+        # window -- a placeholder value can't satisfy that (unlike the
+        # ssh-agent unit itself, whose own DISPLAY=fake only has to satisfy
+        # OpenSSH's `getenv("DISPLAY") != NULL` gate for its own agent-side
+        # confirm prompts, not actually open a display). Leaving DISPLAY unset
+        # here means this unit inherits whatever the systemd --user manager's
+        # environment already has -- nothing at the ssh-agent.service-triggered
+        # boot run, but the real DISPLAY once sway's nixos.conf imports it
+        # ahead of starting sway-session.target, same as every other
+        # sway-session.target unit (waybar, mako, kanshi) already relies on.
         SSH_ASKPASS = mkIf graphical.enable "/run/current-system/sw/bin/ssh-askpass";
       };
       serviceConfig = {
