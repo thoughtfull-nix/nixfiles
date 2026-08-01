@@ -5,12 +5,59 @@
   ...
 }:
 let
-  inherit (config.thoughtfull) graphical;
+  inherit (config.programs) ssh;
+  inherit (config.thoughtfull) graphical user;
   inherit (lib) mkDefault mkIf mkOverride;
-  inherit (pkgs.thoughtfull) ssh-askpass;
+  inherit (pkgs.thoughtfull) ssh-askpass writeFileScriptBin;
+  sshAgentAddKeysScript = writeFileScriptBin {
+    name = "ssh-agent-add-keys";
+    src = ./openssh/ssh-agent-add-keys.bash;
+    replacements = {
+      username = user.name;
+    };
+  };
 in
 {
-  environment.systemPackages = mkIf graphical.enable [ ssh-askpass ];
+  environment = {
+    systemPackages = mkIf graphical.enable [ ssh-askpass ];
+    # The ssh-agent-add-keys unit (below) only reloads keys on ssh-agent
+    # start and, for graphical logins, on sway-session.target -- neither of
+    # which fires for a plain console re-login while the systemd --user
+    # manager and ssh-agent.service persist across logout, which they can
+    # even without lingering enabled. Running the loader directly here, once
+    # per login shell, covers that case.
+    loginShellInit = mkIf ssh.startAgent (
+      let
+        # SSH_ASKPASS_REQUIRE=never: on graphical hosts, sway.nix's
+        # sessionVariables.SSH_ASKPASS_REQUIRE = "prefer" applies PAM-wide,
+        # including plain console sessions -- left as-is, a console ssh-add
+        # would try to pop the GUI askpass helper with no display to render
+        # it on, and PIN-protected keys would silently fail to load. Forcing
+        # "never" here makes ssh-add prompt on this session's own terminal
+        # instead (touch-only keys don't need a prompt either way).
+        # `[ -t 0 ]` skips this for non-interactive login-shell invocations
+        # (e.g. `ssh host cmd`) that have no terminal to prompt on.
+        loadKeys = ''
+          if [ -t 0 ]; then
+            SSH_ASKPASS_REQUIRE=never ${sshAgentAddKeysScript}/bin/ssh-agent-add-keys || true
+          fi
+        '';
+      in
+      if graphical.enable then
+        ''
+          # tty1 is where sway autologins (see sway.nix): defer to the
+          # ssh-agent-add-keys unit's own sway-session.target trigger there,
+          # timed to run once Wayland/DISPLAY are actually available (needed
+          # for PIN-protected keys' GUI askpass) instead of blocking the tty1
+          # login on a touch/PIN prompt before exec'ing sway.
+          if [ "$(tty)" != "/dev/tty1" ]; then
+            ${loadKeys}
+          fi
+        ''
+      else
+        loadKeys
+    );
+  };
   programs.ssh = {
     # An absolute path, not just "ssh-askpass": the ssh-agent systemd unit's
     # own askpass wrapper execs this with the unit's minimal generated PATH
@@ -72,8 +119,59 @@ in
       type = "ed25519";
     }
   ];
-  # my boostrapping process uses a preconfigured key for hosts, so I don't need automatic keygen
-  systemd.services.sshd-keygen.enable = mkDefault false;
+  systemd = {
+    # my boostrapping process uses a preconfigured key for hosts, so I don't need automatic keygen
+    services.sshd-keygen.enable = mkDefault false;
+    user.services.ssh-agent-add-keys = mkIf ssh.startAgent {
+      description = "Load ${user.name}'s SSH auth/signing keys into ssh-agent";
+      # Two independent triggers to re-run this: ssh-agent.service (covers
+      # boot, and any agent restart) and sway-session.target (covers
+      # logout/login -- sway's nixos.conf explicitly starts/stops that target
+      # per session, so it cycles even when ssh-agent.service and the
+      # systemd --user manager itself persist across a logout). Without the
+      # second trigger, keys removed from the agent mid-session (e.g. the
+      # FIDO2 token was unplugged) never get reloaded just by logging back in.
+      #
+      # bindsTo only ssh-agent.service, not sway-session.target: BindsTo=
+      # implies a pull-up (like Requires=) in the direction *from* this unit,
+      # so binding to sway-session.target would drag the whole graphical
+      # session (waybar, mako, kanshi, ...) into whatever transaction starts
+      # this unit -- including the ssh-agent.service-triggered run at boot,
+      # well before sway itself is actually up on tty1. partOf only
+      # propagates stop/restart one-way, with no such pull-up (same reasoning
+      # as gtk-defaults's partOf = [ "sway-session.target" ] above in sway.nix).
+      after = [
+        "ssh-agent.service"
+        "sway-session.target"
+      ];
+      bindsTo = [ "ssh-agent.service" ];
+      partOf = [ "sway-session.target" ];
+      wantedBy = [
+        "ssh-agent.service"
+        "sway-session.target"
+      ];
+      # bash: the script's `#!/usr/bin/env bash` shebang needs bash resolvable
+      # via env's PATH, which systemd --user units don't get for free.
+      path = [
+        pkgs.bash
+        ssh.package
+      ];
+      # Mirrors the ssh-agent unit itself (both the socket location and the
+      # askpass wiring): without SSH_AUTH_SOCK this would talk to no agent at
+      # all, and without DISPLAY/SSH_ASKPASS a PIN-protected (verify-required)
+      # FIDO2 key has no way to prompt from this non-interactive oneshot unit.
+      environment = {
+        SSH_AUTH_SOCK = "%t/ssh-agent";
+        DISPLAY = mkIf graphical.enable "fake";
+        SSH_ASKPASS = mkIf graphical.enable "/run/current-system/sw/bin/ssh-askpass";
+      };
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        ExecStart = "${sshAgentAddKeysScript}/bin/ssh-agent-add-keys";
+      };
+    };
+  };
   thoughtfull.impermanence = {
     files = [
       "/etc/ssh/ssh_host_ed25519_key"

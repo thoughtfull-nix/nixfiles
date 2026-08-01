@@ -52,6 +52,20 @@ ssh-add -K
 It requires entering the PIN to load the key, then only to touch after that. Annoyingly, it pops up
 askpass every time, even when it just needs a touch.
 
+Hosts running the `ssh-agent-add-keys` systemd service (`nixosModules/openssh.nix`) load keys into
+the agent automatically on login instead of requiring `ssh-add -K` to be run by hand. That service
+doesn't talk to the YubiKey directly -- it globs for private key stub files already on disk, one
+directory per YubiKey (primary and backup) under `~/.ssh/<yubikey>/`. To provision those, run
+
+```
+ssh-keygen -K
+```
+
+with the YubiKey plugged in. This downloads the resident key stubs (and their `.pub` halves) to the
+current directory; copy them onto the target machine into `~/.ssh/<yubikey>/`, renaming as needed to
+match the `*_auth_<user>` / `*_sign_<user>` pattern already used for the committed `.pub` files under
+`nixosModules/user/<yubikey>/` (e.g. `id_ed25519_sk_rk_auth_technosophist`).
+
 My provision script requires me to touch every time I SSH, which gets to be annoying. I can either
 just deal with it because I don't provision often or I should go back to using a master connection,
 I think that would help (though this may not help because even multiplexing it may still need a
