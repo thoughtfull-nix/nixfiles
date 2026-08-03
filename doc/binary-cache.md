@@ -128,8 +128,11 @@ material.
    `update-nixpkgs.yml` below for how that revision advances).
 4. The build step uses the S3 cache itself as an additional substituter
    (`extra-substituters` in the installer config), so already-pushed paths
-   are downloaded instead of rebuilt. The configured upstream caches provide
-   their respective build products.
+   are downloaded instead of rebuilt. The S3 URL is given an explicit
+   `priority=50` so it's only used when `cache.nixos.org` (priority 40,
+   lower wins) doesn't have a path (see the note below on why that
+   explicit priority matters). The configured upstream caches provide their
+   respective build products.
 5. The job refreshes its OIDC session and the daemon's credentials after the
    build.
 6. `nix store sign --recursive` signs the closure with the private signing
@@ -158,15 +161,29 @@ material.
 | `nixfiles` (this repo) | `actions/checkout@v4` always reads the current tip of `main`. |
 | `kryptonix`, `agenix`, `disko`, `impermanence`, `nixos-hardware`, `flake-utils`, `systems`, `devenv`, `unstable` | Pinned by `flake.lock`. Only update via a PR that runs `nix flake update <input>`. |
 
-`build-and-push.yml` and `flake-check.yml` no longer `--override-input`
-nixpkgs to the live branch tip: doing that on every push, PR, and `cron`
-run kept resolving to a revision Hydra hadn't finished building yet, so
-the closure mostly missed `cache.nixos.org` and fell back to slow
-from-source builds or this bucket. Pinning via `flake.lock`, bumped once a
-day instead of on every CI run, gives Hydra time to catch up before that
-revision is actually used, and lets ordinary pushes throughout the day
-reuse the same already-cached revision instead of re-resolving a fresh one
-each time.
+**Why the S3 substituter needs an explicit `priority`:** the priority of a
+Nix substituter normally comes from the `Priority:` line in its own
+`nix-cache-info` (`cache.nixos.org` advertises 40). But for the S3 store
+type specifically, if the substituter URL doesn't set `?priority=`
+explicitly, Nix's S3 store defaults that store's priority to **0** (the
+highest possible priority, not a neutral middle value), regardless of
+what any other cache advertises (`nix help-stores`, S3 Binary Cache Store
+settings). Left unset, this bucket unconditionally outranked
+`cache.nixos.org` for every path it had ever cached, including ordinary
+nixpkgs packages `cache.nixos.org` already carries for free. That's the
+actual root cause of the August 2026 egress spike, not a stale pin or a
+too-fresh one. Setting `priority=50` on the S3 URL (any value above 40)
+fixes it directly: `cache.nixos.org` wins whenever both have a path, and
+S3 remains the fallback for derivations unique to this flake (custom
+packages, host-specific units) that no public cache ever sees.
+
+`build-and-push.yml` and `flake-check.yml` also no longer
+`--override-input` nixpkgs to the live branch tip on every run. That
+wasn't the source of the cost, but re-resolving to a fresh revision on
+every push/PR/`cron` run is still unnecessary churn once the priority fix
+above is in place: pinning via `flake.lock`, bumped once a day, means
+ordinary pushes throughout the day reuse the same already-resolved
+revision instead of re-resolving on every run.
 
 `update-nixpkgs.yml` pushes using the default `GITHUB_TOKEN`, whose
 commits don't trigger other workflows' `push` triggers (a GitHub Actions
