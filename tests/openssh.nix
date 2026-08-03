@@ -124,25 +124,21 @@ let
         && lib.elem "sway-session.target" keyLoader.wantedBy;
     }
     {
-      name = "default: ssh-agent-add-keys stops if ssh-agent stops";
-      ok = keyLoader.bindsTo == [ "ssh-agent.service" ];
-    }
-    {
-      # partOf, not bindsTo, for sway-session.target: bindsTo would pull the
-      # whole graphical session up whenever ssh-agent.service triggers this
-      # unit (e.g. at boot, well before sway itself is running).
-      name = "default: ssh-agent-add-keys follows sway-session.target down without pulling it up";
-      ok =
-        keyLoader.partOf == [ "sway-session.target" ]
-        && !(lib.elem "sway-session.target" keyLoader.bindsTo);
-    }
-    {
       name = "default: ssh-agent-add-keys talks to the same socket ssh-agent listens on";
       ok = keyLoader.environment.SSH_AUTH_SOCK == "%t/ssh-agent";
     }
     {
-      name = "default: ssh-agent-add-keys is a oneshot that stays reported as active";
-      ok = keyLoader.serviceConfig.Type == "oneshot" && keyLoader.serviceConfig.RemainAfterExit == true;
+      # No RemainAfterExit: a plain oneshot resets to inactive the instant
+      # ExecStart exits, so every subsequent activation of either trigger --
+      # in any order, first time or repeat -- actually re-runs it, rather
+      # than being a no-op against an already-active unit. See
+      # nixosModules/openssh.nix.
+      name = "default: ssh-agent-add-keys is a plain oneshot with no bindsTo/partOf";
+      ok =
+        keyLoader.serviceConfig.Type == "oneshot"
+        && !(keyLoader.serviceConfig ? RemainAfterExit)
+        && keyLoader.bindsTo == [ ]
+        && keyLoader.partOf == [ ];
     }
     {
       name = "default: ssh-agent-add-keys runs the ssh-agent-add-keys script";

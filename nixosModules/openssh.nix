@@ -121,28 +121,29 @@ in
     services.sshd-keygen.enable = mkDefault false;
     user.services.ssh-agent-add-keys = mkIf ssh.startAgent {
       description = "Load ${user.name}'s SSH auth/signing keys into ssh-agent";
-      # Two independent triggers to re-run this: ssh-agent.service (covers
-      # boot, and any agent restart) and sway-session.target (covers
-      # logout/login -- sway's nixos.conf explicitly starts/stops that target
-      # per session, so it cycles even when ssh-agent.service and the
-      # systemd --user manager itself persist across a logout). Without the
-      # second trigger, keys removed from the agent mid-session (e.g. the
-      # FIDO2 token was unplugged) never get reloaded just by logging back in.
+      # Two independent triggers to run this: ssh-agent.service (covers boot,
+      # and any agent restart) and sway-session.target (covers logging out
+      # and back into a graphical session -- sway's nixos.conf explicitly
+      # starts/stops that target per session, so it cycles even when
+      # ssh-agent.service and the systemd --user manager itself persist
+      # across a logout).
       #
-      # bindsTo only ssh-agent.service, not sway-session.target: BindsTo=
-      # implies a pull-up (like Requires=) in the direction *from* this unit,
-      # so binding to sway-session.target would drag the whole graphical
-      # session (waybar, mako, kanshi, ...) into whatever transaction starts
-      # this unit -- including the ssh-agent.service-triggered run at boot,
-      # well before sway itself is actually up on tty1. partOf only
-      # propagates stop/restart one-way, with no such pull-up (same reasoning
-      # as gtk-defaults's partOf = [ "sway-session.target" ] above in sway.nix).
+      # No RemainAfterExit: a plain oneshot resets to inactive the instant
+      # ExecStart exits, so *every* subsequent activation of either trigger
+      # -- in any order, first time or repeat -- enqueues a real start job
+      # that re-runs this. RemainAfterExit=true was tried first and doesn't
+      # work for this: once latched active by whichever trigger fires first,
+      # the other trigger's activation is a no-op against an already-active
+      # unit, so it only re-runs on a trigger's *second* activation (e.g. a
+      # second graphical logout/login), not its first -- observed on hydor as
+      # a first sway login after an earlier console login never reloading
+      # keys. The only cost of dropping it is an idempotent double-run when
+      # both triggers land in the same transaction (e.g. booting straight
+      # into a graphical session with no prior console login).
       after = [
         "ssh-agent.service"
         "sway-session.target"
       ];
-      bindsTo = [ "ssh-agent.service" ];
-      partOf = [ "sway-session.target" ];
       wantedBy = [
         "ssh-agent.service"
         "sway-session.target"
@@ -172,7 +173,6 @@ in
       };
       serviceConfig = {
         Type = "oneshot";
-        RemainAfterExit = true;
         ExecStart = "${sshAgentAddKeysScript}/bin/ssh-agent-add-keys";
       };
     };
