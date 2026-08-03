@@ -1,0 +1,38 @@
+---
+name: Update nixpkgs
+on:
+  schedule:
+    # Daily 10:00 UTC: well after build-and-push's 02:00 UTC cron (so today's
+    # build isn't affected) and ~16h before tomorrow's, giving Hydra time to
+    # build and cache the newly pinned revision before it's actually used.
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v22
+        with:
+          extra-conf: |
+            access-tokens = github.com=${{ secrets.KRYPTONIX_ACCESS_TOKEN }}
+            experimental-features = nix-command flakes
+      - name: Update nixpkgs input
+        run: nix flake update nixpkgs
+      - name: Commit and push if changed
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- flake.lock; then
+            echo "nixpkgs unchanged; nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flake.lock
+          git commit -m "Update nixpkgs"
+          git push

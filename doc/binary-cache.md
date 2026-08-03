@@ -123,9 +123,9 @@ material.
 2. Each matrix job exchanges its GitHub OIDC token for temporary credentials
    from the `NixCacheWriter` role and passes them to the Nix daemon.
 3. Each matrix job builds
-   `.#nixosConfigurations.<host>.config.system.build.toplevel`, with
-   `--override-input nixpkgs github:NixOS/nixpkgs/nixos-26.05` so the daily
-   build picks up the latest tip of the release branch.
+   `.#nixosConfigurations.<host>.config.system.build.toplevel` against
+   whatever `nixpkgs` revision `flake.lock` currently pins (see
+   `update-nixpkgs.yml` below for how that revision advances).
 4. The build step uses the S3 cache itself as an additional substituter
    (`extra-substituters` in the installer config), so already-pushed paths
    are downloaded instead of rebuilt. The configured upstream caches provide
@@ -154,9 +154,26 @@ material.
 
 | Input | Source of fresh-ness |
 |---|---|
-| `nixpkgs` | `--override-input` to the release-branch tip on every CI run. |
+| `nixpkgs` | `update-nixpkgs.yml` runs `nix flake update nixpkgs` daily at 10:00 UTC and pushes the bumped `flake.lock` directly to `main` if it changed. |
 | `nixfiles` (this repo) | `actions/checkout@v4` always reads the current tip of `main`. |
 | `kryptonix`, `agenix`, `disko`, `impermanence`, `nixos-hardware`, `flake-utils`, `systems`, `devenv`, `unstable` | Pinned by `flake.lock`. Only update via a PR that runs `nix flake update <input>`. |
+
+`build-and-push.yml` and `flake-check.yml` no longer `--override-input`
+nixpkgs to the live branch tip: doing that on every push, PR, and `cron`
+run kept resolving to a revision Hydra hadn't finished building yet, so
+the closure mostly missed `cache.nixos.org` and fell back to slow
+from-source builds or this bucket. Pinning via `flake.lock`, bumped once a
+day instead of on every CI run, gives Hydra time to catch up before that
+revision is actually used, and lets ordinary pushes throughout the day
+reuse the same already-cached revision instead of re-resolving a fresh one
+each time.
+
+`update-nixpkgs.yml` pushes using the default `GITHUB_TOKEN`, whose
+commits don't trigger other workflows' `push` triggers (a GitHub Actions
+anti-recursion rule), so the bump itself doesn't kick off an immediate
+`build-and-push.yml`/`flake-check.yml` run. That's fine: `build-and-push.yml`'s
+own 02:00 UTC `cron` picks up the new pin on its next run, and a broken
+revision would show up as that job failing.
 
 ## File-system layout per host
 
