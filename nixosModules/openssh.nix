@@ -23,6 +23,12 @@ in
     # manager and ssh-agent.service persist across logout, which they can
     # even without lingering enabled. Running the loader directly here, once
     # per login shell, covers that case.
+    #
+    # This reruns on *every* login shell -- not just the first one after
+    # boot, e.g. also each interactive `ssh` into this host. ssh-add itself
+    # doesn't check whether a key is already loaded before re-adding it (it
+    # would otherwise re-prompt for touch/PIN on a key already in the agent
+    # every time), so ssh-agent-add-keys.bash does that check itself.
     loginShellInit = mkIf ssh.startAgent (
       let
         # SSH_ASKPASS_REQUIRE=never: on graphical hosts, sway.nix's
