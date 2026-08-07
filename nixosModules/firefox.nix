@@ -5,9 +5,19 @@
   ...
 }:
 let
-  inherit (config.programs) firefox;
-  inherit (lib) mkIf;
-  inherit (pkgs) ibm-plex;
+  inherit (config.programs) firefox sway;
+  inherit (lib) mkDefault mkIf;
+  inherit (pkgs) bash ibm-plex;
+  inherit (pkgs.thoughtfull) writeFileScript;
+  login = writeFileScript {
+    name = "firefox-login";
+    replacements = {
+      bash = "${bash}/bin/bash";
+      firefox = "${firefox.finalPackage}/bin/firefox";
+      swaymsg = "${sway.package}/bin/swaymsg";
+    };
+    src = ./firefox/login.bash;
+  };
 in
 {
   fonts.packages = mkIf firefox.enable [ ibm-plex ];
@@ -109,4 +119,29 @@ in
     };
   };
   thoughtfull.impermanence.user.directories = mkIf firefox.enable [ ".config/mozilla/firefox" ];
+  systemd.user.services.firefox-login = {
+    description = "Launch firefox on workspace 3 at login";
+    after = [
+      "sway-session.target"
+      "waybar.service"
+    ];
+    # See gtk-defaults in sway.nix for why partOf (follow sway-session down)
+    # rather than bindsTo (would also pull sway-session.target up on a lone
+    # `systemctl --user start firefox-login.service`, which isn't wanted
+    # here).
+    partOf = [ "sway-session.target" ];
+    enable = mkDefault (sway.enable && firefox.enable);
+    wantedBy = [ "sway-session.target" ];
+    # A rebuild-switch that touches this unit's closure (e.g. a firefox/sway
+    # package bump) shouldn't relaunch firefox mid-session.
+    restartIfChanged = mkDefault false;
+    serviceConfig = {
+      Type = "oneshot";
+      # See foot-login in foot.nix for why oneshot + RemainAfterExit, and
+      # for KillMode=process, here.
+      RemainAfterExit = true;
+      KillMode = "process";
+      ExecStart = "${login}";
+    };
+  };
 }
