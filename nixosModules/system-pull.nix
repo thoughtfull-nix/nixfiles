@@ -40,6 +40,14 @@ in
 
     systemd.services.system-pull = {
       description = mkDefault "Pull the latest system closure from the binary cache";
+      # network-online.target is satisfied once at boot by
+      # NetworkManager-wait-online.service (Type=oneshot, RemainAfterExit=yes)
+      # and never re-checked afterwards. On a laptop that suspends, the target
+      # stays "active" straight through sleep/resume, so this ordering is a
+      # no-op after boot: if the daily timer's Persistent= catch-up run fires
+      # right on wake (Wi-Fi not yet reassociated), nothing here blocks it.
+      # Kept anyway because it is still correct at boot; the live check below
+      # (ExecStartPre) is what actually guards against the stale-target case.
       after = [ "network-online.target" ];
       wants = [ "network-online.target" ];
       restartIfChanged = mkDefault false;
@@ -66,6 +74,37 @@ in
         # switch the script runs in-process. The script takes no arguments; its
         # bucket, region, and credentials path are baked in above.
         ExecStart = mkDefault "/run/current-system/sw/bin/system-pull";
+        # Re-verify connectivity live on every start, since network-online.target
+        # (see comment above) can be stale after resume. `nm-online` without -s
+        # does a fresh check for an actual active connection (unlike -s, which
+        # only checks the one-time boot startup milestone and would reproduce
+        # the same staleness bug). Referenced through /run/current-system for
+        # the same byte-identical-unit reason as ExecStart above.
+        #
+        # Only wired up when NetworkManager is actually enabled: nm-online is
+        # only installed onto the system PATH by NixOS's networkmanager module
+        # (environment.systemPackages), and hosts like the rpi4-based ones
+        # force networkmanager.enable = false / useNetworkd = true (see
+        # rpi4.nix). Referencing nm-online unconditionally would make
+        # ExecStartPre fail on those hosts before ExecStart ever runs,
+        # breaking every system-pull run rather than just the suspend/resume
+        # race this is meant to fix.
+        #
+        # No -q: if this times out, we want nm-online's own diagnostic (which
+        # connectivity state it was stuck in) in `journalctl -u system-pull`,
+        # not just a bare "ExecStartPre failed with exit code 1" -- this whole
+        # fix came out of having to dig through logs once already. A generous
+        # 5-minute timeout (nm-online polls internally, so this doubles as the
+        # retry) covers a slow Wi-Fi reassociation on wake; nothing else waits
+        # on this oneshot (it's timer-triggered, not in the boot path), and
+        # Type=oneshot disables TimeoutStartSec by default, so there's no
+        # competing systemd start-timeout to race against. A wait genuinely
+        # longer than that (captive portal, no network at all) needs a human
+        # regardless, so failing and alerting rather than retrying further is
+        # correct -- the daily timer catches the next scheduled run anyway.
+        ExecStartPre = mkIf config.networking.networkmanager.enable (
+          mkDefault "/run/current-system/sw/bin/nm-online -t 300"
+        );
       };
     };
 
