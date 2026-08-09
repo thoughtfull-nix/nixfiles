@@ -628,6 +628,25 @@ testPkgs.testers.nixosTest {
             "waybar should be ordered After=sway-session.target"
         )
 
+    with subtest("waybar is bound to sway-session.target's lifecycle"):
+        # Regression test: waybar's packaged unit only carries
+        # PartOf=graphical-session.target, a target this repo's sway
+        # integration never stops on logout (only sway-session.target is
+        # stopped -- see nixosModules/sway/nixos.conf). Without a matching
+        # BindsTo=sway-session.target here (the same pattern already used by
+        # sway-autotiling/xremap in nixosModules/sway.nix), waybar survives
+        # logout attached to the dying session's Wayland socket, then dies
+        # with "Connection reset by peer" once that socket actually closes.
+        # Restart=on-failure respawns it into a now-stale environment
+        # ("cannot open display: :0"), looping until systemd's start-limit
+        # kills the service -- so on the next login waybar never starts.
+        dropin = machine.succeed("cat /etc/systemd/user/waybar.service.d/*.conf")
+        assert "BindsTo=sway-session.target" in dropin, (
+            "waybar should be BindsTo=sway-session.target, so stopping the "
+            "session target actually stops waybar instead of leaving it "
+            "running against a dead compositor socket"
+        )
+
     with subtest("nm-applet is removed"):
         machine.fail("test -f /etc/systemd/user/nm-applet.service")
 
