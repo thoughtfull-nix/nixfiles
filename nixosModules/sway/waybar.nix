@@ -86,8 +86,8 @@ in
         # session's Wayland socket, then dies once that socket actually
         # closes and respawns (Restart=on-failure) into a stale environment,
         # looping until systemd's start-limit kills it -- so it never comes
-        # back on the next login. Same pattern as sway-autotiling/xremap
-        # below.
+        # back on the next login. Same pattern as sway-autotiling/xremap in
+        # nixosModules/sway.nix and kanshi in nixosModules/sway/kanshi.nix.
         bindsTo = [ "sway-session.target" ];
         path = [
           bash
