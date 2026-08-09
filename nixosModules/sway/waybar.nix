@@ -79,6 +79,16 @@ in
         # (nixosModules/sway.nix), so waiting on the target alone already
         # guarantees the GTK theme is applied before this starts.
         after = [ "sway-session.target" ];
+        # The packaged unit only carries PartOf=graphical-session.target, a
+        # target this repo's sway integration never stops on logout (only
+        # sway-session.target is stopped -- see nixosModules/sway/nixos.conf).
+        # Without this, waybar survives logout still attached to the dying
+        # session's Wayland socket, then dies once that socket actually
+        # closes and respawns (Restart=on-failure) into a stale environment,
+        # looping until systemd's start-limit kills it -- so it never comes
+        # back on the next login. Same pattern as sway-autotiling/xremap
+        # below.
+        bindsTo = [ "sway-session.target" ];
         path = [
           bash
           curl
