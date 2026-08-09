@@ -109,8 +109,7 @@ let
       # where NetworkManager is actually enabled, so nm-online is guaranteed
       # to be installed.
       name = "NetworkManager enabled: waits for a live connectivity check before pulling, not just the stale network-online.target";
-      ok =
-        networkManagerUnit.serviceConfig.ExecStartPre == "/run/current-system/sw/bin/nm-online -q -t 60";
+      ok = networkManagerUnit.serviceConfig.ExecStartPre == "/run/current-system/sw/bin/nm-online -t 300";
     }
     {
       name = "NetworkManager disabled (e.g. rpi4/networkd hosts): no ExecStartPre referencing nm-online, which wouldn't be installed";

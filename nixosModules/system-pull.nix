@@ -89,8 +89,21 @@ in
         # ExecStartPre fail on those hosts before ExecStart ever runs,
         # breaking every system-pull run rather than just the suspend/resume
         # race this is meant to fix.
+        #
+        # No -q: if this times out, we want nm-online's own diagnostic (which
+        # connectivity state it was stuck in) in `journalctl -u system-pull`,
+        # not just a bare "ExecStartPre failed with exit code 1" -- this whole
+        # fix came out of having to dig through logs once already. A generous
+        # 5-minute timeout (nm-online polls internally, so this doubles as the
+        # retry) covers a slow Wi-Fi reassociation on wake; nothing else waits
+        # on this oneshot (it's timer-triggered, not in the boot path), and
+        # Type=oneshot disables TimeoutStartSec by default, so there's no
+        # competing systemd start-timeout to race against. A wait genuinely
+        # longer than that (captive portal, no network at all) needs a human
+        # regardless, so failing and alerting rather than retrying further is
+        # correct -- the daily timer catches the next scheduled run anyway.
         ExecStartPre = mkIf config.networking.networkmanager.enable (
-          mkDefault "/run/current-system/sw/bin/nm-online -q -t 60"
+          mkDefault "/run/current-system/sw/bin/nm-online -t 300"
         );
       };
     };
