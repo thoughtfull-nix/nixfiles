@@ -48,10 +48,24 @@ let
   );
   # No credentials => systemPull default is false, no timer/service.
   noCredentials = mkEval { thoughtfull.binaryCache.awsCredentialsFile = null; };
+  # NetworkManager explicitly enabled (e.g. hydor via graphical.nix): nm-online
+  # is guaranteed to be installed, so the live connectivity check should apply.
+  # `headless` deliberately leaves NetworkManager off (its default), standing
+  # in for hosts like tislit -- rpi4.nix forces networkmanager.enable = false
+  # and useNetworkd = true, so nm-online is never installed there and
+  # referencing it unconditionally would make every system-pull run fail.
+  networkManager = mkEval (
+    { pkgs, ... }:
+    {
+      networking.networkmanager.enable = true;
+      thoughtfull.binaryCache.awsCredentialsFile = pkgs.writeText "fake-creds" "AWS_ACCESS_KEY_ID=x\nAWS_SECRET_ACCESS_KEY=y\n";
+    }
+  );
 
   headlessUnit = headless.config.systemd.services.system-pull;
   headlessTimer = headless.config.systemd.timers.system-pull.timerConfig;
   graphicalTimer = graphical.config.systemd.timers.system-pull.timerConfig;
+  networkManagerUnit = networkManager.config.systemd.services.system-pull;
 
   systemPullPkg = lib.head (
     builtins.filter (p: (p.name or "") == "system-pull") headless.config.environment.systemPackages
@@ -91,9 +105,16 @@ let
       # no-op after boot: if the daily timer's Persistent= catch-up fires
       # right after wake (Wi-Fi not yet reassociated), nothing blocks it. A
       # live nm-online check (no -s, which only checks the boot-time startup
-      # milestone) re-verifies connectivity on every start instead.
-      name = "waits for a live NetworkManager connectivity check before pulling, not just the stale network-online.target";
-      ok = headlessUnit.serviceConfig.ExecStartPre == "/run/current-system/sw/bin/nm-online -q -t 60";
+      # milestone) re-verifies connectivity on every start instead -- but only
+      # where NetworkManager is actually enabled, so nm-online is guaranteed
+      # to be installed.
+      name = "NetworkManager enabled: waits for a live connectivity check before pulling, not just the stale network-online.target";
+      ok =
+        networkManagerUnit.serviceConfig.ExecStartPre == "/run/current-system/sw/bin/nm-online -q -t 60";
+    }
+    {
+      name = "NetworkManager disabled (e.g. rpi4/networkd hosts): no ExecStartPre referencing nm-online, which wouldn't be installed";
+      ok = !(headlessUnit.serviceConfig ? ExecStartPre);
     }
     {
       name = "AWS credentials must not be loaded into system-pull.service's environment";

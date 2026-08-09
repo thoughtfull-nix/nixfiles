@@ -80,7 +80,18 @@ in
         # only checks the one-time boot startup milestone and would reproduce
         # the same staleness bug). Referenced through /run/current-system for
         # the same byte-identical-unit reason as ExecStart above.
-        ExecStartPre = mkDefault "/run/current-system/sw/bin/nm-online -q -t 60";
+        #
+        # Only wired up when NetworkManager is actually enabled: nm-online is
+        # only installed onto the system PATH by NixOS's networkmanager module
+        # (environment.systemPackages), and hosts like the rpi4-based ones
+        # force networkmanager.enable = false / useNetworkd = true (see
+        # rpi4.nix). Referencing nm-online unconditionally would make
+        # ExecStartPre fail on those hosts before ExecStart ever runs,
+        # breaking every system-pull run rather than just the suspend/resume
+        # race this is meant to fix.
+        ExecStartPre = mkIf config.networking.networkmanager.enable (
+          mkDefault "/run/current-system/sw/bin/nm-online -q -t 60"
+        );
       };
     };
 
