@@ -84,6 +84,18 @@ let
       ok = headlessUnit.serviceConfig.ExecStart == "/run/current-system/sw/bin/system-pull";
     }
     {
+      # network-online.target is satisfied once at boot by
+      # NetworkManager-wait-online.service (Type=oneshot, RemainAfterExit=yes)
+      # and never re-checked. On a laptop that suspends, the target stays
+      # "active" straight through sleep/resume, so After=/Wants= on it is a
+      # no-op after boot: if the daily timer's Persistent= catch-up fires
+      # right after wake (Wi-Fi not yet reassociated), nothing blocks it. A
+      # live nm-online check (no -s, which only checks the boot-time startup
+      # milestone) re-verifies connectivity on every start instead.
+      name = "waits for a live NetworkManager connectivity check before pulling, not just the stale network-online.target";
+      ok = headlessUnit.serviceConfig.ExecStartPre == "/run/current-system/sw/bin/nm-online -q -t 60";
+    }
+    {
       name = "AWS credentials must not be loaded into system-pull.service's environment";
       ok = !(headlessUnit.serviceConfig ? EnvironmentFile);
     }

@@ -40,6 +40,14 @@ in
 
     systemd.services.system-pull = {
       description = mkDefault "Pull the latest system closure from the binary cache";
+      # network-online.target is satisfied once at boot by
+      # NetworkManager-wait-online.service (Type=oneshot, RemainAfterExit=yes)
+      # and never re-checked afterwards. On a laptop that suspends, the target
+      # stays "active" straight through sleep/resume, so this ordering is a
+      # no-op after boot: if the daily timer's Persistent= catch-up run fires
+      # right on wake (Wi-Fi not yet reassociated), nothing here blocks it.
+      # Kept anyway because it is still correct at boot; the live check below
+      # (ExecStartPre) is what actually guards against the stale-target case.
       after = [ "network-online.target" ];
       wants = [ "network-online.target" ];
       restartIfChanged = mkDefault false;
@@ -66,6 +74,13 @@ in
         # switch the script runs in-process. The script takes no arguments; its
         # bucket, region, and credentials path are baked in above.
         ExecStart = mkDefault "/run/current-system/sw/bin/system-pull";
+        # Re-verify connectivity live on every start, since network-online.target
+        # (see comment above) can be stale after resume. `nm-online` without -s
+        # does a fresh check for an actual active connection (unlike -s, which
+        # only checks the one-time boot startup milestone and would reproduce
+        # the same staleness bug). Referenced through /run/current-system for
+        # the same byte-identical-unit reason as ExecStart above.
+        ExecStartPre = mkDefault "/run/current-system/sw/bin/nm-online -q -t 60";
       };
     };
 
