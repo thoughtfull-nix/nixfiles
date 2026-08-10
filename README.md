@@ -1,99 +1,115 @@
 # Nixfiles for NixOS
 
-## git hooks
+## Secrecy
 
-To install git hooks run:
+I make heavy use of my Yubikeys.  I find the provide a good balance of security and convenience.  I
+like that a PIN (which need not be numeric but can be a passphrase) can be shorter since the Yubikey
+will lock after a number of failed attempts.  I also like requiring a touch as a second factor for
+operations.
 
-```
-devenv tasks run devenv:git-hooks:install
-```
+I have a primary key and a backup key and have configured (if possible) all security credentials to
+allow for either.  If my primary key is not available, I should be able to authorize operations with
+my backup key.  This should be a smooth experience, but sometimes it is a bit bumpy.  Even if it is
+bumpy, it is necessary in case I should loose a key.
 
-If `flake-checker` is stale and complains about the `nixpkgs` version (e.g.
-rejecting a release branch it doesn't recognize yet), run:
+## Confidentiality
 
-```
-devenv update
-devenv tasks run devenv:git-hooks:install
-```
+I keep sensitive information out of my nix configuration.  Anything truly sensitive should also be
+kept out of the nix store.  Values that just need to be kept out of the public configuration are in
+my kryptonix project, which is a private git repository used as a flake input.
 
-## nixos
+Anything that needs to be kept out of the nix store (which is locally readable) is configured not as
+a nix value, but as a file placed on disk and loaded at runtime.  These values may also be encrypted
+using age and committed to git.
 
-An installation/rescue ISO file based on the NixOS installation ISO file, but preconfigured with my
-user accounts and modules.
+## SSH keys
 
-It has all the tools I need to provision a new machine, reprovision, or rescue an existing machine.
+SSH FIDO private keys are never accessible outside the Yubikey in plain text.  When a private key is
+loaded into ssh-agent, it stores a handle with some information about the key.  Sometimes the handle
+could include a wrapped private key (the private key encrypted with the Yubikey's master key),
+especially if it is a non-resident key.  A resident key is really just that private key handle
+stored in a slot on the Yubikey, which can be loaded from the Yubikey.
 
-The `run-vm` script will boot the ISO on a qemu VM.
+All SSH resident key handles can be loaded into the ssh-agent using `ssh-add -K`.  This requires a
+PIN because the Yubikey requires a PIN to enumerate the resident keys, whether the keys themselves
+require a PIN or not.
 
-## yubikey
+Resident keys handles (and public keys) can copied to the file system using `ssh-keygen -K`.  SSH
+will load a key handle configured as an identity even if it isn't already in the agent.  A resident
+key with no handle configured will not be automatically loaded, it must be loaded using `ssh-add
+-K`.
 
-In weighing the options, I decided to go with a FIDO ssh key. I tried using the `no-touch-required` option, but that is not allowed.
+Once a key handle is loaded into the agent, its use is governed by the flags used to generate it.  A
+touch is required by default unless `-O no-touch-required` is given.  If `-O verify-required` is
+given, then a PIN will be required for every use of the key.
 
-I tried using the `verify-required` option, but that doesn't cache the PIN at all and was kind of annoying. Also, askpass is apparently for X11 only? So I'm not sure how to even enter a PIN at the terminal.
-
-I ended up generating the key with
-
-```
-ssh-keygen -t ed25519-sk -O resident -O "application=ssh:technosophist@ypa766" -C "technosophist@ypa766"
-```
-
-And my sudo key with
-
-```
-ssh-keygen -t ed25519-sk -O resident -O verify-required -O "application=ssh:technosophist@ypa766" -C "technosophist@ypa766"
-```
-
-I can add the key to the ssh-agent on another computer using
-
-```
-ssh-add -K
-```
-
-It requires entering the PIN to load the key, then only to touch after that. Annoyingly, it pops up
-askpass every time, even when it just needs a touch.
-
-Hosts running the `ssh-agent-add-keys` systemd service (`nixosModules/openssh.nix`) load keys into
-the agent automatically on login instead of requiring `ssh-add -K` to be run by hand. That service
-doesn't talk to the YubiKey directly -- it globs for private key stub files already on disk, one
-directory per YubiKey (primary and backup) under `~/.ssh/<yubikey>/`, matching any non-`.pub` file
-with `_auth_` or `_sign_` in its name. To provision those, run
+A resident key can be generated with:
 
 ```
-ssh-keygen -K
+ssh-keygen -t ed25519-sk -O resident -O verify-required -O application=ssh:auth -O user=technosophist -C "auth for technosophist on ypa766"
 ```
 
-with the YubiKey plugged in. This downloads the resident key stubs (and their `.pub` halves) to the
-current directory; copy them onto the target machine into `~/.ssh/<yubikey>/`, renaming as needed so
-the filename contains `_auth_` or `_sign_` (matching the naming already used for the committed `.pub`
-files under `nixosModules/user/<yubikey>/`, e.g. `id_ed25519_sk_rk_auth_technosophist`).
+Resident signing key:
 
-My provision script requires me to touch every time I SSH, which gets to be annoying. I can either
-just deal with it because I don't provision often or I should go back to using a master connection,
-I think that would help (though this may not help because even multiplexing it may still need a
-touch for each operation).
+```
+ssh-keygen -t ed25519-sk -O resident -O application=ssh:sign -O user=technosophist -C "sign for technosophist on ypa766"
+```
 
-I will still have to use PIV for age, because age doesn't support `-sk` SSH keys.
+The `application` must start with `ssh:`.  I use `ssh:auth` for my authentication key and
+`ssh:sign` for my git commit signing key.
 
-As far as PAM, it was slightly annoying with resident keys because it will ask for the PIN for each
-yubikey because it has to check if the key exists, whereas with non-resident keys it can just check
-if the device exists. Since it checks the keys in order, I had just put my primary key first, so I
-would only get the double PIN request if I'm using my backup key.
+### Touch or PIN+touch?
 
-However, I decided to just use non-resident keys to make it less annoying. I prefer using resident
-keys because I can examine the key to see where I'm using it, but in this case I know I'm using my
-keys for PAM. If a yubikey dies I know I have to create a new PAM key, update my nixos config, and
-rebuild everything, so there are no mysteries or questions about everywhere I'm using the PAM
-key. I'm OK with this situation for a better UX.
+My auth key requires a PIN.  My signing key requires only touch.  Why?  The flags apply to each
+operation, but auth can reuse an existing authorization.  SSH uses `ControlMaster` to reuse a
+connection to, say, Github, so the auth key is needed only to open that connection.  sudo caches
+authentication temporarily, so the auth key is needed only for the first sudo operation until the
+authentication expires.
 
-I set up each key using
+When it comes to signing, I don't want to enter a PIN for each git commit, and there isn't a way to
+reuse a connection or cache a PIN.  So that key requires only a touch per operation.
+
+## PAM login
+
+I prefer resident keys, so I have a better idea about all the places I'm using my Yubikey.  If I
+have to replace a key I can go through the list to switch to a new key.  However, when it comes to
+resident keys, PAM must try each key with each device in order.  If I have only my backup key
+plugged in, then it will try the first key with the backup key, which fails, then the second key
+with the backup key.  Since both attempts require a PIN, I end up having to enter a PIN twice when
+using my backup key, but only once with my primary key.  (See:
+https://github.com/Yubico/pam-u2f/issues/247)
+
+Though I prefer resident keys, for PAM I use a non-resident keys to make the fallback less annoying.
+
+For each Yubikey, generate a credential using:
 
 ```
 pamu2fcfg -N -u technosophist -o pam://auth -i pam://auth
 ```
 
-This configures each for a "portable" pam application, so I don't have to create a different key for each host.
+When creating a key for PAM, the origin is all that really matters (the `-o` option), but for
+historical compatibility the application ID should be the same as the origin (the `-i` option).  The
+value that is used doesn't matter much.  The same value should be used when generating the key as
+what PAM uses.  In this case, I just use `pam://auth` as a generic origin.  PAM defaults to
+`pam://$HOSTNAME` which is not portable (and, according to official guidance, not even a good idea
+for a single host with DHCP).  The `-N` option adds a PIN requirement.
 
-For luks, I had to enroll with this command
+## sudo
+
+Locally, sudo authenticates using PAM which uses the FIDO auth key.  When I ssh into a remote
+machine, I cannot plugin my Yubikey, nor can I touch it, so I use `pam_rssh`.  PAM will use the
+ssh-agent over the ssh connection to find the FIDO key configured for sudo.
+
+I used to have a separate SSH key for sudo because I wanted it to require a PIN every time, but I
+wanted the SSH auth key to only require a touch.  I was wary for sudo to only require a touch, and I
+didn't want to be annoyed to enter my PIN every time I pushed commits.  However, I realized that I
+can require a PIN for SSH auth and just use `ControlMaster` to cache the connection for 10 minutes,
+then I don't have to enter the PIN every push.  There's no longer a need to have separate SSH sudo
+key.
+
+## LUKS
+
+For LUKS, I had to enroll with this command
 
 ```
 systemd-cryptenroll --fido2-device=auto
@@ -108,14 +124,10 @@ on because the device required it.
 So there are really only two ways to setup my yubikeys: 1) `--with-client-pin=yes` which requires a
 PIN and a touch, or 2) `--with-client-pin=no` which requires only a touch.
 
-The luks keys are non-resident. I'm not sure if it is possible to use a resident key? I think
-probably the keys are "wrapped" and stored in the luks header.
-
-If there is no FIDO2 device plugged in on boot, then it still asks for a PIN (twice actually, for
-some reason). If I just press enter it keeps asking, and I cannot hit Control-c to skip, so I have
-to enter an invalid PIN and wait, then after about 20-30 seconds it will fallback to asking for a
-password. I'd prefer if this experience was smoother, but I don't expect I will be using it much, if
-at all.
+If there is no FIDO2 device plugged in on boot, then it still asks for a PIN (twice actually). If I
+just press enter it keeps asking, and I cannot hit Control-c to skip, so I have to enter an invalid
+PIN and wait, then after about 20-30 seconds it will fallback to asking for a password. I'd prefer
+if this experience was smoother, but I don't expect I will be using it much, if at all.
 
 To wipe the fido2 slots use
 
@@ -123,14 +135,9 @@ To wipe the fido2 slots use
 systemd-cryptenroll --wipe-slot=fido2 /dev/sda2
 ```
 
-## sudo
+## Age
 
-I setup pam_rssh (pam_ssh_agent_auth has not been updated in a while and does not support SSH FIDO2
-keys). I'm a little wary that sudo can be run (remotely and locally) with simply a touch, so I
-configured multiple keys, one for ssh that requires only a touch and one for sudo and requires a
-PIN.
-
-Even though it seems like I don't need a pam fido2 setup, I do still need it for login.
+age doesn't support FIDO keys, so I'm using PIV on my Yubikey.
 
 ## Master key
 
@@ -222,6 +229,31 @@ I setup age-plugin-yubikey on each yubikey using:
 ```
 age-plugin-yubikey -g --slot 1 --pin-policy once --touch-policy cached --force
 ```
+
+## git hooks
+
+To install git hooks run:
+
+```
+devenv tasks run devenv:git-hooks:install
+```
+
+If `flake-checker` is stale and complains about the `nixpkgs` version (e.g.
+rejecting a release branch it doesn't recognize yet), run:
+
+```
+devenv update
+devenv tasks run devenv:git-hooks:install
+```
+
+## nixos
+
+An installation/rescue ISO file based on the NixOS installation ISO file, but preconfigured with my
+user accounts and modules.
+
+It has all the tools I need to provision a new machine, reprovision, or rescue an existing machine.
+
+The `run-vm` script will boot the ISO on a qemu VM.
 
 ## LICENSE
 
