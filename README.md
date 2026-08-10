@@ -2,7 +2,7 @@
 
 ## Secrecy
 
-I make heavy use of my Yubikeys.  I find the provide a good balance of security and convenience.  I
+I make heavy use of my Yubikeys.  I find they provide a good balance of security and convenience.  I
 like that a PIN (which need not be numeric but can be a passphrase) can be shorter since the Yubikey
 will lock after a number of failed attempts.  I also like requiring a touch as a second factor for
 operations.
@@ -10,7 +10,7 @@ operations.
 I have a primary key and a backup key and have configured (if possible) all security credentials to
 allow for either.  If my primary key is not available, I should be able to authorize operations with
 my backup key.  This should be a smooth experience, but sometimes it is a bit bumpy.  Even if it is
-bumpy, it is necessary in case I should loose a key.
+bumpy, it is necessary in case I should lose a key.
 
 ## Confidentiality
 
@@ -34,7 +34,7 @@ All SSH resident key handles can be loaded into the ssh-agent using `ssh-add -K`
 PIN because the Yubikey requires a PIN to enumerate the resident keys, whether the keys themselves
 require a PIN or not.
 
-Resident keys handles (and public keys) can copied to the file system using `ssh-keygen -K`.  SSH
+Resident key handles (and public keys) can be copied to the file system using `ssh-keygen -K`.  SSH
 will load a key handle configured as an identity even if it isn't already in the agent.  A resident
 key with no handle configured will not be automatically loaded, it must be loaded using `ssh-add
 -K`.
@@ -79,7 +79,7 @@ with the backup key.  Since both attempts require a PIN, I end up having to ente
 using my backup key, but only once with my primary key.  (See:
 https://github.com/Yubico/pam-u2f/issues/247)
 
-Though I prefer resident keys, for PAM I use a non-resident keys to make the fallback less annoying.
+Though I prefer resident keys, for PAM I use non-resident keys to make the fallback less annoying.
 
 For each Yubikey, generate a credential using:
 

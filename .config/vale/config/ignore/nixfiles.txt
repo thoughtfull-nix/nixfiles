@@ -12,8 +12,10 @@ editorconfig
 emacs
 env
 eval
+github
 hostnames
 keypair
+kryptonix
 luks
 multiline
 namespace
@@ -39,4 +41,5 @@ sudo
 systemd
 untrusted
 yubikey
+yubikey's
 yubikeys
