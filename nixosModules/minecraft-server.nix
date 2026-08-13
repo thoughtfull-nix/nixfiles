@@ -6,10 +6,54 @@
 }:
 let
   inherit (config.services) minecraft-server;
+  inherit (config.services.minecraft-server.thoughtfull) worldExport;
+  inherit (config.thoughtfull.impermanence) encrypted persistent snapshots;
   inherit (lib)
     mkDefault
     mkIf
+    mkOption
     ;
+  inherit (lib.types) bool int;
+  inherit (pkgs.thoughtfull) replaceVarsString;
+
+  # Paper lays out the overworld/nether/end as level-name, level-name_nether,
+  # and level-name_the_end; deriving from serverProperties keeps this in sync
+  # if a host ever overrides level-name.
+  worldName = minecraft-server.serverProperties.level-name or "world";
+  worldDirs = [
+    worldName
+    "${worldName}_nether"
+    "${worldName}_the_end"
+  ];
+
+  # thoughtfull.impermanence's disko layout (impermanence/gpt.nix) is a
+  # single btrfs filesystem with one subvolume per top-level mountpoint; this
+  # module already assumes it's in use for the dataDir bind mount below, and
+  # worldExport additionally relies on it specifically being btrfs, to
+  # snapshot the persistent subvolume for a consistent copy source instead of
+  # reading the live, changing directory.
+  persistentDir = "/${persistent.name}";
+  # The snapshot lives inside thoughtfull.impermanence.disko.snapshots
+  # (mounted read-only, since it otherwise only holds long-lived root-rollback
+  # history) rather than under persistentDir: restic only ever backs up
+  # persistentDir, so a snapshot outside it needs no restic exclude at all --
+  # unlike a full clone of persistentDir sitting inside itself, which restic
+  # would otherwise walk right into.
+  snapshotsMountPoint = config.thoughtfull.impermanence.disko.snapshots.mountPoint;
+  snapshotDir = "${snapshotsMountPoint}/.minecraft-world-export-snapshot";
+  # To refresh its own snapshot there, world-snapshot.bash needs a *writable*
+  # view of the snapshots subvolume. `mount -o remount,rw` on the standard
+  # (read-only) mount above won't do: subvolumes of one btrfs filesystem
+  # share mount-option state more tightly than separate filesystems do, so
+  # remounting snapshotsMountPoint rw and back to ro was found (empirically,
+  # in this module's test) to also flip persistentDir read-only along with
+  # it -- which would break the live server's own writes. Instead, mount the
+  # same underlying subvolume a second time, privately and read-write, via
+  # the raw device thoughtfull.impermanence's disko layout already mounts it
+  # from (see impermanence/rollback.nix for the same pattern), leaving the
+  # standard read-only mount, and everything else, untouched throughout.
+  snapshotsDevice = "/dev/mapper/${encrypted.name}";
+  snapshotsSubvolName = snapshots.name;
 in
 {
   config = mkIf minecraft-server.enable {
@@ -30,11 +74,94 @@ in
     };
     thoughtfull.impermanence.directories = [
       {
-        directory = config.services.minecraft-server.dataDir;
+        directory = minecraft-server.dataDir;
         mode = "0750";
         group = "minecraft";
         user = "minecraft";
+        # The live world directories churn on every autosave, which makes
+        # backing them up hourly via restic expensive for little benefit.
+        # world.bak (bind-mounted from a periodically-refreshed read-only
+        # btrfs snapshot, see worldExport below) is what restic actually
+        # backs up instead; exclude the live copies here so restic doesn't
+        # see them directly. Everything else in dataDir (server.properties,
+        # plugins, world.bak, ...) is still backed up hourly as usual.
+        backupExclude = mkIf worldExport.enable worldDirs;
       }
     ];
+
+    # Runs immediately before every restic backup (see the wants/after wired
+    # into restic-backups-default below) rather than on its own timer: keeps
+    # world.bak's snapshot refresh (once maxAgeSeconds has elapsed) and
+    # restic's read of it from ever racing each other, and doubles as
+    # self-healing after a reboot -- the snapshot itself is real on-disk data
+    # and survives one, only the bind mounts below don't, so the very next
+    # restic run just remounts it without needing to recreate anything. The
+    # snapshot's leading dot also keeps it out of thoughtfull.impermanence's
+    # own boot-time rollback service, which only globs plain (non-dotfile)
+    # entries under snapshotsMountPoint when pruning orphaned root-rollback
+    # history -- but even if that ever changed, the marker living in dataDir
+    # instead of next to the snapshot means a missing snapshot is just
+    # treated the same as a stale one, and gets recreated on the next run.
+    #
+    # Deliberately no sandboxing (no PrivateTmp/ProtectSystem/PrivateMounts/
+    # etc.): those directives put the unit in its own mount namespace, which
+    # would make the bind mounts below invisible to restic (a separate,
+    # later process) the moment this oneshot exits.
+    systemd.services.minecraft-world-snapshot = mkIf worldExport.enable {
+      description = "Snapshot the Minecraft world and bind-mount it at world.bak for restic";
+      path = [
+        pkgs.btrfs-progs
+        pkgs.coreutils
+        pkgs.util-linux
+      ];
+      script = replaceVarsString ./minecraft-server/world-snapshot.bash {
+        inherit (minecraft-server) dataDir;
+        inherit
+          persistentDir
+          snapshotDir
+          snapshotsDevice
+          snapshotsSubvolName
+          ;
+        maxAgeSeconds = toString worldExport.maxAgeSeconds;
+        worldDirs = toString worldDirs;
+      };
+      serviceConfig.Type = "oneshot";
+    };
+    # Added on the consuming side (rather than worldExport reaching in with
+    # wantedBy/before) so the dependency direction is unambiguous: restic
+    # wants the snapshot fresh before it runs, not the other way around.
+    # Wants rather than Requires: a btrfs hiccup here should only risk
+    # world.bak being stale or briefly missing for that hour, not block the
+    # rest of the system (home directory, ssh keys, everything else) from
+    # being backed up too.
+    systemd.services.restic-backups-default = mkIf worldExport.enable {
+      wants = [ "minecraft-world-snapshot.service" ];
+      after = [ "minecraft-world-snapshot.service" ];
+    };
+  };
+  options.services.minecraft-server.thoughtfull.worldExport = {
+    enable = mkOption {
+      default = true;
+      description = ''
+        Snapshot the world directories (via a read-only btrfs snapshot of the
+        persistent subvolume) and bind-mount them at `world.bak` inside
+        dataDir immediately before every restic backup, refreshing the
+        snapshot once it's older than `maxAgeSeconds`. Excludes the live
+        world directories from restic (via thoughtfull.impermanence's
+        `backupExclude`), so restic sees only the less-frequently-refreshed
+        snapshot instead of every hourly autosave.
+      '';
+      type = bool;
+    };
+    maxAgeSeconds = mkOption {
+      default = 60 * 60 * 24;
+      description = ''
+        How old (in seconds) the world snapshot is allowed to get before it's
+        refreshed. btrfs snapshots are effectively instantaneous and don't
+        disrupt the running server, so this is just about how much churn
+        restic sees, not about timing around player activity.
+      '';
+      type = int;
+    };
   };
 }
