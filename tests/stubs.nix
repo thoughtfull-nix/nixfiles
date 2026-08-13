@@ -63,9 +63,13 @@
       };
     };
 
-  # Stub thoughtfull.impermanence.{directories,user.{files,directories}} for
-  # tests that check persistence lists without importing the full impermanence
-  # module.
+  # Stub thoughtfull.impermanence.{directories,user.{files,directories},
+  # persistent.name,disko.snapshots.mountPoint} for tests that check
+  # persistence lists (or, for the latter two, the btrfs subvolume paths
+  # minecraft-server.nix's worldExport derives) without importing the full
+  # impermanence module. persistent.name/disko.snapshots.mountPoint default
+  # to the same values the real module does, so tests that don't care about
+  # them still see production-realistic paths.
   impermanence =
     { lib, ... }:
     {
@@ -73,6 +77,14 @@
         directories = lib.mkOption {
           type = lib.types.listOf lib.types.anything;
           default = [ ];
+        };
+        disko.snapshots.mountPoint = lib.mkOption {
+          type = lib.types.str;
+          default = "/snapshots";
+        };
+        persistent.name = lib.mkOption {
+          type = lib.types.str;
+          default = "persistent";
         };
         user = {
           files = lib.mkOption {

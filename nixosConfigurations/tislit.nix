@@ -16,6 +16,10 @@
           minecraft-server = {
             enable = true;
             jvmOpts = "-Xmx3072M -Xms3072M";
+            # Export at 3am ET (handles EST/EDT automatically) instead of the
+            # module's midnight-UTC default, so the export runs when players
+            # are unlikely to be online.
+            thoughtfull.worldExport.dates = "*-*-* 03:00:00 America/New_York";
           };
           openssh.enable = true;
           restic.thoughtfull.enable = true;
