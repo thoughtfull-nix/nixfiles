@@ -353,5 +353,48 @@ nixpkgs.testers.nixosTest {
         enabled.succeed("mountpoint -q /var/lib/minecraft/world.bak/world")
         exported = enabled.succeed("cat /var/lib/minecraft/world.bak/world/region/r.0.0.mca")
         assert "region-data" in exported
+
+    with subtest("enabled: a refresh that fails partway degrades to stale, not empty"):
+        # Deterministically fail the snapshot creation step: pre-create the
+        # temp path world-snapshot.bash builds the replacement under as a
+        # plain file instead of a subvolume, so its own "clear any leftover
+        # from an interrupted attempt" delete errors out immediately -- well
+        # before world.bak is ever touched. This stands in for the real
+        # failure modes that step is actually exposed to (ENOSPC, a
+        # transient btrfs error, the old subvolume being busy).
+        enabled.succeed("mkdir -p /run/inject-fault")
+        enabled.succeed("mount -o subvol=/snapshots /dev/mapper/encrypted /run/inject-fault")
+        enabled.succeed("touch /run/inject-fault/.minecraft-world-export-snapshot.new")
+        enabled.succeed("umount /run/inject-fault")
+
+        enabled.succeed(f"echo 0 > {marker}")
+        pre_fail_id = subvolume_id()
+
+        enabled.fail("systemctl start minecraft-world-snapshot.service")
+
+        # world.bak was never unmounted, so it's still serving the previous,
+        # still-valid snapshot -- stale, but not empty.
+        enabled.succeed("mountpoint -q /var/lib/minecraft/world.bak/world")
+        exported = enabled.succeed("cat /var/lib/minecraft/world.bak/world/region/r.0.0.mca")
+        assert "region-data" in exported
+        assert subvolume_id() == pre_fail_id, "the old snapshot should be untouched by the failed refresh"
+
+        # And the marker was never rewritten either, so the next run knows
+        # a refresh is still due rather than believing the failed attempt
+        # succeeded.
+        assert enabled.succeed(f"cat {marker}").strip() == "0"
+
+        # Clearing the injected fault and retrying recovers normally.
+        enabled.succeed("mkdir -p /run/clear-fault")
+        enabled.succeed("mount -o subvol=/snapshots /dev/mapper/encrypted /run/clear-fault")
+        enabled.succeed("rm /run/clear-fault/.minecraft-world-export-snapshot.new")
+        enabled.succeed("umount /run/clear-fault")
+
+        enabled.succeed("systemctl start minecraft-world-snapshot.service")
+
+        assert enabled.succeed(f"cat {marker}").strip() != "0"
+        assert subvolume_id() != pre_fail_id
+        exported = enabled.succeed("cat /var/lib/minecraft/world.bak/world/region/r.0.0.mca")
+        assert "region-data" in exported
   '';
 }
