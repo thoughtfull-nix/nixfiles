@@ -64,12 +64,11 @@
     };
 
   # Stub thoughtfull.impermanence.{directories,user.{files,directories},
-  # persistent.name,disko.snapshots.mountPoint} for tests that check
-  # persistence lists (or, for the latter two, the btrfs subvolume paths
-  # minecraft-server.nix's worldExport derives) without importing the full
-  # impermanence module. persistent.name/disko.snapshots.mountPoint default
-  # to the same values the real module does, so tests that don't care about
-  # them still see production-realistic paths.
+  # persistent.name} for tests that check persistence lists (or, for
+  # persistent.name, the btrfs subvolume path minecraft-server.nix's
+  # worldExport derives) without importing the full impermanence module.
+  # persistent.name defaults to the same value the real module does, so
+  # tests that don't care about it still see a production-realistic path.
   impermanence =
     { lib, ... }:
     {
@@ -77,10 +76,6 @@
         directories = lib.mkOption {
           type = lib.types.listOf lib.types.anything;
           default = [ ];
-        };
-        disko.snapshots.mountPoint = lib.mkOption {
-          type = lib.types.str;
-          default = "/snapshots";
         };
         persistent.name = lib.mkOption {
           type = lib.types.str;
@@ -95,6 +90,25 @@
             type = lib.types.listOf lib.types.str;
             default = [ ];
           };
+        };
+      };
+    };
+
+  # Stub services.restic.thoughtfull.{paths,exclude} for tests that check
+  # what a module contributes to the default restic backup, without
+  # importing the full restic module (which needs age.secrets for real
+  # encrypted repository credentials).
+  resticThoughtfull =
+    { lib, ... }:
+    {
+      options.services.restic.thoughtfull = {
+        exclude = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [ ];
+        };
+        paths = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [ ];
         };
       };
     };
