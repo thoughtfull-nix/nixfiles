@@ -61,6 +61,14 @@ let
       thoughtfull.binaryCache.awsCredentialsFile = pkgs.writeText "fake-creds" "AWS_ACCESS_KEY_ID=x\nAWS_SECRET_ACCESS_KEY=y\n";
     }
   );
+  # Host overriding the default GC retention window.
+  customRetention = mkEval (
+    { pkgs, ... }:
+    {
+      thoughtfull.systemPull.gcDeleteOlderThan = "30d";
+      thoughtfull.binaryCache.awsCredentialsFile = pkgs.writeText "fake-creds" "AWS_ACCESS_KEY_ID=x\nAWS_SECRET_ACCESS_KEY=y\n";
+    }
+  );
 
   headlessUnit = headless.config.systemd.services.system-pull;
   headlessTimer = headless.config.systemd.timers.system-pull.timerConfig;
@@ -71,6 +79,12 @@ let
     builtins.filter (p: (p.name or "") == "system-pull") headless.config.environment.systemPackages
   );
   script = builtins.readFile "${systemPullPkg}/bin/system-pull";
+  customRetentionPkg = lib.head (
+    builtins.filter (
+      p: (p.name or "") == "system-pull"
+    ) customRetention.config.environment.systemPackages
+  );
+  customRetentionScript = builtins.readFile "${customRetentionPkg}/bin/system-pull";
   # Strip comment lines so checks aren't fooled by prose (mirrors the original
   # VM test, which stripped comments from the same generated script).
   code = lib.concatStringsSep "\n" (
@@ -79,6 +93,19 @@ let
   codeLines = lib.splitString "\n" code;
   realiseLine = lib.findFirst (l: lib.hasInfix "--realise" l) "" codeLines;
   switchLine = lib.findFirst (l: lib.hasInfix "switch-to-configuration" l) "" codeLines;
+  gcLine = lib.findFirst (l: lib.hasInfix "nix-collect-garbage" l) "" codeLines;
+  switchIndex = lib.lists.findFirstIndex (l: lib.hasInfix "switch-to-configuration" l) null codeLines;
+  gcIndex = lib.lists.findFirstIndex (l: lib.hasInfix "nix-collect-garbage" l) null codeLines;
+  switchToConfigLines = lib.filter (l: lib.hasInfix "switch-to-configuration" l) codeLines;
+  # The second switch-to-configuration invocation, after the first (the
+  # actual switch) and GC: `boot`, to reinstall the boot loader and prune
+  # entries for the generations GC just deleted.
+  afterSwitchLines = lib.drop (switchIndex + 1) codeLines;
+  bootLine = lib.findFirst (l: lib.hasInfix "switch-to-configuration" l) "" afterSwitchLines;
+  bootIndexInAfter = lib.lists.findFirstIndex (
+    l: lib.hasInfix "switch-to-configuration" l
+  ) null afterSwitchLines;
+  bootIndex = if bootIndexInAfter == null then null else switchIndex + 1 + bootIndexInAfter;
 
   checks = [
     {
@@ -166,6 +193,49 @@ let
         !(lib.any (s: lib.hasInfix "s3://" s) (
           noCredentials.config.nix.settings.extra-substituters or [ ]
         ));
+    }
+    {
+      name = "collects garbage after a switch, with the default 14-day retention window";
+      ok = lib.hasInfix "nix-collect-garbage" gcLine && lib.hasInfix "--delete-older-than 14d" gcLine;
+    }
+    {
+      # GC must run only after switch-to-configuration has succeeded: deleting
+      # old generations before the new one has proven it activates would
+      # remove the rollback safety net for nothing. Sequencing it inside this
+      # oneshot script (rather than an independent nix.gc.automatic timer)
+      # also means no other GC run can ever race the realise -> nix-env --set
+      # window above, where the freshly fetched closure is briefly unrooted.
+      name = "garbage collection runs after switch-to-configuration, not before";
+      ok = switchIndex != null && gcIndex != null && gcIndex > switchIndex;
+    }
+    {
+      name = "garbage collection does not receive the AWS credentials";
+      ok = !(lib.hasInfix "dotenvy" gcLine);
+    }
+    {
+      name = "gcDeleteOlderThan is overridable per host";
+      ok = lib.hasInfix "--delete-older-than 30d" customRetentionScript;
+    }
+    {
+      # nix-collect-garbage never touches boot loader entries, and a second
+      # collect-garbage run would be a no-op (nothing left to delete) -- what
+      # actually prunes the menu is re-running switch-to-configuration with
+      # the `boot` action, which reinstalls the boot loader and then exits
+      # immediately, without redoing activation or restarting anything.
+      name = "reinstalls the boot loader after GC (switch-to-configuration boot), to prune entries for now-deleted generations";
+      ok = lib.hasInfix ''switch-to-configuration" boot'' bootLine;
+    }
+    {
+      name = "boot loader reinstall runs after garbage collection, not before";
+      ok = bootIndex != null && gcIndex != null && bootIndex > gcIndex;
+    }
+    {
+      name = "switch-to-configuration is invoked exactly twice: switch, then boot";
+      ok = lib.length switchToConfigLines == 2;
+    }
+    {
+      name = "the boot loader reinstall does not receive the AWS credentials";
+      ok = !(lib.hasInfix "dotenvy" bootLine);
     }
   ];
 

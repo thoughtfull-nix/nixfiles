@@ -60,3 +60,19 @@ echo "system-pull: switching configuration"
 "${target}/bin/switch-to-configuration" switch
 
 echo "system-pull: switched to ${target}"
+
+echo "system-pull: collecting garbage (generations older than @gc_delete_older_than@)"
+# Run GC here, synchronously after a successful switch, rather than via an
+# independent nix.gc.automatic timer: sequencing it inside this oneshot means
+# no GC run can ever land during the realise -> nix-env --set window above,
+# where the freshly fetched closure is briefly unrooted, and old generations
+# are only deleted once the new one has proven it activates.
+@nix_collect_garbage@ --delete-older-than @gc_delete_older_than@
+
+echo "system-pull: reinstalling boot loader to prune entries for deleted generations"
+# nix-collect-garbage doesn't touch boot loader entries, so the menu still
+# lists the generations just deleted above. Re-running switch-to-configuration
+# with the `boot` action (rather than `switch`) reinstalls the boot loader
+# from the generations still present and then exits immediately -- it does
+# not repeat activation or restart anything -- so this is cheap.
+"${target}/bin/switch-to-configuration" boot

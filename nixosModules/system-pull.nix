@@ -18,6 +18,7 @@ let
   # runs with no arguments.
   system-pull = pkgs.thoughtfull.system-pull.override {
     inherit (binaryCache) bucket region;
+    inherit (cfg) gcDeleteOlderThan;
     credentialsFile = config.age.secrets.nix-cache-credentials.path;
   };
 in
@@ -145,6 +146,21 @@ in
         Installer/bootstrap images set this to `false` explicitly.
       '';
       type = types.bool;
+    };
+    gcDeleteOlderThan = mkOption {
+      default = "14d";
+      description = ''
+        `nix-collect-garbage --delete-older-than` window, run after every
+        successful switch. With the default daily pull this keeps roughly
+        14 generations available for rollback before reclaiming their space.
+
+        GC runs synchronously at the end of the `system-pull` script itself
+        rather than via `nix.gc.automatic`'s independent timer, so no GC run
+        can ever land while a just-fetched closure is realised but not yet
+        rooted, and old generations are only deleted once the new one has
+        proven it activates.
+      '';
+      type = types.str;
     };
   };
 }
