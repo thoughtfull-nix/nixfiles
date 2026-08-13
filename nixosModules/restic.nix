@@ -53,6 +53,13 @@ in
         "--keep-weekly 5"
         "--keep-monthly 12"
         "--keep-yearly 75"
+        # restic's default --max-unused 5% makes hourly forget/prune repack
+        # nearly every run (each expiring hourly snapshot pushes waste back
+        # over the ceiling), which is expensive against S3: repacking
+        # downloads whole packs to reclaim a few percent of garbage, at
+        # roughly 4x the $/GB of just leaving that garbage in place as
+        # storage. 20% lets waste build up between repacks instead.
+        "--max-unused 20%"
       ];
       repositoryFile = resticRepository.path;
       timerConfig = {

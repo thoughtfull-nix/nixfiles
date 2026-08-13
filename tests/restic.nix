@@ -49,6 +49,17 @@ nixpkgs.testers.nixosTest {
         )
 
     with subtest(
+        "restic-backups-default prunes with --max-unused 20% instead of the "
+        "default 5%, so hourly runs don't repack down to a tight ceiling every "
+        "single time"
+    ):
+        unit = machine.succeed("systemctl cat restic-backups-default.service")
+        print(f"unit:\n{unit}")
+        assert "--max-unused 20%" in unit, (
+            "expected pruneOpts to include --max-unused 20%"
+        )
+
+    with subtest(
         "restic-backups-default treats exit code 130 (restic's graceful response to being stopped) as success"
     ):
         success_exit_status = machine.succeed(
