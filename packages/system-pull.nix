@@ -12,6 +12,7 @@ makeOverridable
       coreutils,
       credentialsFile,
       dotenvy,
+      gcDeleteOlderThan,
       hostname-debian,
       jq,
       nix,
@@ -25,8 +26,10 @@ makeOverridable
         inherit bucket region;
         credentials_file = credentialsFile;
         dotenvy = "${dotenvy}/bin/dotenvy";
+        gc_delete_older_than = gcDeleteOlderThan;
         hostname = "${hostname-debian}/bin/hostname";
         jq = "${jq}/bin/jq";
+        nix_collect_garbage = "${nix}/bin/nix-collect-garbage";
         nix_env = "${nix}/bin/nix-env";
         nix_store = "${nix}/bin/nix-store";
         readlink = "${coreutils}/bin/readlink";
@@ -48,5 +51,6 @@ makeOverridable
     # these with the host's actual configuration.
     bucket = "thoughtfull-nix-cache";
     credentialsFile = "/run/agenix/nix-cache-credentials";
+    gcDeleteOlderThan = "14d";
     region = "us-east-1";
   }
