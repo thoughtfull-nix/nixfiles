@@ -64,11 +64,13 @@
     };
 
   # Stub thoughtfull.impermanence.{directories,user.{files,directories},
-  # persistent.name} for tests that check persistence lists (or, for
-  # persistent.name, the btrfs subvolume path minecraft-server.nix's
-  # worldExport derives) without importing the full impermanence module.
-  # persistent.name defaults to the same value the real module does, so
-  # tests that don't care about it still see a production-realistic path.
+  # persistent.name,snapshots.name,encrypted.name,disko.snapshots.mountPoint}
+  # for tests that check persistence lists (or, for the other options, the
+  # btrfs subvolume paths and device minecraft-server.nix's worldExport
+  # derives) without importing the full impermanence module. persistent.name,
+  # snapshots.name, encrypted.name, and disko.snapshots.mountPoint all
+  # default to the same values the real module does, so tests that don't
+  # care about them still see production-realistic paths.
   impermanence =
     { lib, ... }:
     {
@@ -77,9 +79,21 @@
           type = lib.types.listOf lib.types.anything;
           default = [ ];
         };
+        disko.snapshots.mountPoint = lib.mkOption {
+          type = lib.types.str;
+          default = "/snapshots";
+        };
+        encrypted.name = lib.mkOption {
+          type = lib.types.str;
+          default = "encrypted";
+        };
         persistent.name = lib.mkOption {
           type = lib.types.str;
           default = "persistent";
+        };
+        snapshots.name = lib.mkOption {
+          type = lib.types.str;
+          default = "snapshots";
         };
         user = {
           files = lib.mkOption {

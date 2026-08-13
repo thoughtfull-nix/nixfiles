@@ -22,7 +22,6 @@ nixpkgs.testers.nixosTest {
           { nixpkgs.overlays = [ self.overlays.thoughtfull ]; }
           ../nixosModules/minecraft-server.nix
           stubs.impermanence
-          stubs.resticThoughtfull
         ];
         services.minecraft-server.enable = true;
 
@@ -42,25 +41,42 @@ nixpkgs.testers.nixosTest {
 
         # worldExport's whole point is to snapshot a real btrfs subvolume, so
         # faking `btrfs` would validate nothing about the feature. Instead,
-        # set up a small loopback btrfs filesystem and bind-mount dataDir
-        # onto it -- the same relationship thoughtfull.impermanence's real
-        # bind mount gives dataDir in production -- so
-        # world-snapshot.bash's `btrfs subvolume snapshot` and its
-        # snapshot_dir+dataDir path arithmetic are both genuinely exercised.
+        # set up a small loopback btrfs filesystem with a persistent and a
+        # snapshots subvolume, both mounted from a /dev/mapper/encrypted
+        # device -- mirroring thoughtfull.impermanence's real disko layout
+        # (a LUKS-mapped device backing both) closely enough to exercise it
+        # genuinely: persistent mounted read-write with dataDir bind-mounted
+        # out of it, snapshots mounted read-only, and the same device path
+        # world-snapshot.bash privately mounts to refresh its snapshot. So
+        # its `btrfs subvolume snapshot`, its private read-write mount, and
+        # its path arithmetic are all genuinely exercised.
         systemd.services.setup-test-persistent = {
           wantedBy = [ "multi-user.target" ];
           before = [ "minecraft-server.service" ];
           path = [
             pkgs.btrfs-progs
             pkgs.coreutils
+            pkgs.lvm2 # dmsetup
             pkgs.util-linux
           ];
           serviceConfig.Type = "oneshot";
           script = ''
-            mkdir -p /persistent
             truncate -s 512M /btrfs-test.img
-            mkfs.btrfs -q /btrfs-test.img
-            mount -o loop /btrfs-test.img /persistent
+            loop=$(losetup --show -f /btrfs-test.img)
+
+            mkfs.btrfs -q "$loop"
+            mkdir -p /mnt-btrfs-test-init
+            mount "$loop" /mnt-btrfs-test-init
+            btrfs subvolume create /mnt-btrfs-test-init/persistent
+            btrfs subvolume create /mnt-btrfs-test-init/snapshots
+            umount /mnt-btrfs-test-init
+
+            sectors=$(blockdev --getsz "$loop")
+            dmsetup create encrypted --table "0 $sectors linear $loop 0"
+
+            mkdir -p /persistent /snapshots
+            mount -o subvol=/persistent /dev/mapper/encrypted /persistent
+            mount -o subvol=/snapshots,ro /dev/mapper/encrypted /snapshots
 
             mkdir -p /persistent/var/lib/minecraft
             chown minecraft:minecraft /persistent/var/lib/minecraft
@@ -115,19 +131,6 @@ nixpkgs.testers.nixosTest {
             message = "the live world directories should be excluded from restic backup";
           }
           {
-            assertion =
-              config.services.restic.thoughtfull.exclude == [
-                "/${config.thoughtfull.impermanence.persistent.name}/.minecraft-world-export-snapshot"
-              ];
-            message = ''
-              the snapshot lives directly under the persistent subvolume
-              (outside dataDir, so dataDir's own backupExclude entries don't
-              reach it) and needs its own top-level restic exclude, or restic
-              would back up a full extra copy of /persistent -- including the
-              live world data -- for as long as the snapshot exists
-            '';
-          }
-          {
             assertion = config.systemd.services.minecraft-world-snapshot.serviceConfig.Type == "oneshot";
             message = "the snapshot+mount service should be a oneshot";
           }
@@ -148,7 +151,6 @@ nixpkgs.testers.nixosTest {
         imports = [
           ../nixosModules/minecraft-server.nix
           stubs.impermanence
-          stubs.resticThoughtfull
         ];
 
         assertions = [
@@ -165,7 +167,11 @@ nixpkgs.testers.nixosTest {
   };
 
   testScript = ''
-    marker = "/persistent/.minecraft-world-export-snapshot.created"
+    # Kept in dataDir rather than next to the snapshot: the snapshot can
+    # legitimately disappear on its own (see the pruning subtest below), so
+    # the marker needs to survive that independently.
+    marker = "/var/lib/minecraft/.last-world-snapshot"
+    snapshot_dir = "/snapshots/.minecraft-world-export-snapshot"
 
     def subvolume_id():
         # A more reliable "was a new snapshot created" signal than scraping
@@ -175,9 +181,7 @@ nixpkgs.testers.nixosTest {
         # snapshot" does (that's flaky: --vacuum-time=1s won't have deleted
         # an archive that isn't yet a second old, so an earlier subtest's
         # line can still be matched by a later one).
-        output = enabled.succeed(
-            "btrfs subvolume show /persistent/.minecraft-world-export-snapshot"
-        )
+        output = enabled.succeed(f"btrfs subvolume show {snapshot_dir}")
         for line in output.splitlines():
             if "Subvolume ID:" in line:
                 return line.split(":")[-1].strip()
@@ -209,8 +213,12 @@ nixpkgs.testers.nixosTest {
 
     with subtest("enabled: dataDir is really backed by the loopback btrfs filesystem"):
         enabled.succeed("mountpoint -q /persistent")
+        enabled.succeed("mountpoint -q /snapshots")
         mounts = enabled.succeed("cat /proc/self/mountinfo")
         assert " /var/lib/minecraft " in mounts
+
+    with subtest("enabled: /snapshots is read-only until a refresh needs it"):
+        enabled.fail("touch /snapshots/should-fail")
 
     with subtest("enabled: first run creates world.bak, and the mount survives the oneshot exiting"):
         enabled.succeed(
@@ -234,6 +242,11 @@ nixpkgs.testers.nixosTest {
             "systemctl show -p ActiveState --value minecraft-world-snapshot.service"
         ).strip()
         assert state == "inactive", f"expected the oneshot to have exited, got {state}"
+
+        # /snapshots itself is never remounted rw -- the refresh above went
+        # through a private mount of the same subvolume instead -- so it
+        # should still be exactly as read-only as it started.
+        enabled.fail("touch /snapshots/should-fail")
 
         enabled.succeed("mountpoint -q /var/lib/minecraft/world.bak/world")
         enabled.succeed("mountpoint -q /var/lib/minecraft/world.bak/world_nether")
@@ -299,6 +312,42 @@ nixpkgs.testers.nixosTest {
         )
         assert subvolume_id() == third_id, (
             "expected recovery to reuse the existing snapshot subvolume, not create a new one"
+        )
+
+        enabled.succeed("mountpoint -q /var/lib/minecraft/world.bak/world")
+        exported = enabled.succeed("cat /var/lib/minecraft/world.bak/world/region/r.0.0.mca")
+        assert "region-data" in exported
+
+    with subtest("enabled: a snapshot missing for any other reason still triggers a rebuild"):
+        # The marker alone isn't enough to skip a refresh -- snapshot_dir
+        # itself has to exist too. Exercise that directly by deleting the
+        # subvolume out from under a still-fresh marker (an interrupted
+        # refresh or a manual delete could do this; thoughtfull.
+        # impermanence's own boot-time rollback prune can't, since its glob
+        # skips this snapshot's leading dot). Deleted via a private mount of
+        # the same device, the same way world-snapshot.bash itself refreshes
+        # it -- /snapshots stays read-only throughout, exactly as in
+        # production.
+        enabled.succeed("umount /var/lib/minecraft/world.bak/world")
+        enabled.succeed("umount /var/lib/minecraft/world.bak/world_nether")
+
+        pre_delete_created = enabled.succeed(f"cat {marker}").strip()
+
+        enabled.succeed("mkdir -p /run/simulate-missing-snapshot")
+        enabled.succeed(
+            "mount -o subvol=/snapshots /dev/mapper/encrypted /run/simulate-missing-snapshot"
+        )
+        enabled.succeed(
+            "btrfs subvolume delete /run/simulate-missing-snapshot/.minecraft-world-export-snapshot"
+        )
+        enabled.succeed("umount /run/simulate-missing-snapshot")
+
+        enabled.succeed("systemctl start minecraft-world-snapshot.service")
+
+        post_delete_created = enabled.succeed(f"cat {marker}").strip()
+        assert post_delete_created != pre_delete_created, (
+            "a fresh marker alone doesn't guarantee a valid snapshot -- it "
+            "needs to be rebuilt once the snapshot it points at is gone"
         )
 
         enabled.succeed("mountpoint -q /var/lib/minecraft/world.bak/world")

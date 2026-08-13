@@ -7,7 +7,7 @@
 let
   inherit (config.services) minecraft-server;
   inherit (config.services.minecraft-server.thoughtfull) worldExport;
-  inherit (config.thoughtfull.impermanence) persistent;
+  inherit (config.thoughtfull.impermanence) encrypted persistent snapshots;
   inherit (lib)
     mkDefault
     mkIf
@@ -33,14 +33,27 @@ let
   # snapshot the persistent subvolume for a consistent copy source instead of
   # reading the live, changing directory.
   persistentDir = "/${persistent.name}";
-  # Nested inside the persistent subvolume itself (valid btrfs usage --
-  # snapshotting a subvolume into a directory within itself), rather than the
-  # dedicated thoughtfull.impermanence.disko.snapshots subvolume: that one is
-  # mounted read-only by default (it holds long-lived root-rollback history,
-  # not meant to be written to at runtime), which would make `btrfs subvolume
-  # snapshot` fail with EROFS here. persistentDir is always writable, since
-  # live application data (including dataDir) already lives there.
-  snapshotDir = "${persistentDir}/.minecraft-world-export-snapshot";
+  # The snapshot lives inside thoughtfull.impermanence.disko.snapshots
+  # (mounted read-only, since it otherwise only holds long-lived root-rollback
+  # history) rather than under persistentDir: restic only ever backs up
+  # persistentDir, so a snapshot outside it needs no restic exclude at all --
+  # unlike a full clone of persistentDir sitting inside itself, which restic
+  # would otherwise walk right into.
+  snapshotsMountPoint = config.thoughtfull.impermanence.disko.snapshots.mountPoint;
+  snapshotDir = "${snapshotsMountPoint}/.minecraft-world-export-snapshot";
+  # To refresh its own snapshot there, world-snapshot.bash needs a *writable*
+  # view of the snapshots subvolume. `mount -o remount,rw` on the standard
+  # (read-only) mount above won't do: subvolumes of one btrfs filesystem
+  # share mount-option state more tightly than separate filesystems do, so
+  # remounting snapshotsMountPoint rw and back to ro was found (empirically,
+  # in this module's test) to also flip persistentDir read-only along with
+  # it -- which would break the live server's own writes. Instead, mount the
+  # same underlying subvolume a second time, privately and read-write, via
+  # the raw device thoughtfull.impermanence's disko layout already mounts it
+  # from (see impermanence/rollback.nix for the same pattern), leaving the
+  # standard read-only mount, and everything else, untouched throughout.
+  snapshotsDevice = "/dev/mapper/${encrypted.name}";
+  snapshotsSubvolName = snapshots.name;
 in
 {
   config = mkIf minecraft-server.enable {
@@ -75,12 +88,6 @@ in
         backupExclude = mkIf worldExport.enable worldDirs;
       }
     ];
-    # The transient snapshot sits directly under persistentDir (outside
-    # dataDir), so the backupExclude entries above don't reach it. It's a
-    # full read-only clone of the persistent subvolume -- including the live
-    # world data this feature exists to keep out of restic -- for as long as
-    # it exists (up to a day), so it needs its own top-level exclude.
-    services.restic.thoughtfull.exclude = mkIf worldExport.enable [ snapshotDir ];
 
     # Runs immediately before every restic backup (see the wants/after wired
     # into restic-backups-default below) rather than on its own timer: keeps
@@ -88,7 +95,13 @@ in
     # restic's read of it from ever racing each other, and doubles as
     # self-healing after a reboot -- the snapshot itself is real on-disk data
     # and survives one, only the bind mounts below don't, so the very next
-    # restic run just remounts it without needing to recreate anything.
+    # restic run just remounts it without needing to recreate anything. The
+    # snapshot's leading dot also keeps it out of thoughtfull.impermanence's
+    # own boot-time rollback service, which only globs plain (non-dotfile)
+    # entries under snapshotsMountPoint when pruning orphaned root-rollback
+    # history -- but even if that ever changed, the marker living in dataDir
+    # instead of next to the snapshot means a missing snapshot is just
+    # treated the same as a stale one, and gets recreated on the next run.
     #
     # Deliberately no sandboxing (no PrivateTmp/ProtectSystem/PrivateMounts/
     # etc.): those directives put the unit in its own mount namespace, which
@@ -103,7 +116,12 @@ in
       ];
       script = replaceVarsString ./minecraft-server/world-snapshot.bash {
         inherit (minecraft-server) dataDir;
-        inherit persistentDir snapshotDir;
+        inherit
+          persistentDir
+          snapshotDir
+          snapshotsDevice
+          snapshotsSubvolName
+          ;
         maxAgeSeconds = toString worldExport.maxAgeSeconds;
         worldDirs = toString worldDirs;
       };
