@@ -86,6 +86,18 @@ nixpkgs.testers.nixosTest {
           '';
         };
 
+        # minecraft-server.nix only adds wants/after to restic-backups-default
+        # (the real restic module isn't imported here -- it needs age.secrets
+        # for real encrypted repository credentials). This stub gives it an
+        # actual, startable script merged in alongside that wants/after, so
+        # the "doesn't block restic" subtest below can genuinely start it
+        # rather than just inspect the unit definition.
+        systemd.services.restic-backups-default = {
+          description = "stub restic-backups-default for testing wants/after in isolation";
+          serviceConfig.Type = "oneshot";
+          script = "true";
+        };
+
         assertions = [
           {
             assertion = config.services.minecraft-server.eula;
@@ -142,6 +154,10 @@ nixpkgs.testers.nixosTest {
             assertion = builtins.elem "minecraft-world-snapshot.service" config.systemd.services.restic-backups-default.after;
             message = "restic-backups-default should be ordered after the world snapshot refresh";
           }
+          {
+            assertion = builtins.elem "alert-on-failure@%n.service" config.systemd.services.minecraft-world-snapshot.onFailure;
+            message = "a failed refresh should trigger a notification";
+          }
         ];
       };
 
@@ -186,6 +202,21 @@ nixpkgs.testers.nixosTest {
             if "Subvolume ID:" in line:
                 return line.split(":")[-1].strip()
         raise AssertionError(f"no Subvolume ID in btrfs subvolume show output:\n{output}")
+
+    def start_and_get_log(unit="minecraft-world-snapshot.service", expect_fail=False):
+        # Scoped to just this invocation's lines rather than grepping the
+        # whole unit history, so (unlike the journal-scraping subvolume_id()
+        # used to do) it isn't sensitive to earlier subtests' log lines still
+        # being around. A line count rather than --since timestamp: this
+        # test runs fast enough that consecutive invocations can land in the
+        # same wall-clock second, which --since's 1-second resolution can't
+        # tell apart.
+        before = int(enabled.succeed(f"journalctl -u {unit} --no-pager -q | wc -l").strip())
+        if expect_fail:
+            enabled.fail(f"systemctl start {unit}")
+        else:
+            enabled.succeed(f"systemctl start {unit}")
+        return enabled.succeed(f"journalctl -u {unit} --no-pager -q | tail -n +{before + 1}")
 
     start_all()
     enabled.wait_for_unit("multi-user.target")
@@ -248,6 +279,15 @@ nixpkgs.testers.nixosTest {
         # should still be exactly as read-only as it started.
         enabled.fail("touch /snapshots/should-fail")
 
+        # world.bak itself (not the world subdirectories bind-mounted into
+        # it, whose ownership/mode come from whatever's mounted there)
+        # should be minecraft:minecraft 0700, not root:root 0755 from a bare
+        # mkdir -p.
+        owner = enabled.succeed(
+            "stat -c '%U:%G %a' /var/lib/minecraft/world.bak"
+        ).strip()
+        assert owner == "minecraft:minecraft 700", f"expected minecraft:minecraft 700, got {owner}"
+
         enabled.succeed("mountpoint -q /var/lib/minecraft/world.bak/world")
         enabled.succeed("mountpoint -q /var/lib/minecraft/world.bak/world_nether")
 
@@ -274,7 +314,12 @@ nixpkgs.testers.nixosTest {
         first_id = subvolume_id()
 
     with subtest("enabled: a same-day re-run reuses the snapshot instead of recreating it"):
-        enabled.succeed("systemctl start minecraft-world-snapshot.service")
+        log = start_and_get_log()
+        # The step-by-step logging should make clear which side of the
+        # refresh-or-not branch actually ran, not just what the end result
+        # was.
+        assert "still-fresh branch" in log, f"expected the still-fresh branch to be logged:\n{log}"
+        assert "rebuild branch" not in log, f"did not expect the rebuild branch to be logged:\n{log}"
 
         second_created = enabled.succeed(f"cat {marker}").strip()
         assert second_created == first_created, "expected the marker to be unchanged on a same-day re-run"
@@ -283,7 +328,9 @@ nixpkgs.testers.nixosTest {
     with subtest("enabled: a stale marker triggers a fresh snapshot"):
         # Well before any possible "today" threshold.
         enabled.succeed(f"echo 0 > {marker}")
-        enabled.succeed("systemctl start minecraft-world-snapshot.service")
+        log = start_and_get_log()
+        assert "rebuild branch" in log, f"expected the rebuild branch to be logged:\n{log}"
+        assert "still-fresh branch" not in log, f"did not expect the still-fresh branch to be logged:\n{log}"
 
         third_created = enabled.succeed(f"cat {marker}").strip()
         assert third_created != "0", "expected the marker to be refreshed once stale"
@@ -370,7 +417,14 @@ nixpkgs.testers.nixosTest {
         enabled.succeed(f"echo 0 > {marker}")
         pre_fail_id = subvolume_id()
 
-        enabled.fail("systemctl start minecraft-world-snapshot.service")
+        log = start_and_get_log(expect_fail=True)
+
+        # onFailure is set on the unit, so a failure like this one should
+        # always trigger an attempt to alert -- systemd logs this even
+        # though alert-on-failure@ itself isn't defined here (this test
+        # doesn't import thoughtfull.monitoring), since that's a harmless
+        # no-op rather than a hard failure (verified separately).
+        assert "OnFailure=" in log, f"expected an OnFailure= trigger to be logged:\n{log}"
 
         # world.bak was never unmounted, so it's still serving the previous,
         # still-valid snapshot -- stale, but not empty.
@@ -396,5 +450,41 @@ nixpkgs.testers.nixosTest {
         assert subvolume_id() != pre_fail_id
         exported = enabled.succeed("cat /var/lib/minecraft/world.bak/world/region/r.0.0.mca")
         assert "region-data" in exported
+
+    with subtest("enabled: a failed refresh doesn't stop the restic backup"):
+        # Reuses the same fault-injection technique as above to make
+        # minecraft-world-snapshot fail deterministically, then starts
+        # restic-backups-default directly (which pulls in
+        # minecraft-world-snapshot per wants/after as part of that job) to
+        # prove -- at the systemd level, not just by inspecting the unit
+        # definition -- that Wants/After really does mean a failure here
+        # doesn't block the backup.
+        enabled.succeed("mkdir -p /run/inject-fault-2")
+        enabled.succeed("mount -o subvol=/snapshots /dev/mapper/encrypted /run/inject-fault-2")
+        enabled.succeed("touch /run/inject-fault-2/.minecraft-world-export-snapshot.new")
+        enabled.succeed("umount /run/inject-fault-2")
+        enabled.succeed(f"echo 0 > {marker}")
+
+        enabled.succeed("systemctl start restic-backups-default.service")
+
+        assert (
+            enabled.succeed(
+                "systemctl show -p ActiveState --value minecraft-world-snapshot.service"
+            ).strip()
+            == "failed"
+        ), "expected the dependency to have genuinely failed, not been skipped"
+        assert (
+            enabled.succeed(
+                "systemctl show -p Result --value restic-backups-default.service"
+            ).strip()
+            == "success"
+        ), "expected restic-backups-default to succeed despite its wants/after dependency failing"
+
+        # Clean up the fault so nothing here leaks into a hypothetical later
+        # subtest.
+        enabled.succeed("mkdir -p /run/clear-fault-2")
+        enabled.succeed("mount -o subvol=/snapshots /dev/mapper/encrypted /run/clear-fault-2")
+        enabled.succeed("rm /run/clear-fault-2/.minecraft-world-export-snapshot.new")
+        enabled.succeed("umount /run/clear-fault-2")
   '';
 }

@@ -23,6 +23,19 @@ rw_mount="/run/minecraft-world-snapshot-rw"
 # minecraft-server.nix).
 snapshot_data_dir="$snapshot_dir$data_dir"
 
+echo "world-snapshot: starting (mount_point=$mount_point snapshot_dir=$snapshot_dir)"
+
+# world.bak itself (as opposed to the world subdirectories bind-mounted
+# into it below, whose ownership and mode come from whatever ends up
+# mounted there) is just an ordinary directory: mkdir -p would otherwise
+# leave it root:root 0755 the first time something creates it, rather than
+# matching the rest of dataDir. Cheap and idempotent, so just do it every
+# run regardless of whether a refresh happens.
+mkdir -p "$mount_point"
+chown minecraft:minecraft "$mount_point"
+chmod 0700 "$mount_point"
+echo "world-snapshot: ensured $mount_point is minecraft:minecraft 0700"
+
 # btrfs snapshots are effectively instantaneous and don't disrupt the
 # running server, so there's no need to time this for a quiet hour -- just
 # refresh once the existing snapshot is more than max_age_seconds old, or
@@ -35,18 +48,24 @@ refresh=true
 if [ -f "$marker" ] && [ -d "$snapshot_dir" ]; then
   created=$(cat "$marker")
   age=$((now - created))
+  echo "world-snapshot: marker present (created=$created age=${age}s max_age_seconds=$max_age_seconds), snapshot_dir exists"
   if [ "$age" -lt "$max_age_seconds" ]; then
     refresh=false
   fi
+else
+  echo "world-snapshot: marker missing or snapshot_dir missing -- refresh required regardless of age"
 fi
 
 if "$refresh"; then
+  echo "world-snapshot: rebuild branch -- snapshot is stale or missing, rebuilding"
+
   # The standard snapshot_dir mount is read-only. Refresh through a private,
   # separate read-write mount of the same underlying subvolume instead of
   # remounting the standard one rw and back -- see minecraft-server.nix for
   # why remounting isn't safe here.
   mkdir -p "$rw_mount"
   mount -o "subvol=/$snapshots_subvol_name" "$snapshots_device" "$rw_mount"
+  echo "world-snapshot: mounted $snapshots_device (subvol=/$snapshots_subvol_name) at $rw_mount read-write"
   cleanup_rw() {
     umount "$rw_mount" 2>/dev/null || true
   }
@@ -60,8 +79,12 @@ if "$refresh"; then
   # empty. A leftover new_snapshot_name from an interrupted previous attempt
   # is cleared before trying again.
   if [ -e "$rw_mount/$new_snapshot_name" ]; then
+    echo "world-snapshot: leftover $new_snapshot_name found from an interrupted attempt -- deleting it"
     btrfs subvolume delete "$rw_mount/$new_snapshot_name"
+  else
+    echo "world-snapshot: no leftover $new_snapshot_name -- nothing to clear"
   fi
+  echo "world-snapshot: creating $rw_mount/$new_snapshot_name from $persistent_dir"
   btrfs subvolume snapshot -r "$persistent_dir" "$rw_mount/$new_snapshot_name"
 
   new_snapshot_data_dir="$rw_mount/$new_snapshot_name$data_dir"
@@ -69,6 +92,7 @@ if "$refresh"; then
     echo "error: $new_snapshot_data_dir not found or not readable in the new snapshot" >&2
     exit 1
   fi
+  echo "world-snapshot: new snapshot verified good at $new_snapshot_data_dir"
 
   # Only now, with the replacement verified good, swap world.bak over to it.
   # A bind mount keeps working even after its source is renamed or its
@@ -84,9 +108,15 @@ if "$refresh"; then
     if [ -d "$new_snapshot_data_dir/$world" ]; then
       mkdir -p "$mount_point/$world"
       if mountpoint -q "$mount_point/$world" 2>/dev/null; then
+        echo "world-snapshot: $mount_point/$world already mounted -- unmounting before swap"
         umount "$mount_point/$world"
+      else
+        echo "world-snapshot: $mount_point/$world not currently mounted"
       fi
       mount --bind "$new_snapshot_data_dir/$world" "$mount_point/$world"
+      echo "world-snapshot: mounted $mount_point/$world from the new snapshot"
+    else
+      echo "world-snapshot: $world not present in the new snapshot -- leaving $mount_point/$world alone"
     fi
   done
 
@@ -95,14 +125,22 @@ if "$refresh"; then
   # elsewhere, which is exactly why this comes after the swap above, not
   # before) and put the new one in its place.
   if [ -e "$rw_mount/$snapshot_name" ]; then
+    echo "world-snapshot: deleting old snapshot $rw_mount/$snapshot_name"
     btrfs subvolume delete "$rw_mount/$snapshot_name"
+  else
+    echo "world-snapshot: no old snapshot to delete (first run)"
   fi
   mv "$rw_mount/$new_snapshot_name" "$rw_mount/$snapshot_name"
+  echo "world-snapshot: renamed $new_snapshot_name to $snapshot_name"
 
   trap - EXIT
   umount "$rw_mount"
+  echo "world-snapshot: unmounted $rw_mount"
 
   date +%s >"$marker"
+  echo "world-snapshot: marker updated"
+else
+  echo "world-snapshot: still-fresh branch -- snapshot is still fresh, no rebuild needed"
 fi
 
 # dataDir itself always exists (created at user-creation time, well before
@@ -118,13 +156,21 @@ fi
 # recovers from a reboot: the snapshot itself is real on-disk data and
 # survives one, only the bind mounts don't, so as long as it's still fresh
 # there's no need to create a new one, just remount the existing one. A
-# no-op on the path just above, which already leaves every world mounted.
+# no-op on the refresh branch above, which already leaves every world
+# mounted.
 # shellcheck disable=SC2086 # word splitting is intentional: worlds is a space-separated list
 for world in $worlds; do
   if [ -d "$snapshot_data_dir/$world" ]; then
     mkdir -p "$mount_point/$world"
     if ! mountpoint -q "$mount_point/$world" 2>/dev/null; then
+      echo "world-snapshot: $mount_point/$world not mounted -- (re-)establishing"
       mount --bind "$snapshot_data_dir/$world" "$mount_point/$world"
+    else
+      echo "world-snapshot: $mount_point/$world already mounted -- nothing to do"
     fi
+  else
+    echo "world-snapshot: $world not present in the snapshot -- leaving $mount_point/$world alone"
   fi
 done
+
+echo "world-snapshot: done"
