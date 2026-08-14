@@ -126,6 +126,14 @@ in
         worldDirs = toString worldDirs;
       };
       serviceConfig.Type = "oneshot";
+      # A harmless no-op if thoughtfull.monitoring isn't enabled on this
+      # host (systemd just logs that the target unit doesn't exist and
+      # moves on) -- otherwise sends an ntfy alert. Set here rather than via
+      # thoughtfull.monitoring.services so it stays scoped to hosts that
+      # actually run worldExport, instead of declaring a partial
+      # minecraft-world-snapshot unit (onFailure with no script) on every
+      # other host too.
+      onFailure = [ "alert-on-failure@%n.service" ];
     };
     # Added on the consuming side (rather than worldExport reaching in with
     # wantedBy/before) so the dependency direction is unambiguous: restic
