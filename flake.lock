@@ -427,11 +427,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1785424493,
-        "narHash": "sha256-XGh5ylvjZGn5HHm2l2NDSQFHKIzT8pZQlg03QzWYkjA=",
+        "lastModified": 1786699783,
+        "narHash": "sha256-knBePh5Ab8acYKJHxvicTtXnHLUQs/4yiMIE6kWfNkk=",
         "owner": "technosophist",
         "repo": "kryptonix",
-        "rev": "782408e87d4fd03f8bb90d0ae26b2ef473166427",
+        "rev": "2cd8028e0d408fef3602a72f8eb167d1bcfa6cbe",
         "type": "github"
       },
       "original": {
@@ -711,11 +711,11 @@
     },
     "nixpkgs_7": {
       "locked": {
-        "lastModified": 1785386831,
-        "narHash": "sha256-sPS3CaXH8RAT3FZRuy4VcV47iuYIWMMfa0GbyJKC3o4=",
+        "lastModified": 1786535285,
+        "narHash": "sha256-rG5HKMAgAhMgydvKGtco6rqTxRq4EDZQCx9USLvVqYw=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "21ea275a7c46aef9d4d6ddc962e6d562e9d94183",
+        "rev": "9f78f44a87948854445dae0b6bf82b2e87e4efb5",
         "type": "github"
       },
       "original": {
