@@ -13,6 +13,7 @@ let
     mkIf
     optionals
     ;
+  inherit (pkgs) sox;
 in
 {
   config = mkIf dev.enable {
@@ -22,7 +23,10 @@ in
         devenv
         gh
       ]
-      ++ (optionals claude.enable [ llm-agents.claude-code ])
+      ++ (optionals claude.enable [
+        llm-agents.claude-code
+        sox
+      ])
       ++ (optionals opencode.enable [ llm-agents.opencode ]);
     programs.java.package = mkDefault pkgs.javaPackages.compiler.temurin-bin.jdk-25;
     thoughtfull = {
