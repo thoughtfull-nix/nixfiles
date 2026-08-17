@@ -13,7 +13,7 @@ let
     mkOption
     types
     ;
-  inherit (pkgs) writeText;
+  inherit (pkgs) systemd writeText;
   configFile = writeText "config" swayidle.extraConfig;
 in
 {
@@ -24,7 +24,13 @@ in
       bindsTo = [ "sway-session.target" ];
       description = mkDefault "Idle monitoring for sway";
       enable = mkDefault swayidle.enable;
-      path = [ sway.package ];
+      # systemd is for loginctl -- extraConfig's lock triggers run `loginctl
+      # lock-session` (see sway/idle.nix) rather than invoking gtklock
+      # directly, so they arm nixosModules/gtklock.nix's lock.target wiring.
+      path = [
+        sway.package
+        systemd
+      ];
       serviceConfig.ExecStart = mkDefault "${swayidle.package}/bin/swayidle -w -C ${configFile}";
       wantedBy = [ "sway-session.target" ];
     };

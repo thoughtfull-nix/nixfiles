@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.programs) gtklock sway;
+  inherit (config.programs) sway;
 in
 {
   config.programs.swayidle = {
@@ -9,9 +9,14 @@ in
       # This will lock your screen after 600 seconds (10 minutes) of inactivity, then turn off
       # your displays after another 600 seconds, and turn your screens back on when resumed. It
       # will also lock your screen before your computer goes to sleep.
-      timeout 600 '${gtklock.package}/bin/gtklock &'
+      #
+      # Locking goes through `loginctl lock-session` rather than invoking gtklock directly, same
+      # as the waybar lock button and power-menu's Lock entry (see nixosModules/gtklock.nix) --
+      # that's what arms nixosModules/laptop.nix's battery-lock-suspend timer, so an idle-timeout
+      # lock on battery still auto-suspends even though nothing closed the lid.
+      timeout 600 'loginctl lock-session'
       timeout 1200 'swaymsg "output * power off"' resume 'swaymsg "output * power on"'
-      before-sleep '${gtklock.package}/bin/gtklock'
+      before-sleep 'loginctl lock-session'
     '';
   };
 }
