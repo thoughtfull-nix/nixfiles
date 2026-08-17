@@ -5,7 +5,7 @@
   ...
 }:
 let
-  inherit (config.programs) gtklock sway;
+  inherit (config.programs) sway;
   inherit (config.thoughtfull) user;
   inherit (lib) mkDefault mkIf;
   inherit (pkgs)
@@ -16,17 +16,18 @@ let
     networkmanager
     networkmanagerapplet
     pulseaudio
+    systemd
     waybar
     wdisplays
     ;
   inherit (pkgs.thoughtfull)
+    power-menu
     theme-toggle
     waybar-audio
     waybar-displays
     waybar-network
     waybar-yubikey
     ;
-  power-menu = pkgs.thoughtfull.power-menu.override { gtklock = gtklock.package; };
   cfg = config.programs.waybar;
 in
 {
@@ -93,11 +94,11 @@ in
           bash
           curl
           fuzzel
-          gtklock.package
           networkmanager
           networkmanagerapplet
           power-menu
           pulseaudio
+          systemd
           theme-toggle
           waybar-audio
           waybar-displays

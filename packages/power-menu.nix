@@ -8,7 +8,6 @@ makeOverridable
     {
       bash,
       fuzzel,
-      gtklock,
       sway,
       systemd,
     }:
@@ -17,7 +16,7 @@ makeOverridable
       replacements = {
         bash = "${bash}/bin/bash";
         fuzzel = "${fuzzel}/bin/fuzzel";
-        gtklock = "${gtklock}/bin/gtklock";
+        loginctl = "${systemd}/bin/loginctl";
         swaymsg = "${sway}/bin/swaymsg";
         systemctl = "${systemd}/bin/systemctl";
       };
@@ -28,7 +27,6 @@ makeOverridable
     inherit (pkgs)
       bash
       fuzzel
-      gtklock
       sway
       systemd
       ;

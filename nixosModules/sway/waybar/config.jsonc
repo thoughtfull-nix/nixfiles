@@ -90,7 +90,7 @@
   "custom/lock": {
     "format": "<span font=\"20px\">󰌾</span>",
     "tooltip-format": "Lock screen",
-    "on-click": "gtklock"
+    "on-click": "loginctl lock-session"
   },
 
   "custom/power": {

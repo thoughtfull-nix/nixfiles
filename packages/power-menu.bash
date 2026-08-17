@@ -9,7 +9,7 @@ fi
 selection=$(echo -e "$options" | @fuzzel@ --dmenu)
 
 case "$selection" in
-  Lock) @gtklock@ ;;
+  Lock) @loginctl@ lock-session ;;
   Logout) @swaymsg@ exit ;;
   Sleep) @systemctl@ suspend ;;
   Reboot) @systemctl@ reboot ;;

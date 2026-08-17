@@ -71,6 +71,7 @@ in
     ./installer.nix
     ./java.nix
     ./javascript.nix
+    ./laptop.nix
     ./less.nix
     ./mako.nix
     ./minecraft-server.nix

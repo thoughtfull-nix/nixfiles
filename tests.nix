@@ -23,8 +23,10 @@ forEachSystem (
     git = callTest ./tests/git.nix;
     github-token = callTest ./tests/github-token.nix;
     graphical = callTest ./tests/graphical.nix;
+    gtklock = callTest ./tests/gtklock.nix;
     impermanence = callTest ./tests/impermanence.nix;
     kanshi = callTest ./tests/kanshi.nix;
+    laptop = callTest ./tests/laptop.nix;
     minecraft-server = callTest ./tests/minecraft-server.nix;
     monitoring = callTest ./tests/monitoring.nix;
     nixfiles = callTest ./tests/nixfiles.nix;
