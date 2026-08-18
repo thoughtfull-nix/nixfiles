@@ -5,7 +5,10 @@ set -euo pipefail
 # while the lid is already closed starts the countdown (and plugging back in
 # cancels it) -- the lid bindswitch alone can't see power changes. udevadm emits
 # one line per power_supply uevent.
-@lid-suspend@ arm
+#
+# `arm` is best-effort (`|| true`): a transient failure must not kill this
+# long-running watcher, or Restart=on-failure would crash-loop it every second.
+@lid-suspend@ arm || true
 @udevadm@ monitor --udev --subsystem-match=power_supply | while read -r _; do
-  @lid-suspend@ arm
+  @lid-suspend@ arm || true
 done
