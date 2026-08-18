@@ -65,6 +65,7 @@
             };
             user.directories = [ ".aws" ];
           };
+          laptop.enable = true;
           programs = {
             git = {
               signing.enable = true;

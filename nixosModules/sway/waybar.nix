@@ -5,7 +5,7 @@
   ...
 }:
 let
-  inherit (config.programs) gtklock sway;
+  inherit (config.programs) sway;
   inherit (config.thoughtfull) user;
   inherit (lib) mkDefault mkIf;
   inherit (pkgs)
@@ -26,7 +26,7 @@ let
     waybar-network
     waybar-yubikey
     ;
-  power-menu = pkgs.thoughtfull.power-menu.override { gtklock = gtklock.package; };
+  power-menu = pkgs.thoughtfull.power-menu;
   cfg = config.programs.waybar;
 in
 {
@@ -93,7 +93,6 @@ in
           bash
           curl
           fuzzel
-          gtklock.package
           networkmanager
           networkmanagerapplet
           power-menu
