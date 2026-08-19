@@ -93,6 +93,16 @@ in
         files = map stripFile (unique impermanence.user.files);
       };
     };
+    # Persist /var/cache across boots so a reboot doesn't leave every cache cold, but keep it out
+    # of backups: its contents are disposable and cheaply regenerated. Contributed as a config
+    # definition (not the option's `default`) so it merges with, rather than being dropped by,
+    # host and module directory definitions.
+    thoughtfull.impermanence.directories = [
+      {
+        directory = "/var/cache";
+        backup = false;
+      }
+    ];
     fileSystems."/${impermanence.persistent.name}".neededForBoot = mkDefault true;
     services.btrfs.autoScrub.enable = mkDefault true;
     services.restic.thoughtfull = {

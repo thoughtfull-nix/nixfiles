@@ -91,6 +91,20 @@ let
       ok = lib.elem "${persistentPrefix}/var/lib/example-cache" cfg.services.restic.thoughtfull.exclude;
     }
     {
+      # /var/cache is a default (backup = false) contributed by the module's config block, so it
+      # must survive even though the fixture also defines thoughtfull.impermanence.directories --
+      # an option `default` would be dropped here, a merged config definition is not. Persisted
+      # across boots keeps the cache warm; excluded from restic keeps disposable data out of backups.
+      name = "/var/cache is persisted across boots by default";
+      ok = builtins.any (
+        d: (d.directory or null) == "/var/cache"
+      ) cfg.environment.persistence."/persistent".directories;
+    }
+    {
+      name = "/var/cache is excluded from restic backups by default";
+      ok = lib.elem "${persistentPrefix}/var/cache" cfg.services.restic.thoughtfull.exclude;
+    }
+    {
       name = "a system directory's backupExclude sub-path is excluded";
       ok = lib.elem "${persistentPrefix}/var/lib/another-cache/tmp" cfg.services.restic.thoughtfull.exclude;
     }
