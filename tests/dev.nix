@@ -13,6 +13,19 @@ let
     ".local/state/opencode"
   ];
 
+  # The Maven local repository is persisted across boots so downloaded
+  # artifacts survive a reboot, but excluded from restic (backup = false):
+  # it is a disposable, re-downloadable cache.
+  mavenRepository = {
+    directory = ".m2/repository";
+    backup = false;
+  };
+  hasMavenRepository =
+    config:
+    builtins.any (
+      d: (d.directory or null) == mavenRepository.directory && (d.backup or true) == false
+    ) config.thoughtfull.impermanence.user.directories;
+
   # Stub the thoughtfull sub-module options that dev.nix sets via mkDefault
   # (clojure and rust; impermanence.user is covered by stubs.impermanence).
   thoughtfullSubModuleStub =
@@ -46,10 +59,37 @@ extendedNixpkgs.testers.nixosTest {
         # zsh is this repo's default shell; enable it so the zsh auto-activation
         # hook is exercised.
         programs.zsh.enable = true;
-        assertions = map (directory: {
-          assertion = builtins.elem directory config.thoughtfull.impermanence.user.directories;
-          message = "expected opencode persistence directory ${directory}";
-        }) opencodeDirectories;
+        assertions =
+          map (directory: {
+            assertion = builtins.elem directory config.thoughtfull.impermanence.user.directories;
+            message = "expected opencode persistence directory ${directory}";
+          }) opencodeDirectories
+          ++ [
+            {
+              assertion = hasMavenRepository config;
+              message = "expected Maven repository persisted with backup = false by default";
+            }
+          ];
+      };
+
+    javaDisabled =
+      { config, ... }:
+      {
+        imports = [
+          ../nixosModules/dev.nix
+          thoughtfullSubModuleStub
+          stubs.impermanence
+        ];
+        thoughtfull.dev = {
+          enable = true;
+          java.enable = false;
+        };
+        assertions = [
+          {
+            assertion = !(hasMavenRepository config);
+            message = "unexpected Maven repository persistence when java disabled";
+          }
+        ];
       };
 
     opencodeDisabled =
@@ -86,6 +126,7 @@ extendedNixpkgs.testers.nixosTest {
     start_all()
     enabled.wait_for_unit("multi-user.target")
     opencodeDisabled.wait_for_unit("multi-user.target")
+    javaDisabled.wait_for_unit("multi-user.target")
     disabled.wait_for_unit("multi-user.target")
 
     with subtest("enabled: devenv is in PATH"):

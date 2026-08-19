@@ -28,7 +28,6 @@ in
         sox
       ])
       ++ (optionals opencode.enable [ llm-agents.opencode ]);
-    programs.java.package = mkDefault pkgs.javaPackages.compiler.temurin-bin.jdk-25;
     thoughtfull = {
       clojure.enable = mkDefault true;
       rust.enable = mkDefault true;
@@ -53,6 +52,7 @@ in
       eval "$(devenv hook zsh)"
     '';
   };
+  imports = [ ./dev/java.nix ];
   options.thoughtfull.dev = {
     agents = {
       claude.enable = (mkEnableOption "Claude code agent") // {
