@@ -113,6 +113,9 @@ in
     // optionalAttrs prune.enable {
       restic-backups-prune.serviceConfig.SuccessExitStatus = mkDefault [ 130 ];
     };
+    # This daily prune is the only thing garbage-collecting the shared repo, so
+    # a silent failure would quietly reintroduce unbounded growth: alert on it.
+    thoughtfull.monitoring.services = optional prune.enable "restic-backups-prune";
   };
   options.services.restic.thoughtfull = {
     enable = mkEnableOption "restic";

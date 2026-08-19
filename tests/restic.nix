@@ -1,4 +1,4 @@
-{ nixpkgs, ... }:
+{ nixpkgs, self, ... }:
 let
   stubs = import ./stubs.nix;
   resticNode =
@@ -7,7 +7,12 @@ let
     {
       imports = [
         ../nixosModules/restic.nix
+        # Monitoring must be present so the restic module can register the prune
+        # job in thoughtfull.monitoring.services; the overlay makes
+        # pkgs.thoughtfull.writeFileScriptBin (used by monitoring) resolve.
+        ../nixosModules/monitoring.nix
         stubs.ageSecrets
+        { nixpkgs.overlays = [ self.overlays.thoughtfull ]; }
       ];
       services.restic.thoughtfull = {
         enable = true;
@@ -19,6 +24,12 @@ let
         repositoryFile = pkgs.writeText "fake-restic-repository" "/tmp/restic-repo";
       }
       // extra;
+      # Enable monitoring so the onFailure wiring the restic module requests is
+      # actually applied and observable at runtime.
+      thoughtfull.monitoring = {
+        enable = true;
+        ntfyTopic = "test";
+      };
     };
 in
 nixpkgs.testers.nixosTest {
@@ -87,6 +98,19 @@ nixpkgs.testers.nixosTest {
         )
         assert "restic backup" not in unit, (
             "expected the prune job to be prune-only (no backup command)"
+        )
+
+    with subtest(
+        "the prune job is wired into failure monitoring, since it is now the "
+        "only thing pruning the shared repo and a silent failure would quietly "
+        "reintroduce unbounded growth"
+    ):
+        on_failure = prunehost.succeed(
+            "systemctl show restic-backups-prune.service --property=OnFailure --value"
+        )
+        print(f"OnFailure={on_failure}")
+        assert "alert-on-failure@restic-backups-prune.service" in on_failure, (
+            "expected restic-backups-prune to trigger the failure alert"
         )
 
     with subtest("the prune job runs daily, not hourly"):
