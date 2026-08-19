@@ -18,7 +18,12 @@
             jvmOpts = "-Xmx3072M -Xms3072M";
           };
           openssh.enable = true;
-          restic.thoughtfull.enable = true;
+          restic.thoughtfull = {
+            enable = true;
+            # tislit is the always-on host, so it owns the daily repository-wide
+            # prune; every other host only backs up hourly.
+            prune.enable = true;
+          };
           syncthing = {
             enable = true;
             settings.folders = {
