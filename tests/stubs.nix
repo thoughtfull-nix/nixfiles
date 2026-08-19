@@ -101,7 +101,9 @@
             default = [ ];
           };
           directories = lib.mkOption {
-            type = lib.types.listOf lib.types.str;
+            # anything (not str) because directory entries may be attrsets
+            # (e.g. { directory = ".m2/repository"; backup = false; }).
+            type = lib.types.listOf lib.types.anything;
             default = [ ];
           };
         };
