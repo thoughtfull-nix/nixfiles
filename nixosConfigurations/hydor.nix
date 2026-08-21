@@ -11,7 +11,10 @@
         ];
         networking.hostName = "hydor";
         services = {
-          restic.thoughtfull.enable = false;
+          restic = {
+            backups.default.extraBackupArgs = [ "-vv" ];
+            thoughtfull.enable = true;
+          };
           syncthing = {
             settings.folders = {
               archive.enable = true;
