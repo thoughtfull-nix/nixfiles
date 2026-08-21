@@ -73,6 +73,7 @@ in
     ./javascript.nix
     ./laptop.nix
     ./less.nix
+    ./libreoffice.nix
     ./mako.nix
     ./minecraft-server.nix
     ./minecraft.nix
