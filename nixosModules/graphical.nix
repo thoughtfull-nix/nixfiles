@@ -17,6 +17,7 @@ in
     hardware.bluetooth.enable = mkDefault true;
     networking.networkmanager.enable = mkDefault true;
     programs = {
+      evince.enable = mkDefault true;
       firefox.enable = mkDefault true;
       sway.enable = mkDefault true;
     };
