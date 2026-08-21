@@ -42,6 +42,7 @@
             scanner.enable = true;
             updater.enable = true;
           };
+          restic.thoughtfull.enable = false;
           syncthing = {
             settings.folders = {
               obsidian-work.enable = true;

@@ -10,15 +10,18 @@
           ./hydor/hardware-configuration.nix
         ];
         networking.hostName = "hydor";
-        services.syncthing = {
-          settings.folders = {
-            archive.enable = true;
-            obsidian.enable = true;
-            obsidian-work.enable = true;
-            org.enable = true;
-            org-work.enable = true;
+        services = {
+          restic.thoughtfull.enable = false;
+          syncthing = {
+            settings.folders = {
+              archive.enable = true;
+              obsidian.enable = true;
+              obsidian-work.enable = true;
+              org.enable = true;
+              org-work.enable = true;
+            };
+            thoughtfull.passwordFile = ./hydor/secrets/syncthing-passphrase.age;
           };
-          thoughtfull.passwordFile = ./hydor/secrets/syncthing-passphrase.age;
         };
         system.stateVersion = "25.11";
         thoughtfull = {
