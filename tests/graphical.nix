@@ -37,6 +37,7 @@ let
           };
           programs = {
             dictation.enable = lib.mkEnableOption "dictation (stub)";
+            libreoffice.enable = lib.mkEnableOption "libreoffice (stub)";
             obsidian.enable = lib.mkEnableOption "obsidian (stub)";
           };
           user.extraGroups = lib.mkOption {

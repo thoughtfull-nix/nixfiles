@@ -31,6 +31,7 @@ in
       user.extraGroups = [ "networkmanager" ];
       programs = {
         dictation.enable = mkDefault true;
+        libreoffice.enable = mkDefault true;
         obsidian.enable = mkDefault true;
       };
     };

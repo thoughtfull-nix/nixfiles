@@ -17,7 +17,6 @@
         environment = {
           etc."sway/config.d/workspaces.conf".source = ./aegle/sway/workspaces.conf;
           systemPackages = with pkgs; [
-            libreoffice
             maven
             ngrok
             texlive.combined.scheme-full
