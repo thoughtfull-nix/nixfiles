@@ -1,6 +1,7 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 let
@@ -10,9 +11,20 @@ let
     mkEnableOption
     mkIf
     ;
+  inherit (pkgs)
+    corefonts
+    nerd-fonts
+    ;
 in
 {
   config = mkIf graphical.enable {
+    fonts = {
+      enableDefaultPackages = true;
+      packages = [
+        corefonts
+        nerd-fonts.fira-code
+      ];
+    };
     gtk.iconCache.enable = mkDefault true;
     hardware.bluetooth.enable = mkDefault true;
     networking.networkmanager.enable = mkDefault true;

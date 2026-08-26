@@ -5,18 +5,19 @@
   ...
 }:
 let
-  inherit (config.thoughtfull.programs) libreoffice;
   inherit (lib) mkEnableOption mkIf;
+  inherit (pkgs) libreoffice hunspellDicts hyphenDicts;
+  cfg = config.thoughtfull.programs.libreoffice;
 in
 {
-  config = mkIf libreoffice.enable {
+  config = mkIf cfg.enable {
     # LibreOffice ships no dictionaries; its wrapper auto-adds any
     # share/hunspell and share/hyphen from NIX_PROFILES to DICPATH, so the
     # dictionary packages just need to be on the system profile.
     environment.systemPackages = [
-      pkgs.libreoffice
-      pkgs.hunspellDicts.en_US
-      pkgs.hyphenDicts.en_US
+      libreoffice
+      hunspellDicts.en_US
+      hyphenDicts.en_US
     ];
     thoughtfull.impermanence.user.directories = [ ".config/libreoffice" ];
   };
