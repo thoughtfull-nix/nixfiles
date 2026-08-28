@@ -41,6 +41,7 @@ in
         ".local/share/devenv"
       ]
       ++ (optionals claude.enable [ ".claude" ])
+      ++ (optionals codex.enable [ ".codex" ])
       ++ (optionals opencode.enable [
         ".cache/opencode"
         ".config/opencode"
