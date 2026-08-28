@@ -55,6 +55,7 @@ jobs:
         uses: ./.github/actions/configure-nix-daemon-aws-creds
         with:
           role-to-assume: arn:aws:iam::481411455398:role/NixCacheWriter
+          role-duration-seconds: 7200
       - name: Configure Nix daemon AWS credentials (arm)
         # The arm runner is slower, so give its assumed role's credentials
         # longer to live than the default before they expire mid-build.
