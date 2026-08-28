@@ -6,7 +6,7 @@
 }:
 let
   inherit (config.thoughtfull) dev;
-  inherit (dev.agents) claude opencode;
+  inherit (dev.agents) claude codex opencode;
   inherit (lib)
     mkDefault
     mkEnableOption
@@ -26,6 +26,9 @@ in
       ++ (optionals claude.enable [
         llm-agents.claude-code
         sox
+      ])
+      ++ (optionals codex.enable [
+        llm-agents.codex
       ])
       ++ (optionals opencode.enable [ llm-agents.opencode ]);
     thoughtfull = {
@@ -56,6 +59,9 @@ in
   options.thoughtfull.dev = {
     agents = {
       claude.enable = (mkEnableOption "Claude code agent") // {
+        default = true;
+      };
+      codex.enable = (mkEnableOption "Codex code agent") // {
         default = true;
       };
       opencode.enable = (mkEnableOption "OpenCode agent") // {
