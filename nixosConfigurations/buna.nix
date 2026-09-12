@@ -3,14 +3,17 @@
   modules = [
     "${inputs.nixpkgs}/nixos/modules/virtualisation/amazon-image.nix"
     (
-      { ... }:
+      { lib, ... }:
       {
         ec2.efi = true;
         networking.hostName = "buna";
         nixpkgs.hostPlatform = "aarch64-linux";
         system.stateVersion = "25.11";
-        users.users.root.openssh.authorizedKeys.keyFiles = [
-          ./buna/tislit-tunnel.pub
+        # restrict,port-forwarding: this key exists only for tislit's reverse
+        # tunnel, so deny everything (pty/agent/x11/command) except forwarding --
+        # a leaked key then can't get a root shell on the internet-facing bastion.
+        users.users.root.openssh.authorizedKeys.keys = [
+          "restrict,port-forwarding ${lib.fileContents ./buna/tislit-tunnel.pub}"
         ];
         thoughtfull = {
           binaryCache.awsCredentialsFile = ./buna/secrets/nix-cache-credentials.age;

@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  pkgs,
   ...
 }:
 let
@@ -74,7 +73,7 @@ in
     # no PATH and the binary has no baked-in ssh path, so make openssh available
     # to each generated session unit.
     systemd.services = mapAttrs' (
-      name: _: nameValuePair "autossh-${name}" { path = [ pkgs.openssh ]; }
+      name: _: nameValuePair "autossh-${name}" { path = [ config.programs.ssh.package ]; }
     ) enabledTunnels;
     # The session runs as root and records the accepted peer host key in
     # /root/.ssh/known_hosts. Persist it so StrictHostKeyChecking=accept-new
