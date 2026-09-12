@@ -11,10 +11,6 @@ let
     mkOverride
     ;
   rpi4 = config.thoughtfull.rpi4.enable;
-  # EC2 instances boot from the amazon-image profile's own GRUB and have no
-  # LUKS device, so the systemd-boot + FIDO2-LUKS unlock block below must not
-  # apply (it would fight that bootloader and declare a phantom 'encrypted'
-  # LUKS device).
   ec2 = config.thoughtfull.ec2.enable;
 in
 {

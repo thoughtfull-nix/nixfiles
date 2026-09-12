@@ -5,9 +5,6 @@
     (
       { config, pkgs, ... }:
       {
-        # Private key for the reverse SSH tunnel to buna (published there via
-        # buna/tislit-tunnel.pub). Owned by root, since the autossh session runs
-        # as root.
         age.secrets.buna-tunnel-key.file = ./tislit/secrets/buna-tunnel-key.age;
         environment.systemPackages = [ pkgs.devenv ];
         hardware.raspberry-pi."4".poe-hat.enable = true;
@@ -51,8 +48,6 @@
             };
           };
           rpi4.enable = true;
-          # Publish GoToSocial (localhost:8002) on buna's loopback so buna's
-          # Caddy can reverse-proxy it to the internet.
           tunnels.buna = {
             host = "buna.thoughtfull.systems";
             identity = config.age.secrets.buna-tunnel-key.path;

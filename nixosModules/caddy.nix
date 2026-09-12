@@ -26,9 +26,6 @@ in
     services.caddy = {
       enable = true;
       email = mkIf (cfg.email != null) cfg.email;
-      # Caddy's reverse_proxy transparently upgrades WebSocket connections, so
-      # nothing extra is needed for e.g. GoToSocial's streaming API. TLS is
-      # Caddy's automatic HTTPS (ACME), so no security.acme wiring here.
       virtualHosts = mapAttrs (_vhost: p: {
         extraConfig = optionalString (p.backend != null) "reverse_proxy ${p.backend}\n" + p.extraConfig;
       }) cfg.proxies;
