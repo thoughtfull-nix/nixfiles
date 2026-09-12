@@ -33,6 +33,10 @@
             };
           };
           ec2.enable = true;
+          user = {
+            name = "technosophist";
+            extraGroups = [ "wheel" ];
+          };
         };
       }
     )
