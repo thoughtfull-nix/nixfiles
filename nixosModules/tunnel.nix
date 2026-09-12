@@ -19,12 +19,6 @@ let
     ;
   cfg = config.thoughtfull.tunnels;
   enabledTunnels = filterAttrs (_: t: t.enable) cfg;
-
-  # A reverse binding (-R) makes the far side (the bastion) listen and forward
-  # back to this host; a forward binding (-L) makes this host listen and reach a
-  # port on the far side. Either way the forwarded-to endpoint is loopback --
-  # for -R it's resolved on this (the SSH client) host, for -L it's resolved on
-  # the peer -- so the spec's middle host is localhost in both cases.
   bindingArgs =
     b:
     let
@@ -39,7 +33,6 @@ let
       flag
       spec
     ];
-
   # These are retransmitted verbatim to ssh by autossh. autossh's own
   # monitoring port is disabled (-M 0, set on the ExecStart below) in favour of
   # SSH-level keepalives (ServerAlive*), which is the modern recommended setup:
@@ -77,14 +70,12 @@ in
       monitoringPort = 0;
       extraArguments = sessionArgs t;
     }) enabledTunnels;
-
     # autossh execs `ssh` looked up on PATH, but the upstream autossh unit sets
     # no PATH and the binary has no baked-in ssh path, so make openssh available
     # to each generated session unit.
     systemd.services = mapAttrs' (
       name: _: nameValuePair "autossh-${name}" { path = [ pkgs.openssh ]; }
     ) enabledTunnels;
-
     # The session runs as root and records the accepted peer host key in
     # /root/.ssh/known_hosts. Persist it so StrictHostKeyChecking=accept-new
     # pins the key after the first connection, instead of discarding it on a
@@ -97,12 +88,8 @@ in
         mode = "0700";
       }
     ];
-
-    # A dropped tunnel silently takes the proxied service offline, so alert if
-    # the session unit fails.
     thoughtfull.monitoring.services = mapAttrsToList (name: _: "autossh-${name}") enabledTunnels;
   };
-
   options.thoughtfull.tunnels = mkOption {
     default = { };
     description = ''

@@ -23,21 +23,11 @@ in
   config = mkMerge [
     {
       services.postgresqlBackup = {
-        # Back up wherever PostgreSQL runs.
         enable = mkDefault config.services.postgresql.enable;
-        # Fallback schedule, used only on hosts where restic isn't managing the
-        # timing (see the restic block below); there the timer is disabled and
-        # the dump runs immediately before the backup instead.
         startAt = mkDefault "*-*-* *:55:00";
       };
     }
     (mkIf cfg.enable {
-      # The pg_dump output is the crash-consistent database backup, so it must
-      # be in the restic set. Persisting it via impermanence puts it under
-      # /persistent, which is exactly what restic backs up. (The live postgres
-      # data directory is persisted-but-excluded elsewhere, since file-copying a
-      # running datadir isn't consistent.) Owned by postgres to match the dir
-      # the upstream module's tmpfiles rule creates.
       thoughtfull.impermanence.directories = [
         {
           directory = cfg.location;
@@ -46,8 +36,6 @@ in
           mode = "0700";
         }
       ];
-      # A silently failing dump would leave restic backing up an ever-staler
-      # copy, so alert on the dump unit(s).
       thoughtfull.monitoring.services = dumpUnits;
     })
     (mkIf (cfg.enable && resticEnabled) {

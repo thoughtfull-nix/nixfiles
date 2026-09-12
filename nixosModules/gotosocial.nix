@@ -24,42 +24,25 @@ in
 
     services.gotosocial = {
       environmentFile = mkIf hasEnvironmentFile config.age.secrets.gotosocial-environment.path;
-      # Reachable only over the reverse tunnel; binds localhost, so no firewall
-      # opening is wanted.
       openFirewall = mkDefault false;
-      # Local PostgreSQL over the unix socket (peer auth), auto-provisioned.
-      # Plain mkDefault: the upstream option default is lower priority still, so
-      # this wins while staying host-overridable.
       setupPostgresqlDB = mkDefault true;
-      # mkOverride 900 on the settings below: upstream defaults each of these via
-      # mkDefault (priority 1000), so a plain mkDefault here would conflict; 900
-      # wins over upstream while still yielding to a host's own override.
       settings = {
         account-domain = mkOverride 900 "thoughtfull.systems";
         application-name = mkOverride 900 "Thoughtfull Systems";
         bind-address = mkOverride 900 "localhost";
         cache.memory-target = mkOverride 900 "50MiB";
         db-max-open-conns-multiplier = mkOverride 900 1;
-        # Served here, but account-domain (above) is the apex, so handles are
-        # @user@thoughtfull.systems. The bastion redirects the apex's
-        # .well-known/* discovery endpoints here to make that split work.
         host = mkOverride 900 "social.thoughtfull.systems";
         instance-languages = mkOverride 900 [ "en" ];
         landing-page-user = mkOverride 900 "technosophist";
-        # TLS is terminated by the bastion's Caddy, not GoToSocial.
         letsencrypt-enabled = mkOverride 900 false;
         port = mkOverride 900 8002;
         protocol = mkOverride 900 "https";
       };
     };
-
-    # The gotosocial DB is dumped hourly (see postgresql-backup.nix); the dump
-    # is what restic backs up.
     services.postgresqlBackup.databases = [ "gotosocial" ];
-
     thoughtfull.impermanence.directories = [
       {
-        # Media, instance keys, and other state -- persisted and backed up.
         directory = "/var/lib/gotosocial";
         user = "gotosocial";
         group = "gotosocial";
@@ -76,10 +59,8 @@ in
         backup = false;
       }
     ];
-
     thoughtfull.monitoring.services = [ "gotosocial" ];
   };
-
   options.thoughtfull.gotosocial.age.environmentFile = mkOption {
     type = types.nullOr types.path;
     default = null;
