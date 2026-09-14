@@ -50,6 +50,7 @@ in
     ./binary-cache.nix
     ./bluetooth.nix
     ./boot.nix
+    ./caddy.nix
     ./claude-desktop.nix
     ./clojure.nix
     ./dev.nix
@@ -57,6 +58,7 @@ in
     ./discord.nix
     ./docker.nix
     ./dvorak.nix
+    ./ec2.nix
     ./emacs.nix
     ./firefox.nix
     ./fonts.nix
@@ -65,6 +67,7 @@ in
     ./git.nix
     ./github-token.nix
     ./gnupg.nix
+    ./gotosocial.nix
     ./graphical.nix
     ./gtklock.nix
     ./impermanence.nix
@@ -81,6 +84,7 @@ in
     ./obsidian.nix
     ./openssh.nix
     ./pipewire.nix
+    ./postgresql-backup.nix
     ./printing.nix
     ./restic.nix
     ./rpi4.nix
@@ -92,6 +96,7 @@ in
     ./syncthing.nix
     ./system-pull.nix
     ./terminal.nix
+    ./tunnel.nix
     ./usb.nix
     ./user.nix
     ./vpn.nix

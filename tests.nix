@@ -18,10 +18,13 @@ forEachSystem (
   {
     auto-upgrade = callTest ./tests/auto-upgrade.nix;
     avahi = callTest ./tests/avahi.nix;
+    caddy = callTest ./tests/caddy.nix;
     default = callTest ./tests/default.nix;
     dev = callTest ./tests/dev.nix;
+    ec2 = callTest ./tests/ec2.nix;
     git = callTest ./tests/git.nix;
     github-token = callTest ./tests/github-token.nix;
+    gotosocial = callTest ./tests/gotosocial.nix;
     graphical = callTest ./tests/graphical.nix;
     gtklock = callTest ./tests/gtklock.nix;
     impermanence = callTest ./tests/impermanence.nix;
@@ -32,9 +35,11 @@ forEachSystem (
     monitoring = callTest ./tests/monitoring.nix;
     nixfiles = callTest ./tests/nixfiles.nix;
     openssh = callTest ./tests/openssh.nix;
+    postgresql-backup = callTest ./tests/postgresql-backup.nix;
     restic = callTest ./tests/restic.nix;
     sway-idle = callTest ./tests/sway-idle.nix;
     system-pull = callTest ./tests/system-pull.nix;
+    tunnel = callTest ./tests/tunnel.nix;
     user = callTest ./tests/user.nix;
     vpn = callTest ./tests/vpn.nix;
     waybar = callTest ./tests/waybar.nix;
