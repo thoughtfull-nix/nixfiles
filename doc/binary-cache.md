@@ -214,9 +214,17 @@ s3://thoughtfull-nix-cache/
     └── tislit/latest.json
 ```
 
-Lifecycle rule: NAR blobs under `nar/` older than 60 days expire. (Naive v1
-GC—dangling narinfos will simply make their entries cache-misses, and the
-substituter falls back to building or to upstream caches.)
+No age-based lifecycle expiration: do **not** expire objects under `nar/` by
+age. A NAR and its narinfo live at different prefixes (`nar/<hash>.nar.*` vs
+`<hash>.narinfo`), so an age rule on `nar/` deletes the NAR while the narinfo
+survives. That does **not** degrade to a harmless cache-miss: the narinfo still
+advertises the NAR, so `nix-store --realise` fails outright (`some references …
+could not be realised`), and `nix copy` never re-uploads the NAR because it
+treats a present narinfo as proof the path is cached. Age is also the wrong
+signal for a content-addressed store: a stable dependency stays referenced
+indefinitely yet is never rebuilt, so it is the first to expire. Old builds are
+simply retained; if the bucket ever needs trimming, keep whatever the current
+`hosts/*/latest.json` closures reference and delete the rest, never by age.
 
 ## Why no EC2 server
 
