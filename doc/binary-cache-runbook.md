@@ -55,7 +55,11 @@ the dev shell.
      --public-access-block-configuration \
      "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
    ```
-   Add a lifecycle rule: expire objects under prefix `nar/` after 60 days.
+   Do **not** add an age-based lifecycle rule on `nar/`: it deletes NAR blobs
+   while their narinfos (a different prefix) survive, which silently breaks
+   every closure that still needs them (see section 12). Leave the bucket
+   without expiration; trim by what the current host pointers still reference
+   if it ever grows too large.
 
 6. **Create the CI AWS identities.** CI uses short-lived GitHub OIDC roles;
    hosts each use their own long-lived read-only IAM user, created
@@ -233,7 +237,8 @@ Common causes:
 |---|---|---|
 | `AccessDenied` on `aws s3 cp` | Host IAM key revoked / rotated. | Run rotation procedure (section 8). |
 | `pointer file did not contain a storePath` | CI job failed and never wrote `latest.json`, or write was partial. | Check workflow status (section 5); manually re-trigger. |
-| `path … is required, but no substituter has it` | Closure was pushed but signature is wrong, or NAR was lifecycle-expired. | Check `nix-store --query --requisites $target` against the bucket; manually re-run the build (section 6). |
+| `path … is required, but no substituter has it` | Closure was pushed but signature is wrong. | Check `nix-store --query --requisites $target` against the bucket; manually re-run the build (section 6). |
+| `some references of path … could not be realised` / `nar/… does not exist in binary cache` | Orphaned narinfo: the NAR is gone but its narinfo remains, so `nix copy` keeps skipping the re-upload. Historically caused by an age-based `nar/` lifecycle rule (now removed). | Re-run the build (section 6) after a `nixpkgs` bump usually re-uploads fresh paths; otherwise delete the stale narinfo so the next build re-pushes its NAR. |
 | Network-unreachable | Host offline / S3 endpoint blocked. | Verify connectivity; the timer's `Persistent=true` will retry on next boot/connectivity. |
 
 Rollback if `switch-to-configuration` left the system in a bad state:
@@ -423,21 +428,28 @@ closure untrusted by every host. If you must (suspected compromise):
 
 ---
 
-## 12. Forcing manual S3 garbage collection
+## 12. Garbage-collecting the S3 cache
 
-The lifecycle rule expires `nar/*` after 60 days. To clean up sooner:
+There is deliberately **no automatic GC**. Old builds accumulate in the bucket;
+S3 storage is cheap and unbounded growth is preferred over a standing process
+that can silently corrupt the cache. The bucket has **no lifecycle expiration**
+— an earlier 60-day `nar/*` rule was removed after it deleted NAR blobs while
+their narinfos survived, stranding closures that still referenced them (the
+`could not be realised` failure in section 4).
 
-```bash
-# List objects under nar/ older than N days:
-aws s3api list-objects-v2 --bucket thoughtfull-nix-cache --prefix nar/ \
-  --query "Contents[?LastModified<='$(date -u -d '7 days ago' +%FT%TZ)'].Key" \
-  --output text > /tmp/old-objects.txt
-# Review, then delete:
-xargs -a /tmp/old-objects.txt -I {} aws s3 rm "s3://thoughtfull-nix-cache/{}"
-```
+If the bucket ever genuinely needs trimming, GC by **what the current pointers
+still reference, never by age**: a store path's age says nothing about whether a
+current closure still needs it, and deleting a NAR without its narinfo breaks
+realisation. The safe procedure is:
 
-A more careful GC (walk `latest.json` per host, mark reachable closures,
-delete the rest) is a v2 follow-up.
+1. Read every `hosts/*/latest.json` `storePath`.
+2. Compute the union of their closures (follow the `References` in each
+   narinfo).
+3. Delete every `nar/*` and `*.narinfo` **not** in that reachable set, keeping
+   anything newer than a grace window so an in-flight build is never reaped.
+
+Run it as a one-off with delete-capable credentials and review the candidate
+list before deleting; do not wire it up as a recurring job.
 
 ---
 
