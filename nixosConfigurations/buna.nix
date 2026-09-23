@@ -20,14 +20,14 @@
           caddy = {
             email = "technosophist@thoughtfull.systems";
             proxies = {
-              "social2.thoughtfull.systems".backend = "http://localhost:8002";
+              "social.thoughtfull.systems".backend = "http://localhost:8002";
               # Apex domain: account-domain is thoughtfull.systems while the
               # instance is served at social.thoughtfull.systems, so federation
               # discovery hitting the apex must be redirected to the social
               # subdomain; everything else goes to www.
               "thoughtfull.systems".extraConfig = ''
                 @wellknown path /.well-known/webfinger /.well-known/host-meta /.well-known/nodeinfo
-                redir @wellknown https://social2.thoughtfull.systems{uri} permanent
+                redir @wellknown https://social.thoughtfull.systems{uri} permanent
                 redir https://www.thoughtfull.systems{uri} permanent
               '';
             };
