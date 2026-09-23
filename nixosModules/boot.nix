@@ -11,11 +11,12 @@ let
     mkOverride
     ;
   rpi4 = config.thoughtfull.rpi4.enable;
+  ec2 = config.thoughtfull.ec2.enable;
 in
 {
   config = mkMerge [
     { boot.initrd.systemd.enable = mkDefault true; }
-    (mkIf (!rpi4) {
+    (mkIf (!rpi4 && !ec2) {
       boot = {
         initrd.luks.devices.encrypted.crypttabExtraOpts = [
           "fido2-device=auto"
