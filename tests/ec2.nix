@@ -91,6 +91,12 @@ let
       ok = ec2Eval.systemd.services.sshd-keygen.enable;
     }
     {
+      # The small amazon-image ESP (~250MB) with ~85MB kernel+initrd per
+      # generation can only fit one generation's switch peak.
+      name = "ec2: GRUB keeps one generation for the small ESP";
+      ok = ec2Eval.boot.loader.grub.configurationLimit == 1;
+    }
+    {
       # The whole reason ec2.nix must NOT disable binaryCache/systemPull:
       # supplying the cache creds should auto-enable the daily security-update pull.
       name = "ec2: system-pull stays enabled for security updates";

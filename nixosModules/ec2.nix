@@ -21,6 +21,14 @@ in
     # /persistent path; decrypt secrets with the instance's own host key.
     age.identityPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
     systemd.services.sshd-keygen.enable = mkOverride 900 true;
+
+    # The amazon-image ESP (/boot) is only ~250MB, and each aarch64 kernel +
+    # initrd is ~85MB. system-pull creates a new generation daily and GRUB keeps
+    # a kernel+initrd per generation there, so cap how many it keeps. During a
+    # switch GRUB copies the new generation's files before pruning old ones, so
+    # the transient peak is (limit + 1) generations: limit 1 peaks at ~170MB
+    # (fits), limit 2 would peak at ~255MB (overflows).
+    boot.loader.grub.configurationLimit = mkDefault 1;
   };
 
   options.thoughtfull.ec2.enable = mkEnableOption ''
