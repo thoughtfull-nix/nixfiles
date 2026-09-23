@@ -23,7 +23,7 @@ jobs:
           # once instead of once per host. Different architectures still run in
           # parallel on their own runners.
           - runner: ubuntu-24.04
-            hosts: aegle hydor sedna
+            hosts: aegle buna hydor sedna
           - runner: ubuntu-24.04-arm
             hosts: tislit
     runs-on: ${{ matrix.runner }}
