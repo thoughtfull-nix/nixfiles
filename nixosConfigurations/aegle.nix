@@ -15,7 +15,10 @@
         # blacklisting `option` lets the camera bind correctly.
         boot.blacklistedKernelModules = [ "option" ];
         environment = {
-          etc."sway/config.d/workspaces.conf".source = ./aegle/sway/workspaces.conf;
+          etc = {
+            "sway/config.d/input.conf".source = ./aegle/sway/input.conf;
+            "sway/config.d/workspaces.conf".source = ./aegle/sway/workspaces.conf;
+          };
           systemPackages = with pkgs; [
             maven
             ngrok

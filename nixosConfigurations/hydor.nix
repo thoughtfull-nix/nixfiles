@@ -6,6 +6,7 @@
       { ... }:
       {
         boot.binfmt.emulatedSystems = [ "aarch64-linux" ];
+        environment.etc."sway/config.d/input.conf".source = ./hydor/sway/input.conf;
         imports = [
           ./hydor/hardware-configuration.nix
         ];
