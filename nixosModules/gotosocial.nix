@@ -22,45 +22,39 @@ in
       owner = "gotosocial";
     };
 
-    services.gotosocial = {
-      environmentFile = mkIf hasEnvironmentFile config.age.secrets.gotosocial-environment.path;
-      openFirewall = mkDefault false;
-      setupPostgresqlDB = mkDefault true;
-      settings = {
-        account-domain = mkOverride 900 "thoughtfull.systems";
-        advanced-rate-limit-requests = mkOverride 900 1000;
-        application-name = mkOverride 900 "Thoughtfull Systems";
-        bind-address = mkOverride 900 "localhost";
-        cache.memory-target = mkOverride 900 "50MiB";
-        db-max-open-conns-multiplier = mkOverride 900 1;
-        host = mkOverride 900 "social.thoughtfull.systems";
-        instance-languages = mkOverride 900 [ "en" ];
-        landing-page-user = mkOverride 900 "technosophist";
-        letsencrypt-enabled = mkOverride 900 false;
-        port = mkOverride 900 8002;
-        protocol = mkOverride 900 "https";
+    services = {
+      gotosocial = {
+        environmentFile = mkIf hasEnvironmentFile config.age.secrets.gotosocial-environment.path;
+        openFirewall = mkDefault false;
+        settings = {
+          account-domain = mkDefault "thoughtfull.systems";
+          advanced-rate-limit-requests = mkDefault 1000;
+          application-name = mkOverride 900 "Thoughtfull Systems";
+          bind-address = mkOverride 900 "localhost";
+          cache.memory-target = mkDefault "50MiB";
+          db-max-open-conns-multiplier = mkDefault 1;
+          host = mkDefault "social.thoughtfull.systems";
+          instance-languages = mkDefault [ "en" ];
+          landing-page-user = mkDefault "technosophist";
+          letsencrypt-enabled = mkDefault false;
+          port = mkOverride 900 8002;
+          protocol = mkOverride 900 "https";
+        };
+        setupPostgresqlDB = mkDefault true;
       };
+      postgresqlBackup.databases = [ "gotosocial" ];
     };
-    services.postgresqlBackup.databases = [ "gotosocial" ];
-    thoughtfull.impermanence.directories = [
-      {
-        directory = "/var/lib/gotosocial";
-        user = "gotosocial";
-        group = "gotosocial";
-        mode = "0750";
-      }
-      {
-        # Persist the live database so it survives the stateless root, but keep
-        # it OUT of restic: a file-level copy of a running datadir isn't
-        # crash-consistent. The hourly pg_dump above is the real backup.
-        directory = "/var/lib/postgresql";
-        user = "postgres";
-        group = "postgres";
-        mode = "0700";
-        backup = false;
-      }
-    ];
-    thoughtfull.monitoring.services = [ "gotosocial" ];
+    thoughtfull = {
+      impermanence.directories = [
+        {
+          directory = "/var/lib/gotosocial";
+          user = "gotosocial";
+          group = "gotosocial";
+          mode = "0750";
+        }
+      ];
+      monitoring.services = [ "gotosocial" ];
+    };
   };
   options.thoughtfull.gotosocial.age.environmentFile = mkOption {
     type = types.nullOr types.path;

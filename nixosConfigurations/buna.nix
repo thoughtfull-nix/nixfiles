@@ -20,6 +20,7 @@
           caddy = {
             email = "technosophist@thoughtfull.systems";
             proxies = {
+              "notes.thoughtfull.systems".backend = "http://localhost:5230";
               "social.thoughtfull.systems".backend = "http://localhost:8002";
               # Apex domain: account-domain is thoughtfull.systems while the
               # instance is served at social.thoughtfull.systems, so federation

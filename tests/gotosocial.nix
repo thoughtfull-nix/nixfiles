@@ -5,9 +5,10 @@
 # settings (host vs account-domain split, localhost:8002 behind a TLS-
 # terminating proxy), local PostgreSQL provisioning, the agenix environment
 # secret, and -- the crux -- persistence: /var/lib/gotosocial persisted AND
-# backed up, /var/lib/postgresql persisted but EXCLUDED from restic (the hourly
-# pg_dump is the real backup). Booting GoToSocial + PostgreSQL for real is
-# upstream's concern; here we only assert the configuration this module derives.
+# backed up. Persisting the PostgreSQL datadir (and excluding it from restic) is
+# owned by nixosModules/postgresql.nix and asserted in tests/postgresql.nix.
+# Booting GoToSocial + PostgreSQL for real is upstream's concern; here we only
+# assert the configuration this module derives.
 { self, nixpkgs, ... }:
 let
   inherit (nixpkgs) lib;
@@ -85,7 +86,6 @@ let
   settings = enabledEval.services.gotosocial.settings;
   dirs = enabledEval.thoughtfull.impermanence.directories;
   gtsDir = lib.findFirst (d: (d.directory or null) == "/var/lib/gotosocial") null dirs;
-  pgDir = lib.findFirst (d: (d.directory or null) == "/var/lib/postgresql") null dirs;
   secret = enabledEval.age.secrets.gotosocial-environment;
 
   checks = [
@@ -130,10 +130,6 @@ let
     {
       name = "enabled: /var/lib/gotosocial is persisted as gotosocial and backed up";
       ok = gtsDir != null && (gtsDir.user or null) == "gotosocial" && (gtsDir.backup or true);
-    }
-    {
-      name = "enabled: /var/lib/postgresql is persisted but excluded from restic";
-      ok = pgDir != null && (pgDir.backup or true) == false;
     }
     {
       name = "enabled: the gotosocial database is registered for pg_dump backup";

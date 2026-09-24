@@ -15,6 +15,7 @@
         services = {
           emacs.enable = true;
           gotosocial.enable = true;
+          memos.enable = true;
           minecraft-server = {
             enable = true;
             jvmOpts = "-Xmx3072M -Xms3072M";
@@ -56,6 +57,11 @@
                 reverse = true;
                 local.port = 8002;
                 remote.port = 8002;
+              }
+              {
+                reverse = true;
+                local.port = 5230;
+                remote.port = 5230;
               }
             ];
           };

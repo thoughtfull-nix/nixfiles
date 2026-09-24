@@ -31,10 +31,12 @@ forEachSystem (
     kanshi = callTest ./tests/kanshi.nix;
     laptop = callTest ./tests/laptop.nix;
     lock-triggers = callTest ./tests/lock-triggers.nix;
+    memos = callTest ./tests/memos.nix;
     minecraft-server = callTest ./tests/minecraft-server.nix;
     monitoring = callTest ./tests/monitoring.nix;
     nixfiles = callTest ./tests/nixfiles.nix;
     openssh = callTest ./tests/openssh.nix;
+    postgresql = callTest ./tests/postgresql.nix;
     postgresql-backup = callTest ./tests/postgresql-backup.nix;
     restic = callTest ./tests/restic.nix;
     sway-idle = callTest ./tests/sway-idle.nix;

@@ -78,12 +78,14 @@ in
     ./less.nix
     ./libreoffice.nix
     ./mako.nix
+    ./memos.nix
     ./minecraft-server.nix
     ./minecraft.nix
     ./monitoring.nix
     ./obsidian.nix
     ./openssh.nix
     ./pipewire.nix
+    ./postgresql.nix
     ./postgresql-backup.nix
     ./printing.nix
     ./restic.nix
