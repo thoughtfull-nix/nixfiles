@@ -54,6 +54,7 @@
         system.stateVersion = "25.11";
         thoughtfull = {
           binaryCache.awsCredentialsFile = ./aegle/secrets/nix-cache-credentials.age;
+          claudeDesktop.enable = true;
           dev.enable = true;
           githubToken.tokenFile = ./aegle/secrets/github-access-token.age;
           graphical.enable = true;
