@@ -28,6 +28,7 @@ in
       setupPostgresqlDB = mkDefault true;
       settings = {
         account-domain = mkOverride 900 "thoughtfull.systems";
+        advanced-rate-limit-requests = mkOverride 900 1000;
         application-name = mkOverride 900 "Thoughtfull Systems";
         bind-address = mkOverride 900 "localhost";
         cache.memory-target = mkOverride 900 "50MiB";

@@ -106,6 +106,12 @@ let
       ok = settings.letsencrypt-enabled == false;
     }
     {
+      # some clients are chatty and the default 300 req / 5 min per IP throttles
+      # normal feed browsing.
+      name = "enabled: rate limit raised";
+      ok = settings.advanced-rate-limit-requests == 1000;
+    }
+    {
       name = "enabled: uses local PostgreSQL (auto-provisioned)";
       ok = enabledEval.services.gotosocial.setupPostgresqlDB;
     }
