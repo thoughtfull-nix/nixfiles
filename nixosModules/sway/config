@@ -209,4 +209,14 @@ bindsym $mod+r mode "resize"
 
 hide_edge_borders smart
 
+input type:keyboard {
+  xkb_layout us
+  xkb_options grp:shifts_toggle,ctrl:nocaps,compose:rctrl
+  xkb_variant dvorak
+}
+
+input type:touchpad {
+  click_method clickfinger
+}
+
 include /etc/sway/config.d/*
