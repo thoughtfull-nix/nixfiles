@@ -6,6 +6,15 @@ let
   # ignored with external pkgs, so apply the overlay here (see tests/default.nix).
   extendedNixpkgs = nixpkgs.extend self.inputs.llm-agents.overlays.shared-nixpkgs;
 
+  # dev.nix takes codex from inputs.llm-agents.packages (built against
+  # llm-agents' pinned nixpkgs, so cached by numtide) rather than the
+  # shared-nixpkgs overlay, so the module needs `inputs` in scope.
+  inputsArg = {
+    _module.args.inputs = self.inputs // {
+      inherit self;
+    };
+  };
+
   opencodeDirectories = [
     ".cache/opencode"
     ".config/opencode"
@@ -51,6 +60,7 @@ extendedNixpkgs.testers.nixosTest {
           ../nixosModules/dev.nix
           thoughtfullSubModuleStub
           stubs.impermanence
+          inputsArg
         ];
         thoughtfull.dev.enable = true;
         # nixosModules/java.nix sets programs.java.enable = mkDefault true in the
@@ -79,6 +89,7 @@ extendedNixpkgs.testers.nixosTest {
           ../nixosModules/dev.nix
           thoughtfullSubModuleStub
           stubs.impermanence
+          inputsArg
         ];
         thoughtfull.dev = {
           enable = true;
@@ -99,6 +110,7 @@ extendedNixpkgs.testers.nixosTest {
           ../nixosModules/dev.nix
           thoughtfullSubModuleStub
           stubs.impermanence
+          inputsArg
         ];
         thoughtfull.dev = {
           enable = true;
@@ -116,6 +128,7 @@ extendedNixpkgs.testers.nixosTest {
         ../nixosModules/dev.nix
         thoughtfullSubModuleStub
         stubs.impermanence
+        inputsArg
       ];
       # Enable zsh so /etc/zshrc exists to assert the hook is absent.
       programs.zsh.enable = true;
@@ -143,6 +156,9 @@ extendedNixpkgs.testers.nixosTest {
     with subtest("enabled default: claude is in PATH"):
         enabled.succeed("which claude")
 
+    with subtest("enabled default: codex is in PATH"):
+        enabled.succeed("which codex")
+
     with subtest("enabled default: opencode is in PATH"):
         enabled.succeed("which opencode")
 
@@ -154,6 +170,9 @@ extendedNixpkgs.testers.nixosTest {
 
     with subtest("disabled default: claude is not available"):
         disabled.fail("which claude")
+
+    with subtest("disabled default: codex is not available"):
+        disabled.fail("which codex")
 
     with subtest("disabled default: opencode is not available"):
         disabled.fail("which opencode")

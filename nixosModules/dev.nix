@@ -1,5 +1,6 @@
 {
   config,
+  inputs,
   lib,
   pkgs,
   ...
@@ -27,8 +28,12 @@ in
         llm-agents.claude-code
         sox
       ])
+      # codex is built from source (Rust), so the shared-nixpkgs overlay would
+      # rebuild it against our nixpkgs and miss numtide's cache. Take it from
+      # llm-agents' own output, which is built against its pinned nixpkgs and
+      # cached by numtide's CI.
       ++ (optionals codex.enable [
-        llm-agents.codex
+        inputs.llm-agents.packages.${pkgs.system}.codex
       ])
       ++ (optionals opencode.enable [ llm-agents.opencode ]);
     thoughtfull = {
