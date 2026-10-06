@@ -7,7 +7,6 @@
       {
         age.secrets.buna-tunnel-key.file = ./tislit/secrets/buna-tunnel-key.age;
         environment.systemPackages = [ pkgs.devenv ];
-        hardware.raspberry-pi."4".poe-hat.enable = true;
         imports = [
           ./tislit/hardware-configuration.nix
         ];
@@ -48,7 +47,10 @@
               swap.size = "16G";
             };
           };
-          rpi4.enable = true;
+          rpi4 = {
+            enable = true;
+            poeHat.enable = true;
+          };
           tunnels.buna = {
             host = "buna.thoughtfull.systems";
             identity = config.age.secrets.buna-tunnel-key.path;
