@@ -14,7 +14,7 @@ let
     optionalAttrs
     ;
   cfg = config.thoughtfull.rpi4;
-  hasNixosHardware = options.hardware ? raspberry-pi;
+  hasNixosHardware = options.hardware ? raspberry-pi && options.hardware.raspberry-pi ? "4";
 in
 {
   config = mkIf cfg.enable (mkMerge [
@@ -49,7 +49,7 @@ in
           deviceTree.overlays = [
             {
               name = "rpi-poe";
-              dtboFile = "${config.hardware.raspberry-pi.firmware.package}/share/raspberrypi/boot/overlays/rpi-poe.dtbo";
+              dtboFile = "${config.boot.kernelPackages.kernel}/dtbs/overlays/rpi-poe.dtbo";
               filter = "bcm2711-rpi-4-b.dtb";
             }
           ];
