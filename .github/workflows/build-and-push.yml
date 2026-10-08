@@ -63,7 +63,7 @@ jobs:
         uses: ./.github/actions/configure-nix-daemon-aws-creds
         with:
           role-to-assume: arn:aws:iam::481411455398:role/NixCacheWriter
-          role-duration-seconds: 7200
+          role-duration-seconds: 10800
       - name: Build system closures
         run: |
           set -euo pipefail
