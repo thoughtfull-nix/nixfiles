@@ -20,6 +20,7 @@ forEachSystem (
     avahi = callTest ./tests/avahi.nix;
     bluetooth = callTest ./tests/bluetooth.nix;
     caddy = callTest ./tests/caddy.nix;
+    claude-desktop = callTest ./tests/claude-desktop.nix;
     default = callTest ./tests/default.nix;
     dev = callTest ./tests/dev.nix;
     ec2 = callTest ./tests/ec2.nix;
