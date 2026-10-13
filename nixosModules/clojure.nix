@@ -22,6 +22,7 @@ in
       extraConfig = "(use-package thoughtfull-clojure)";
       extraPackages = epkgs: [ epkgs.thoughtfull-clojure ];
     };
+    thoughtfull.impermanence.user.files = [ ".clojars.edn" ];
   };
   options.thoughtfull.clojure = {
     babashka.package = mkPackageOption pkgs "babashka" {
