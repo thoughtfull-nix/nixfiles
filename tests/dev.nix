@@ -136,6 +136,8 @@ extendedNixpkgs.testers.nixosTest {
   };
 
   testScript = ''
+    import json
+
     start_all()
     enabled.wait_for_unit("multi-user.target")
     opencodeDisabled.wait_for_unit("multi-user.target")
@@ -156,6 +158,11 @@ extendedNixpkgs.testers.nixosTest {
     with subtest("enabled default: claude is in PATH"):
         enabled.succeed("which claude")
 
+    with subtest("enabled default: Claude Code runs git and ssh outside its sandbox"):
+        settings = json.loads(enabled.succeed("cat /etc/claude-code/managed-settings.json"))
+        excluded = settings["sandbox"]["excludedCommands"]
+        assert "git *" in excluded and "ssh *" in excluded, excluded
+
     with subtest("enabled default: codex is in PATH"):
         enabled.succeed("which codex")
 
@@ -170,6 +177,9 @@ extendedNixpkgs.testers.nixosTest {
 
     with subtest("disabled default: claude is not available"):
         disabled.fail("which claude")
+
+    with subtest("disabled default: no Claude Code managed settings"):
+        disabled.fail("test -e /etc/claude-code/managed-settings.json")
 
     with subtest("disabled default: codex is not available"):
         disabled.fail("which codex")

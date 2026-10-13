@@ -42,25 +42,25 @@ extendedNixpkgs.testers.nixosTest {
       };
   };
 
-  # The wrapper ends by exec'ing bwrap with container-init (which runs Claude
-  # Desktop); swap that for a probe command to inspect the sandbox it builds.
   testScript = ''
+    import json
+
     start_all()
     machine.wait_for_unit("multi-user.target")
 
-    machine.succeed(
-        "sed -E 's|^ *[^ ]+-container-init \"\\$@\"$|  \"\\$@\"|' "
-        "$(readlink -f $(which claude-desktop)) > /tmp/sandbox && chmod +x /tmp/sandbox"
-    )
+    with subtest("claude-desktop runs without a bubblewrap sandbox"):
+        launcher = machine.succeed("readlink -f $(which claude-desktop)").strip()
+        machine.fail(f"grep -q bwrap {launcher}")
 
-    with subtest("sandbox sees the host ssh_config"):
-        machine.succeed("/tmp/sandbox cat /etc/ssh/ssh_config | grep -q 'Host github.com'")
+    with subtest("bwrap is available for Claude Code's sandbox"):
+        machine.succeed("which bwrap")
 
-    with subtest("ssh in the sandbox applies the host config"):
-        out = machine.succeed("/tmp/sandbox ssh -G github.com")
-        assert "controlpersist 10800" in out, out
+    with subtest("claude-desktop desktop entry is installed"):
+        machine.succeed("test -e /run/current-system/sw/share/applications/com.anthropic.Claude.desktop")
 
-    with subtest("sandbox sees the host known hosts"):
-        machine.succeed("/tmp/sandbox test -e /etc/ssh/ssh_known_hosts")
+    with subtest("Claude Code runs git and ssh outside its sandbox"):
+        settings = json.loads(machine.succeed("cat /etc/claude-code/managed-settings.json"))
+        excluded = settings["sandbox"]["excludedCommands"]
+        assert "git *" in excluded and "ssh *" in excluded, excluded
   '';
 }
