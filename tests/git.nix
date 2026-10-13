@@ -81,7 +81,7 @@ testPkgs.testers.nixosTest {
         assert "ControlPath /run/user/%i/ssh-control-%n" in ssh_config, (
             "expected tmpfs-backed ControlPath"
         )
-        assert "ControlPersist 10m" in ssh_config, "expected ControlPersist 10m"
+        assert "ControlPersist 3h" in ssh_config, "expected ControlPersist 3h"
 
     with subtest("ssh_config restricts github.com to the committed authorized keys"):
         ssh_config = machine.succeed("cat /etc/ssh/ssh_config")
@@ -122,8 +122,8 @@ testPkgs.testers.nixosTest {
         assert "ControlPath /run/user/%i/ssh-control-%n" in ssh_config, (
             "expected technosophist.github.com to have its own ControlMaster socket"
         )
-        assert ssh_config.count("ControlPersist 10m") == 2, (
-            "expected both github.com and technosophist.github.com to persist for 10m"
+        assert ssh_config.count("ControlPersist 3h") == 2, (
+            "expected both github.com and technosophist.github.com to persist for 3h"
         )
 
     with subtest("gitconfig opts git-lfs out of its own ssh multiplexing"):

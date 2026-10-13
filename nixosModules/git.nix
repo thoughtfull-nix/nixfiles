@@ -193,8 +193,8 @@ in
     # Multiplexing collapses them onto one master so they share a single touch.
     # The master lives for the whole push regardless of duration (it always has
     # an active client); ControlPersist only sets how long it lingers idle
-    # afterward. 10m mirrors gpg-agent's default-cache-ttl so quick follow-up
-    # pushes/pulls reuse it without another touch. The socket lives under
+    # afterward. 3h lets follow-up pushes/pulls over a working session reuse it
+    # without another touch. The socket lives under
     # /run/user so it is tmpfs-backed and never lands in the persistent store.
     #
     # github.com is restricted to the same committed keys used for
@@ -220,7 +220,7 @@ in
         IdentitiesOnly yes
         ControlMaster auto
         ControlPath /run/user/%i/ssh-control-%n
-        ControlPersist 10m
+        ControlPersist 3h
 
       Host technosophist.github.com
         HostName github.com
@@ -228,7 +228,7 @@ in
         IdentitiesOnly yes
         ControlMaster auto
         ControlPath /run/user/%i/ssh-control-%n
-        ControlPersist 10m
+        ControlPersist 3h
     '';
     thoughtfull.impermanence.user.directories = mkIf git.enable [ ".config/git" ];
   };
