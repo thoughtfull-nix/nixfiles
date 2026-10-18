@@ -50,7 +50,6 @@ in
     sessionVariables.SSH_ASKPASS_REQUIRE = "prefer";
     systemPackages = [
       adw-gtk3
-      adwaita-fonts
       brightness
       glib
       gnome-backgrounds
@@ -66,6 +65,7 @@ in
       theme-toggle
     ];
   };
+  fonts.packages = mkIf sway.enable [ adwaita-fonts ];
   imports = [
     ./sway/idle.nix
     ./sway/kanshi.nix
@@ -121,7 +121,8 @@ in
           "-${glib}/bin/gsettings set org.gnome.desktop.interface icon-theme Numix"
           "-${glib}/bin/gsettings set org.gnome.desktop.interface cursor-theme Numix"
           "-${glib}/bin/gsettings set org.gnome.desktop.interface cursor-size 32"
-          "-${glib}/bin/gsettings set org.gnome.desktop.interface font-name Numix"
+          "-${glib}/bin/gsettings set org.gnome.desktop.interface font-name 'Adwaita Sans 11'"
+          "-${glib}/bin/gsettings set org.gnome.desktop.interface font-rendering manual"
         ];
       };
     };
