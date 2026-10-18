@@ -2,6 +2,8 @@
 # defaults: gtk-defaults sets a real interface font (not a theme name), that
 # font is visible to fontconfig, and GTK 4 renders text with manual
 # (pixel-snapped) font rendering to avoid stray glyph pixels in text views.
+# The gtk-defaults commands are also run against an in-memory gsettings
+# backend, since they fail silently ("-" prefix) when schemas are missing.
 { self, nixpkgs, ... }:
 let
   inherit (nixpkgs) lib;
@@ -34,7 +36,8 @@ let
   };
 
   inherit (eval) config;
-  execStart = lib.concatStringsSep "\n" config.systemd.user.services.gtk-defaults.serviceConfig.ExecStart;
+  service = config.systemd.user.services.gtk-defaults;
+  execStart = lib.concatStringsSep "\n" service.serviceConfig.ExecStart;
   has = needle: lib.hasInfix needle execStart;
 
   checks = [
@@ -60,4 +63,16 @@ if failed != [ ] then
     ${builtins.concatStringsSep "\n" (map (c: "  - ${c.name}") failed)}
   ''
 else
-  nixpkgs.runCommand "sway-test" { } "touch $out"
+  # Run each ExecStart against an in-memory backend with the service's own
+  # environment, so a missing schema (or bad key/value) fails the build.
+  nixpkgs.runCommand "sway-test"
+    {
+      env = removeAttrs service.environment [ "PATH" ] // {
+        GSETTINGS_BACKEND = "memory";
+      };
+    }
+    ''
+      set -euo pipefail
+      ${lib.concatMapStringsSep "\n" (lib.removePrefix "-") service.serviceConfig.ExecStart}
+      touch $out
+    ''

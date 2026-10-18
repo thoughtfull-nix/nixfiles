@@ -19,6 +19,7 @@ let
     glib
     gnome-backgrounds
     gnome-themes-extra
+    gsettings-desktop-schemas
     hyprpicker
     libadwaita
     numix-cursor-theme
@@ -108,6 +109,9 @@ in
       # pull sway-session.target up if it isn't already active.
       partOf = [ "sway-session.target" ];
       enable = mkDefault sway.enable;
+      # The systemd user environment lacks the schema paths sway's GTK
+      # wrapper adds, so gsettings would fail with "No schemas installed".
+      environment.GSETTINGS_SCHEMA_DIR = glib.getSchemaPath gsettings-desktop-schemas;
       wantedBy = [ "sway-session.target" ];
       serviceConfig = {
         Type = "oneshot";
