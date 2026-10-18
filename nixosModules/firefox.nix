@@ -23,7 +23,7 @@ in
   fonts.packages = mkIf firefox.enable [ ibm-plex ];
   programs.firefox = {
     policies = {
-      CaptivePortal = false;
+      CaptivePortal = true;
       DisableFirefoxStudies = true;
       DisablePocket = true;
       DisableTelemetry = true;
@@ -91,7 +91,6 @@ in
       "font.size.variable.x-western" = 16;
       "layout.css.prefers-color-scheme.content-override" = 2;
       "media.autoplay.default" = 5;
-      "network.captive-portal-service.enabled" = true;
       "network.cookie.cookieBehavior" = 5;
       "network.cookie.lifetimePolicy" = 2;
       "network.http.referer.disallowCrossSiteRelaxingDefault.top_navigation" = true;
