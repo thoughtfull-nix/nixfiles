@@ -36,6 +36,7 @@ let
             };
           };
           programs = {
+            commonplace.enable = lib.mkEnableOption "commonplace (stub)";
             dictation.enable = lib.mkEnableOption "dictation (stub)";
             libreoffice.enable = lib.mkEnableOption "libreoffice (stub)";
             obsidian.enable = lib.mkEnableOption "obsidian (stub)";
@@ -103,6 +104,10 @@ let
         # with, so it's not asserted on either way.
         !enabled.config.networking.wireless.iwd.enable
         && !(lib.elem "type:wifi" enabled.config.networking.networkmanager.unmanaged);
+    }
+    {
+      name = "graphical enabled: commonplace is enabled";
+      ok = enabled.config.thoughtfull.programs.commonplace.enable;
     }
     {
       name = "graphical disabled: NetworkManager is not configured";

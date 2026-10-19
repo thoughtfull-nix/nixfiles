@@ -27,6 +27,10 @@
     systems.url = "github:nix-systems/default";
     treefmt-nix.url = "github:numtide/treefmt-nix";
     unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+    vibes = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:thoughtfull-systems/vibes";
+    };
   };
   outputs =
     inputs@{

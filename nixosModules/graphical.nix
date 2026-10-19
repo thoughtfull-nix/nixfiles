@@ -42,6 +42,7 @@ in
       impermanence.user.directories = [ ".config/dconf" ];
       user.extraGroups = [ "networkmanager" ];
       programs = {
+        commonplace.enable = mkDefault true;
         dictation.enable = mkDefault true;
         libreoffice.enable = mkDefault true;
         obsidian.enable = mkDefault true;

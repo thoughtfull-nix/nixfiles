@@ -53,6 +53,7 @@ in
     ./caddy.nix
     ./claude-desktop.nix
     ./clojure.nix
+    ./commonplace.nix
     ./dev.nix
     ./dictation.nix
     ./discord.nix
@@ -131,6 +132,7 @@ in
       inputs.claude-desktop.overlays.default
       inputs.devenv.overlays.default
       inputs.llm-agents.overlays.shared-nixpkgs
+      inputs.vibes.overlays.default
       self.overlays.emacs
       self.overlays.thoughtfull
       self.overlays.unstable

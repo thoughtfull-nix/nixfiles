@@ -723,7 +723,8 @@
         "nixpkgs": "nixpkgs_10",
         "systems": "systems_3",
         "treefmt-nix": "treefmt-nix_3",
-        "unstable": "unstable"
+        "unstable": "unstable",
+        "vibes": "vibes"
       }
     },
     "rust-overlay": {
@@ -866,6 +867,26 @@
         "owner": "NixOS",
         "ref": "nixos-unstable",
         "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "vibes": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1792373516,
+        "narHash": "sha256-7KPwH3Ahuch+N9GJIGIJGFurEnneuBdhsHZIHUdLGA0=",
+        "owner": "thoughtfull-systems",
+        "repo": "vibes",
+        "rev": "bd6dc77090e249f7ce83823a3b1e671b4ed70868",
+        "type": "github"
+      },
+      "original": {
+        "owner": "thoughtfull-systems",
+        "repo": "vibes",
         "type": "github"
       }
     }
