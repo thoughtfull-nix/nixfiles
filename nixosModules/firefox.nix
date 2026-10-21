@@ -6,7 +6,7 @@
 }:
 let
   inherit (config.programs) firefox sway;
-  inherit (lib) mkDefault mkIf;
+  inherit (lib) mkDefault mkForce mkIf;
   inherit (pkgs) bash ibm-plex;
   inherit (pkgs.thoughtfull) writeFileScript;
   login = writeFileScript {
@@ -132,6 +132,8 @@ in
     partOf = [ "sway-session.target" ];
     enable = mkDefault (sway.enable && firefox.enable);
     wantedBy = [ "sway-session.target" ];
+    # Inherit the user manager's PATH so URL handlers with TryExec resolve.
+    environment.PATH = mkForce null;
     # A rebuild-switch that touches this unit's closure (e.g. a firefox/sway
     # package bump) shouldn't relaunch firefox mid-session.
     restartIfChanged = mkDefault false;

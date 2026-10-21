@@ -25,6 +25,7 @@ forEachSystem (
     default = callTest ./tests/default.nix;
     dev = callTest ./tests/dev.nix;
     ec2 = callTest ./tests/ec2.nix;
+    firefox = callTest ./tests/firefox.nix;
     git = callTest ./tests/git.nix;
     github-token = callTest ./tests/github-token.nix;
     gotosocial = callTest ./tests/gotosocial.nix;
