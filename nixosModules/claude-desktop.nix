@@ -17,7 +17,11 @@ in
     # Claude Desktop downloads its own generic Linux Claude Code binaries
     programs.nix-ld.enable = mkDefault true;
     thoughtfull.impermanence.user.directories = [
-      ".config/Claude"
+      {
+        directory = ".config/Claude";
+        # re-downloadable Claude Code binaries
+        backupExclude = [ "claude-code" ];
+      }
     ];
   };
   options.thoughtfull.claudeDesktop.enable = mkEnableOption "Claude Desktop";

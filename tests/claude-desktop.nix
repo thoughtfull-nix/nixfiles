@@ -24,9 +24,17 @@ extendedNixpkgs.testers.nixosTest {
 
   nodes = {
     machine =
-      { lib, ... }:
+      { config, lib, ... }:
       {
         imports = [ defaultModule ];
+        assertions = [
+          {
+            assertion = builtins.any (
+              d: (d.directory or d) == ".config/Claude" && (d.backupExclude or [ ]) == [ "claude-code" ]
+            ) config.thoughtfull.impermanence.user.directories;
+            message = "expected .config/Claude persisted with claude-code excluded from backups";
+          }
+        ];
         # name must match the default keysHash so git.nix's githubKeys call hits the Nix store
         thoughtfull.user.name = "technosophist";
         # clear module-set nixpkgs.config to avoid the "external pkgs instance" assertion
