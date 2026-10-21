@@ -148,15 +148,20 @@ in
     syncthing.enable = mkDefault true;
   };
   thoughtfull = {
-    impermanence.user = {
+    impermanence = {
       directories = [
-        ".local/share/nix"
-        ".local/share/proton-pass-cli"
-        ".local/state/nix"
+        "/root"
       ];
-      files = [
-        ".config/nixpkgs"
-      ];
+      user = {
+        directories = [
+          ".local/share/nix"
+          ".local/share/proton-pass-cli"
+          ".local/state/nix"
+        ];
+        files = [
+          ".config/nixpkgs"
+        ];
+      };
     };
     monitoring = {
       enable = mkDefault true;
