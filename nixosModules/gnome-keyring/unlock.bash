@@ -31,7 +31,6 @@ be32() {
   printf "$(printf '\\x%02x' $(($1 >> 24 & 255)) $(($1 >> 16 & 255)) $(($1 >> 8 & 255)) $(($1 & 255)))"
 }
 
-notify-send -a gnome-keyring "Unlock keyring" "Enter your FIDO2 PIN, then touch your key" || true
 secret=$(rage -d -j fido2-hmac "$password")
 # `gnome-keyring-daemon --unlock` would start a second daemon, so unlock the running one the way
 # pam_gnome_keyring does: a credentials byte, then length, op 1 (unlock), and the password.

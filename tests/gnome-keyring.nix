@@ -80,7 +80,25 @@ let
           path = (unlockService withRecipients).path;
           has = name: lib.any (p: lib.hasPrefix name (p.pname or "")) path;
         in
-        has "rage" && has "age-plugin-fido2-hmac" && has "pinentry" && has "socat";
+        has "rage" && has "age-plugin-fido2-hmac" && has "socat";
+    }
+    {
+      name = "with recipients: the PIN prompt comes from a wrapper that says what it unlocks";
+      ok =
+        let
+          path = (unlockService withRecipients).path;
+        in
+        lib.any (p: p.name == "pinentry") path
+        && !lib.any (p: lib.hasPrefix "pinentry" (p.pname or "")) path;
+    }
+    {
+      name = "pinentry wrapper: rewrites only the plugin's generic prompt, and waits";
+      ok =
+        let
+          wrapper = builtins.readFile ../nixosModules/gnome-keyring/pinentry.bash;
+        in
+        lib.hasInfix "s/^SETDESC Please enter you PIN:$/" wrapper
+        && lib.hasInfix "s/^SETTIMEOUT .*/SETTIMEOUT 0/" wrapper;
     }
     {
       name = "disabled: no keyrings persisted";

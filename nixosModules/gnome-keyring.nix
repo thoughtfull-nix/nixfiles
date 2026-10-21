@@ -14,8 +14,16 @@ let
     types
     ;
   inherit (pkgs) bash;
-  inherit (pkgs.thoughtfull) writeFileScript;
+  inherit (pkgs.thoughtfull) writeFileScript writeFileScriptBin;
   cfg = config.services.gnome.gnome-keyring;
+  pinentry = writeFileScriptBin {
+    name = "pinentry";
+    replacements = {
+      bash = "${bash}/bin/bash";
+      pinentry = "${pkgs.pinentry-gtk2}/bin/pinentry-gtk-2";
+    };
+    src = ./gnome-keyring/pinentry.bash;
+  };
   unlock = writeFileScript {
     name = "gnome-keyring-unlock";
     replacements.bash = "${bash}/bin/bash";
@@ -39,13 +47,15 @@ in
       # A rebuild-switch shouldn't prompt for the PIN mid-session.
       restartIfChanged = mkDefault false;
       environment.KEYRING_RECIPIENTS = concatStringsSep " " cfg.thoughtfull.fido2Recipients;
-      path = with pkgs; [
+      path = [
+        pinentry
+      ]
+      ++ (with pkgs; [
         age-plugin-fido2-hmac
         libnotify
-        pinentry-gtk2
         rage
         socat
-      ];
+      ]);
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
