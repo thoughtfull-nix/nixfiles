@@ -45,7 +45,7 @@ in
         # llm-agents' own output, which is built against its pinned nixpkgs and
         # cached by numtide's CI.
         ++ (optionals codex.enable [
-          inputs.llm-agents.packages.${pkgs.system}.codex
+          inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.codex
         ])
         ++ (optionals opencode.enable [ llm-agents.opencode ]);
       thoughtfull = {
