@@ -67,6 +67,7 @@ in
     ./fuzzel.nix
     ./git.nix
     ./github-token.nix
+    ./gnome-keyring.nix
     ./gnupg.nix
     ./gotosocial.nix
     ./graphical.nix

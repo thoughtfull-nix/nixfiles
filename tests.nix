@@ -28,6 +28,7 @@ forEachSystem (
     firefox = callTest ./tests/firefox.nix;
     git = callTest ./tests/git.nix;
     github-token = callTest ./tests/github-token.nix;
+    gnome-keyring = callTest ./tests/gnome-keyring.nix;
     gotosocial = callTest ./tests/gotosocial.nix;
     graphical = callTest ./tests/graphical.nix;
     gtklock = callTest ./tests/gtklock.nix;
