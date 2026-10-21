@@ -5,7 +5,7 @@
   ...
 }:
 let
-  inherit (lib) mkEnableOption mkIf;
+  inherit (lib) mkDefault mkEnableOption mkIf;
   cfg = config.thoughtfull.claudeDesktop;
 in
 {
@@ -14,6 +14,8 @@ in
       bubblewrap
       claude-desktop
     ];
+    # Claude Desktop downloads its own generic Linux Claude Code binaries
+    programs.nix-ld.enable = mkDefault true;
     thoughtfull.impermanence.user.directories = [
       ".config/Claude"
     ];

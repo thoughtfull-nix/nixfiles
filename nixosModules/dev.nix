@@ -48,6 +48,8 @@ in
           inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.codex
         ])
         ++ (optionals opencode.enable [ llm-agents.opencode ]);
+      # dev tools, agents, plugins, and MCP servers download generic Linux binaries
+      programs.nix-ld.enable = mkDefault true;
       thoughtfull = {
         clojure.enable = mkDefault true;
         rust.enable = mkDefault true;

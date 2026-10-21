@@ -9,6 +9,7 @@ let
           lib = prev.lib.extend (_: _: { thoughtfull = self.lib.thoughtfull; });
         }
       );
+  genericHello = import ./generic-hello.nix nixpkgs;
   defaultModule = import ../nixosModules/default.nix {
     inputs = self.inputs // {
       inherit self;
@@ -54,6 +55,9 @@ extendedNixpkgs.testers.nixosTest {
 
     with subtest("bwrap is available for Claude Code's sandbox"):
         machine.succeed("which bwrap")
+
+    with subtest("Claude Code binaries downloaded by claude-desktop can run"):
+        machine.succeed("${genericHello}/bin/hello")
 
     with subtest("claude-desktop desktop entry is installed"):
         machine.succeed("test -e /run/current-system/sw/share/applications/com.anthropic.Claude.desktop")

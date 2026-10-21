@@ -1,6 +1,7 @@
 { self, nixpkgs, ... }:
 let
   stubs = import ./stubs.nix;
+  genericHello = import ./generic-hello.nix nixpkgs;
 
   # dev.nix pulls llm-agents packages from pkgs; module-set nixpkgs.overlays is
   # ignored with external pkgs, so apply the overlay here (see tests/default.nix).
@@ -237,6 +238,9 @@ extendedNixpkgs.testers.nixosTest {
         excluded = settings["sandbox"]["excludedCommands"]
         assert "git *" in excluded and "ssh *" in excluded, excluded
 
+    with subtest("enabled default: generic Linux binaries run"):
+        enabled.succeed("${genericHello}/bin/hello")
+
     with subtest("enabled default: codex is in PATH"):
         enabled.succeed("which codex")
 
@@ -260,6 +264,9 @@ extendedNixpkgs.testers.nixosTest {
 
     with subtest("disabled default: no Claude Code managed settings"):
         disabled.fail("test -e /etc/claude-code/managed-settings.json")
+
+    with subtest("disabled default: generic Linux binaries do not run"):
+        disabled.fail("${genericHello}/bin/hello")
 
     with subtest("disabled default: codex is not available"):
         disabled.fail("which codex")
