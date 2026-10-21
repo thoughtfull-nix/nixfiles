@@ -54,13 +54,18 @@ let
         == "systems.thoughtfull.Commonplace.desktop";
     }
     {
-      name = "enabled with sway: $mod+n captures a memo in a floating window";
+      name = "enabled with sway: $mod+c then m or a captures a memo or action in a floating window";
       ok =
         let
           conf = builtins.readFile (swayConf withSway).source;
         in
         swayConf withSway != null
-        && lib.hasInfix "bindsym $mod+n exec commonplace capture" conf
+        && lib.hasInfix ''set $capture "capture: (m)emo (a)ction"'' conf
+        && lib.hasInfix "bindsym m exec commonplace capture memo; mode \"default\"" conf
+        && lib.hasInfix "bindsym a exec commonplace capture action; mode \"default\"" conf
+        && lib.hasInfix "bindsym Escape mode \"default\"" conf
+        && lib.hasInfix "bindsym $mod+c mode $capture" conf
+        && !lib.hasInfix "$mod+n" conf
         && lib.hasInfix ''for_window [app_id="systems.thoughtfull.Commonplace" title="Capture"] floating enable'' conf;
     }
     {

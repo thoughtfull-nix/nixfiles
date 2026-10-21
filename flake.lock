@@ -877,11 +877,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1792373516,
-        "narHash": "sha256-7KPwH3Ahuch+N9GJIGIJGFurEnneuBdhsHZIHUdLGA0=",
+        "lastModified": 1792545347,
+        "narHash": "sha256-ApceTY67Z+2/0xeS1B4NPrw7E7aSG6a2RM0oapHRppw=",
         "owner": "thoughtfull-systems",
         "repo": "vibes",
-        "rev": "bd6dc77090e249f7ce83823a3b1e671b4ed70868",
+        "rev": "8db969f38a247bde965b7a650d6441c70c1b1075",
         "type": "github"
       },
       "original": {
