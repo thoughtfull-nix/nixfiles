@@ -35,6 +35,56 @@ let
       d: (d.directory or null) == mavenRepository.directory && (d.backup or true) == false
     ) config.thoughtfull.impermanence.user.directories;
 
+  # Editor installs (Unity/Hub), project caches, and Asset Store downloads are
+  # persisted but excluded from restic; projects, Hub state, and licences are
+  # backed up.
+  unityDirectories = [
+    {
+      directory = "Unity";
+      backupExclude = [
+        "Hub"
+        "**/Library"
+        "**/Logs"
+        "**/Temp"
+      ];
+    }
+    {
+      directory = ".config/unityhub";
+      backupExclude = [
+        "Cache"
+        "Code Cache"
+        "Crashpad"
+        "DawnGraphiteCache"
+        "DawnWebGPUCache"
+        "GPUCache"
+      ];
+    }
+    {
+      directory = ".config/unity3d";
+      backupExclude = [ ];
+    }
+    {
+      directory = ".local/share/unity3d";
+      backupExclude = [ "Asset Store-5.x" ];
+    }
+  ];
+  hasUnityDirectory =
+    config: expected:
+    builtins.any (
+      entry:
+      let
+        d = if builtins.isString entry then { directory = entry; } else entry;
+      in
+      d.directory == expected.directory
+      && (d.backup or true)
+      && (d.backupExclude or [ ]) == expected.backupExclude
+    ) config.thoughtfull.impermanence.user.directories;
+  persistsAnyUnityDirectory =
+    config:
+    builtins.any (
+      d: builtins.elem (d.directory or d) (map (u: u.directory) unityDirectories)
+    ) config.thoughtfull.impermanence.user.directories;
+
   # Stub the thoughtfull sub-module options that dev.nix sets via mkDefault
   # (clojure and rust; impermanence.user is covered by stubs.impermanence).
   thoughtfullSubModuleStub =
@@ -78,6 +128,10 @@ extendedNixpkgs.testers.nixosTest {
             {
               assertion = hasMavenRepository config;
               message = "expected Maven repository persisted with backup = false by default";
+            }
+            {
+              assertion = !(persistsAnyUnityDirectory config);
+              message = "unexpected Unity persistence by default";
             }
           ];
       };
@@ -123,6 +177,25 @@ extendedNixpkgs.testers.nixosTest {
         }) opencodeDirectories;
       };
 
+    unityEnabled =
+      { config, ... }:
+      {
+        imports = [
+          ../nixosModules/dev.nix
+          thoughtfullSubModuleStub
+          stubs.impermanence
+          inputsArg
+        ];
+        thoughtfull.dev = {
+          enable = true;
+          unity.enable = true;
+        };
+        assertions = map (expected: {
+          assertion = hasUnityDirectory config expected;
+          message = "expected Unity persistence directory ${expected.directory} with backupExclude ${builtins.toJSON expected.backupExclude}";
+        }) unityDirectories;
+      };
+
     disabled = {
       imports = [
         ../nixosModules/dev.nix
@@ -142,6 +215,7 @@ extendedNixpkgs.testers.nixosTest {
     enabled.wait_for_unit("multi-user.target")
     opencodeDisabled.wait_for_unit("multi-user.target")
     javaDisabled.wait_for_unit("multi-user.target")
+    unityEnabled.wait_for_unit("multi-user.target")
     disabled.wait_for_unit("multi-user.target")
 
     with subtest("enabled: devenv is in PATH"):
@@ -169,6 +243,12 @@ extendedNixpkgs.testers.nixosTest {
     with subtest("enabled default: opencode is in PATH"):
         enabled.succeed("which opencode")
 
+    with subtest("enabled default: unityhub is not available"):
+        enabled.fail("which unityhub")
+
+    with subtest("unity enabled: unityhub is in PATH"):
+        unityEnabled.succeed("which unityhub")
+
     with subtest("opencode disabled: opencode is not available"):
         opencodeDisabled.fail("which opencode")
 
@@ -186,6 +266,9 @@ extendedNixpkgs.testers.nixosTest {
 
     with subtest("disabled default: opencode is not available"):
         disabled.fail("which opencode")
+
+    with subtest("disabled default: unityhub is not available"):
+        disabled.fail("which unityhub")
 
     with subtest("disabled default: no devenv auto-activation hook"):
         disabled.fail("grep -q 'devenv hook' /etc/zshrc")

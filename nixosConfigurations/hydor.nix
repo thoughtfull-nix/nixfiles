@@ -31,7 +31,10 @@
         thoughtfull = {
           binaryCache.awsCredentialsFile = ./hydor/secrets/nix-cache-credentials.age;
           claudeDesktop.enable = true;
-          dev.enable = true;
+          dev = {
+            enable = true;
+            unity.enable = true;
+          };
           githubToken.tokenFile = ./hydor/secrets/github-access-token.age;
           graphical.enable = true;
           impermanence.disko = {

@@ -74,7 +74,10 @@ in
       '';
     })
   ];
-  imports = [ ./dev/java.nix ];
+  imports = [
+    ./dev/java.nix
+    ./dev/unity.nix
+  ];
   options.thoughtfull.dev = {
     agents = {
       claude.enable = (mkEnableOption "Claude code agent") // {
