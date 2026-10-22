@@ -8,6 +8,7 @@
 let
   inherit (inputs)
     agenix
+    codex-desktop
     disko
     impermanence
     kryptonix
@@ -36,6 +37,7 @@ in
   # Import all flake input modules
   imports = [
     agenix.nixosModules.default
+    codex-desktop.nixosModules.default
     disko.nixosModules.default
     impermanence.nixosModules.default
     kryptonix.nixosModules.default
@@ -53,6 +55,7 @@ in
     ./caddy.nix
     ./claude-desktop.nix
     ./clojure.nix
+    ./codex-desktop.nix
     ./commonplace.nix
     ./dev.nix
     ./dictation.nix

@@ -60,7 +60,17 @@ in
           ".local/share/devenv"
         ]
         ++ (optionals claude.enable [ ".claude" ])
-        ++ (optionals codex.enable [ ".codex" ])
+        ++ (optionals codex.enable [
+          {
+            directory = ".codex";
+            backupExclude = [
+              ".tmp"
+              "cache"
+              "plugins/cache"
+              "tmp"
+            ];
+          }
+        ])
         ++ (optionals opencode.enable [
           ".cache/opencode"
           ".config/opencode"

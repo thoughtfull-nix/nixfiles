@@ -48,6 +48,11 @@ extendedNixpkgs.testers.nixosTest {
             ) config.thoughtfull.impermanence.user.directories;
             message = "expected nix trusted-settings persistence directory .local/share/nix";
           }
+          {
+            assertion =
+              !(builtins.elem "https://codex-desktop-linux.cachix.org" config.nix.settings.extra-substituters);
+            message = "codex-desktop-linux cache should only be trusted when Codex Desktop is enabled";
+          }
         ];
       };
   };

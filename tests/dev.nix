@@ -69,7 +69,17 @@ let
       backupExclude = [ "Asset Store-5.x" ];
     }
   ];
-  hasUnityDirectory =
+  # Codex caches and scratch space are excluded from restic.
+  codexDirectory = {
+    directory = ".codex";
+    backupExclude = [
+      ".tmp"
+      "cache"
+      "plugins/cache"
+      "tmp"
+    ];
+  };
+  hasPersistedDirectory =
     config: expected:
     builtins.any (
       entry:
@@ -134,6 +144,10 @@ extendedNixpkgs.testers.nixosTest {
               assertion = !(persistsAnyUnityDirectory config);
               message = "unexpected Unity persistence by default";
             }
+            {
+              assertion = hasPersistedDirectory config codexDirectory;
+              message = "expected .codex persisted with caches excluded from backups";
+            }
           ];
       };
 
@@ -192,7 +206,7 @@ extendedNixpkgs.testers.nixosTest {
           unity.enable = true;
         };
         assertions = map (expected: {
-          assertion = hasUnityDirectory config expected;
+          assertion = hasPersistedDirectory config expected;
           message = "expected Unity persistence directory ${expected.directory} with backupExclude ${builtins.toJSON expected.backupExclude}";
         }) unityDirectories;
       };

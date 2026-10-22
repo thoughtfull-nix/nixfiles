@@ -31,6 +31,7 @@
         thoughtfull = {
           binaryCache.awsCredentialsFile = ./hydor/secrets/nix-cache-credentials.age;
           claudeDesktop.enable = true;
+          codexDesktop.enable = true;
           dev = {
             enable = true;
             unity.enable = true;

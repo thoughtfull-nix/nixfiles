@@ -3,9 +3,11 @@
   nixConfig = {
     extra-substituters = [
       "https://cache.numtide.com"
+      "https://codex-desktop-linux.cachix.org"
       "https://devenv.cachix.org"
     ];
     extra-trusted-public-keys = [
+      "codex-desktop-linux.cachix.org-1:nX/xy6AdK9hQE24A8ALGjkCKj2ObFmcnemiL5Cid4nk="
       "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
       "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
     ];
@@ -13,6 +15,7 @@
   inputs = {
     agenix.url = "github:ryantm/agenix";
     claude-desktop.url = "github:aaddrick/claude-desktop-debian";
+    codex-desktop.url = "github:ilysenko/codex-desktop-linux";
     devenv.url = "github:cachix/devenv/v2.2";
     disko.url = "github:nix-community/disko";
     flake-utils.url = "github:numtide/flake-utils";
