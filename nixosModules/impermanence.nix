@@ -7,9 +7,12 @@
 let
   inherit (config.thoughtfull) impermanence user;
   inherit (lib)
+    any
     concatMap
     concatStringsSep
     filter
+    groupBy
+    head
     mkDefault
     mkEnableOption
     mkIf
@@ -30,6 +33,27 @@ let
       "backupExclude"
     ];
   stripFile = f: removeAttrs f [ "backup" ];
+
+  # Modules may persist the same directory with different backup settings. Merge those entries,
+  # backing the directory up if any entry wants it and combining their excludes. Entries that
+  # differ in anything else are kept, so environment.persistence still flags the conflict.
+  mergeDirs =
+    entries:
+    let
+      keyOf = d: builtins.toJSON (stripDir d);
+      groups = groupBy keyOf entries;
+    in
+    map (
+      key:
+      let
+        group = groups.${key};
+      in
+      head group
+      // {
+        backup = any (d: d.backup) group;
+        backupExclude = unique (concatMap (d: d.backupExclude) group);
+      }
+    ) (unique (map keyOf entries));
 
   persistentPrefix = "/${impermanence.persistent.name}";
   joinPath =
@@ -83,13 +107,13 @@ in
           mode = "u=rwx,g=x,o=x";
         }
       ]
-      ++ (map stripDir (unique impermanence.directories));
+      ++ (map stripDir (mergeDirs impermanence.directories));
       files = [
         "/etc/machine-id"
       ]
       ++ (map stripFile (unique impermanence.files));
       users.${user.name} = {
-        directories = map stripDir (unique impermanence.user.directories);
+        directories = map stripDir (mergeDirs impermanence.user.directories);
         files = map stripFile (unique impermanence.user.files);
       };
     };
@@ -108,8 +132,8 @@ in
     services.restic.thoughtfull = {
       paths = [ persistentPrefix ];
       exclude =
-        (directoryExcludes "" (unique impermanence.directories))
-        ++ (directoryExcludes user.home (unique impermanence.user.directories))
+        (directoryExcludes "" (mergeDirs impermanence.directories))
+        ++ (directoryExcludes user.home (mergeDirs impermanence.user.directories))
         ++ (fileExcludes "" (unique impermanence.files))
         ++ (fileExcludes user.home (unique impermanence.user.files));
     };

@@ -38,6 +38,15 @@ let
             directory = "/var/lib/another-cache";
             backupExclude = [ "tmp" ];
           }
+          # entries for the same directory from different modules are merged
+          {
+            directory = "/var/lib/shared";
+            backupExclude = [ "x" ];
+          }
+          {
+            directory = "/var/lib/shared";
+            backupExclude = [ "y" ];
+          }
         ];
         user = {
           directories = [
@@ -45,6 +54,20 @@ let
               directory = ".minecraft";
               backupExclude = [ "cache" ];
             }
+            {
+              directory = ".shared";
+              backupExclude = [ "a" ];
+            }
+            {
+              directory = ".shared";
+              backupExclude = [ "b" ];
+            }
+            ".shared"
+            {
+              directory = ".partial";
+              backup = false;
+            }
+            ".partial"
           ];
           files = [
             {
@@ -115,6 +138,52 @@ let
     {
       name = "a user file with backup = false is excluded";
       ok = lib.elem "${persistentPrefix}/home/${testUser}/.m2/deps.jar" cfg.services.restic.thoughtfull.exclude;
+    }
+    {
+      name = "duplicate system directory entries are persisted once";
+      ok =
+        builtins.length (
+          builtins.filter (
+            d: d.directory == "/var/lib/shared"
+          ) cfg.environment.persistence."/persistent".directories
+        ) == 1;
+    }
+    {
+      name = "duplicate system directory entries merge their backupExclude sub-paths";
+      ok =
+        lib.all
+          (sub: lib.elem "${persistentPrefix}/var/lib/shared/${sub}" cfg.services.restic.thoughtfull.exclude)
+          [
+            "x"
+            "y"
+          ];
+    }
+    {
+      name = "duplicate user directory entries are persisted once";
+      ok =
+        builtins.length (
+          builtins.filter (
+            d: d.directory == ".shared"
+          ) cfg.environment.persistence."/persistent".users.${testUser}.directories
+        ) == 1;
+    }
+    {
+      name = "duplicate user directory entries merge their backupExclude sub-paths";
+      ok =
+        lib.all
+          (
+            sub:
+            lib.elem "${persistentPrefix}/home/${testUser}/.shared/${sub}" cfg.services.restic.thoughtfull.exclude
+          )
+          [
+            "a"
+            "b"
+          ];
+    }
+    {
+      name = "a duplicated directory is backed up if any entry wants it backed up";
+      ok =
+        !(lib.elem "${persistentPrefix}/home/${testUser}/.partial" cfg.services.restic.thoughtfull.exclude);
     }
     {
       name = "backup/backupExclude do not leak into environment.persistence (system directories)";
