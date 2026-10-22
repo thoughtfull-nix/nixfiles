@@ -33,6 +33,7 @@
           claudeDesktop.enable = true;
           codexDesktop.enable = true;
           dev = {
+            android.enable = true;
             enable = true;
             unity.enable = true;
           };

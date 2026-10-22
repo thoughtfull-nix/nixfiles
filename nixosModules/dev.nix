@@ -87,6 +87,7 @@ in
     })
   ];
   imports = [
+    ./dev/android.nix
     ./dev/java.nix
     ./dev/unity.nix
   ];
