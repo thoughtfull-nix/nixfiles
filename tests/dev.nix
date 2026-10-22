@@ -26,15 +26,7 @@ let
   # The Maven local repository is persisted across boots so downloaded
   # artifacts survive a reboot, but excluded from restic (backup = false):
   # it is a disposable, re-downloadable cache.
-  mavenRepository = {
-    directory = ".m2/repository";
-    backup = false;
-  };
-  hasMavenRepository =
-    config:
-    builtins.any (
-      d: (d.directory or null) == mavenRepository.directory && (d.backup or true) == false
-    ) config.thoughtfull.impermanence.user.directories;
+  hasMavenRepository = config: hasUnbackedDirectory config ".m2/repository";
 
   # Editor installs (Unity/Hub), project caches, and Asset Store downloads are
   # persisted but excluded from restic; projects, Hub state, and licences are
@@ -69,6 +61,63 @@ let
       backupExclude = [ "Asset Store-5.x" ];
     }
   ];
+  # Android projects, Studio settings, Gradle config, and adb/signing keys are
+  # backed up; the SDK, Gradle caches, Studio caches and plugins, emulator
+  # images, and project build outputs (only at module depth, so source packages
+  # named build are kept) are persisted but excluded from restic.
+  androidDirectories = [
+    {
+      directory = "AndroidStudioProjects";
+      backupExclude = [
+        "**/.gradle"
+        "**/.kotlin"
+        "*/*/*/build"
+        "*/*/build"
+        "*/build"
+      ];
+    }
+    {
+      directory = ".android";
+      backupExclude = [
+        "avd"
+        "cache"
+      ];
+    }
+    {
+      directory = ".config/Google";
+      backupExclude = [ ];
+    }
+    {
+      directory = ".gradle";
+      backupExclude = [
+        ".tmp"
+        "caches"
+        "daemon"
+        "jdks"
+        "native"
+        "wrapper"
+      ];
+    }
+  ];
+  androidUnbackedDirectories = [
+    "Android"
+    ".cache/Google"
+    ".local/share/Google"
+  ];
+  hasUnbackedDirectory =
+    config: directory:
+    builtins.any (
+      d: (d.directory or null) == directory && (d.backup or true) == false
+    ) config.thoughtfull.impermanence.user.directories;
+  persistsAnyOf =
+    directories: config:
+    builtins.any (
+      d: builtins.elem (d.directory or d) directories
+    ) config.thoughtfull.impermanence.user.directories;
+  persistsAnyAndroidDirectory = persistsAnyOf (
+    map (a: a.directory) androidDirectories ++ androidUnbackedDirectories
+  );
+
   # Codex caches and scratch space are excluded from restic.
   codexDirectory = {
     directory = ".codex";
@@ -90,11 +139,7 @@ let
       && (d.backup or true)
       && (d.backupExclude or [ ]) == expected.backupExclude
     ) config.thoughtfull.impermanence.user.directories;
-  persistsAnyUnityDirectory =
-    config:
-    builtins.any (
-      d: builtins.elem (d.directory or d) (map (u: u.directory) unityDirectories)
-    ) config.thoughtfull.impermanence.user.directories;
+  persistsAnyUnityDirectory = persistsAnyOf (map (u: u.directory) unityDirectories);
 
   # Stub the thoughtfull sub-module options that dev.nix sets via mkDefault
   # (clojure and rust; impermanence.user is covered by stubs.impermanence).
@@ -143,6 +188,10 @@ extendedNixpkgs.testers.nixosTest {
             {
               assertion = !(persistsAnyUnityDirectory config);
               message = "unexpected Unity persistence by default";
+            }
+            {
+              assertion = !(persistsAnyAndroidDirectory config);
+              message = "unexpected Android persistence by default";
             }
             {
               assertion = hasPersistedDirectory config codexDirectory;
@@ -211,6 +260,30 @@ extendedNixpkgs.testers.nixosTest {
         }) unityDirectories;
       };
 
+    androidEnabled =
+      { config, ... }:
+      {
+        imports = [
+          ../nixosModules/dev.nix
+          thoughtfullSubModuleStub
+          stubs.impermanence
+          inputsArg
+        ];
+        thoughtfull.dev = {
+          enable = true;
+          android.enable = true;
+        };
+        assertions =
+          map (expected: {
+            assertion = hasPersistedDirectory config expected;
+            message = "expected Android persistence directory ${expected.directory} with backupExclude ${builtins.toJSON expected.backupExclude}";
+          }) androidDirectories
+          ++ map (directory: {
+            assertion = hasUnbackedDirectory config directory;
+            message = "expected Android directory ${directory} persisted with backup = false";
+          }) androidUnbackedDirectories;
+      };
+
     disabled = {
       imports = [
         ../nixosModules/dev.nix
@@ -231,6 +304,7 @@ extendedNixpkgs.testers.nixosTest {
     opencodeDisabled.wait_for_unit("multi-user.target")
     javaDisabled.wait_for_unit("multi-user.target")
     unityEnabled.wait_for_unit("multi-user.target")
+    androidEnabled.wait_for_unit("multi-user.target")
     disabled.wait_for_unit("multi-user.target")
 
     with subtest("enabled: devenv is in PATH"):
@@ -264,6 +338,35 @@ extendedNixpkgs.testers.nixosTest {
     with subtest("enabled default: unityhub is not available"):
         enabled.fail("which unityhub")
 
+    with subtest("enabled default: android tools are not available"):
+        enabled.fail("which android-studio")
+        enabled.fail("which adb")
+
+    with subtest("android enabled: android-studio and adb are in PATH"):
+        androidEnabled.succeed("which android-studio")
+        androidEnabled.succeed("which adb")
+
+    with subtest("android enabled: shells use the SDK adb so it matches Studio's server"):
+        androidEnabled.succeed(
+            "mkdir -p /root/Android/Sdk/platform-tools"
+            " && printf '#!/bin/sh\\n' > /root/Android/Sdk/platform-tools/adb"
+            " && chmod +x /root/Android/Sdk/platform-tools/adb"
+        )
+        home = androidEnabled.succeed("bash -lc 'echo $ANDROID_HOME'").strip()
+        assert home == "/root/Android/Sdk", home
+        adb = androidEnabled.succeed("bash -lc 'command -v adb'").strip()
+        assert adb == "/root/Android/Sdk/platform-tools/adb", adb
+
+    with subtest("android enabled: emulator can use /dev/kvm without extra groups"):
+        androidEnabled.succeed("udevadm cat | grep -qs 'KERNEL==\"kvm\".*MODE=\"0666\"'")
+
+    with subtest("android enabled: emulator libraries available to SDK binaries via nix-ld"):
+        for lib in ["libGL.so.1", "libX11.so.6", "libpulse.so.0", "libxkbcommon.so.0"]:
+            androidEnabled.succeed(f"test -e /run/current-system/sw/share/nix-ld/lib/{lib}")
+
+    with subtest("enabled default: no emulator libraries in nix-ld"):
+        enabled.fail("test -e /run/current-system/sw/share/nix-ld/lib/libGL.so.1")
+
     with subtest("unity enabled: unityhub is in PATH"):
         unityEnabled.succeed("which unityhub")
 
@@ -290,6 +393,10 @@ extendedNixpkgs.testers.nixosTest {
 
     with subtest("disabled default: unityhub is not available"):
         disabled.fail("which unityhub")
+
+    with subtest("disabled default: android tools are not available"):
+        disabled.fail("which android-studio")
+        disabled.fail("which adb")
 
     with subtest("disabled default: no devenv auto-activation hook"):
         disabled.fail("grep -q 'devenv hook' /etc/zshrc")
