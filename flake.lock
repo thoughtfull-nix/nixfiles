@@ -946,11 +946,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1792743369,
-        "narHash": "sha256-muGDIJ9WrXZRR9G42ltdbSHpqysXVMU0NK9jjaP3Wx8=",
+        "lastModified": 1792778970,
+        "narHash": "sha256-RheJlr5FsQjYEmUlslMFO3vUVB382oi4tIpXgfYJ2YM=",
         "owner": "thoughtfull-systems",
         "repo": "vibes",
-        "rev": "b3922efc48e2b70f978647688ecde52ec388dc55",
+        "rev": "27a96a8e2ddc9a1b33f63f41f0f7fd2e85468e8f",
         "type": "github"
       },
       "original": {
