@@ -82,6 +82,10 @@ testPkgs.testers.nixosTest {
             "expected tmpfs-backed ControlPath"
         )
         assert "ControlPersist 3h" in ssh_config, "expected ControlPersist 3h"
+        github_block = ssh_config.split("Host technosophist.github.com")[0]
+        assert "ServerAliveInterval 60" in github_block, (
+            "expected github.com ServerAliveInterval 60"
+        )
 
     with subtest("ssh_config restricts github.com to the committed authorized keys"):
         ssh_config = machine.succeed("cat /etc/ssh/ssh_config")

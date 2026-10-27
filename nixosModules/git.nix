@@ -221,6 +221,7 @@ in
         ControlMaster auto
         ControlPath /run/user/%i/ssh-control-%n
         ControlPersist 3h
+        ServerAliveInterval 60
 
       Host technosophist.github.com
         HostName github.com
