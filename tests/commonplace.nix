@@ -66,7 +66,7 @@ let
         && lib.hasInfix "bindsym Escape mode \"default\"" conf
         && lib.hasInfix "bindsym $mod+c mode $capture" conf
         && !lib.hasInfix "$mod+n" conf
-        && lib.hasInfix ''for_window [app_id="systems.thoughtfull.Commonplace" title="^Quick Capture$"] floating enable'' conf;
+        && lib.hasInfix ''for_window [app_id="systems.thoughtfull.Commonplace" title="^Quick capture$"] floating enable'' conf;
     }
     {
       name = "enabled without sway: no sway config";
