@@ -1,0 +1,33 @@
+---
+name: Update vibes
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v22
+        with:
+          extra-conf: |
+            access-tokens = github.com=${{ secrets.KRYPTONIX_ACCESS_TOKEN }}
+            experimental-features = nix-command flakes
+      - name: Update vibes input
+        run: nix flake update vibes
+      - name: Commit and push if changed
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- flake.lock; then
+            echo "vibes unchanged; nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flake.lock
+          git commit -m "Update vibes"
+          git push
