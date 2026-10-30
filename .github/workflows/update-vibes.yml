@@ -3,6 +3,7 @@ name: Update vibes
 on:
   workflow_dispatch:
 permissions:
+  actions: write
   contents: write
 jobs:
   update:
@@ -18,7 +19,9 @@ jobs:
             experimental-features = nix-command flakes
       - name: Update vibes input
         run: nix flake update vibes
-      - name: Commit and push if changed
+      - name: Commit, push, and build if changed
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if git diff --quiet -- flake.lock; then
@@ -31,3 +34,5 @@ jobs:
           git add flake.lock
           git commit -m "Update vibes"
           git push
+          # Pushes made with GITHUB_TOKEN don't trigger push workflows.
+          gh workflow run build-and-push.yml --ref main
