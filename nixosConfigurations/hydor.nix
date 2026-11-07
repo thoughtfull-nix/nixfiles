@@ -45,7 +45,10 @@
             swap.size = "4G";
           };
           laptop.enable = true;
-          programs.minecraft.enable = true;
+          programs = {
+            minecraft.enable = true;
+            zibaldone.enable = true;
+          };
           user.hashedPasswordFile = ./hydor/secrets/hashed-user-passphrase.age;
           vpn.configFile = ./hydor/secrets/vpn-config.age;
         };
