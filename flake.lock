@@ -120,6 +120,21 @@
         "type": "github"
       }
     },
+    "crane": {
+      "locked": {
+        "lastModified": 1793669695,
+        "narHash": "sha256-9EtV4I6Ohw0tjidL31TMOKHhW/QGVG8NuGiemzIaNCs=",
+        "owner": "ipetkov",
+        "repo": "crane",
+        "rev": "788369ed71ed9d84ef72cb056e4d920050d5b32c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ipetkov",
+        "repo": "crane",
+        "type": "github"
+      }
+    },
     "crate2nix": {
       "flake": false,
       "locked": {
@@ -778,7 +793,8 @@
         "systems": "systems_4",
         "treefmt-nix": "treefmt-nix_3",
         "unstable": "unstable",
-        "vibes": "vibes"
+        "vibes": "vibes",
+        "zibaldone": "zibaldone"
       }
     },
     "rust-overlay": {
@@ -956,6 +972,27 @@
       "original": {
         "owner": "thoughtfull-systems",
         "repo": "vibes",
+        "type": "github"
+      }
+    },
+    "zibaldone": {
+      "inputs": {
+        "crane": "crane",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794069311,
+        "narHash": "sha256-Ii2mI1mtj/9yWVk3XpboroE6L6GKjpEb3mo0XtGHNnE=",
+        "owner": "thoughtfull-systems",
+        "repo": "Zibaldone",
+        "rev": "5c526db416c0271cba9cab06254de4654ac0fe82",
+        "type": "github"
+      },
+      "original": {
+        "owner": "thoughtfull-systems",
+        "repo": "Zibaldone",
         "type": "github"
       }
     }

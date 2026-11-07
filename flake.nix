@@ -34,6 +34,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:thoughtfull-systems/vibes";
     };
+    zibaldone = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:thoughtfull-systems/Zibaldone";
+    };
   };
   outputs =
     inputs@{

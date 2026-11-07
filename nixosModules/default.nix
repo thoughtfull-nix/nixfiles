@@ -110,6 +110,7 @@ in
     ./weather.nix
     ./xremap.nix
     ./yubikey.nix
+    ./zibaldone.nix
     ./zoom-us.nix
     ./zsh.nix
   ];
@@ -137,6 +138,7 @@ in
       inputs.devenv.overlays.default
       inputs.llm-agents.overlays.shared-nixpkgs
       inputs.vibes.overlays.default
+      inputs.zibaldone.overlays.default
       self.overlays.emacs
       self.overlays.thoughtfull
       self.overlays.unstable

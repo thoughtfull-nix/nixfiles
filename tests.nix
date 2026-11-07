@@ -52,5 +52,6 @@ forEachSystem (
     user = callTest ./tests/user.nix;
     vpn = callTest ./tests/vpn.nix;
     waybar = callTest ./tests/waybar.nix;
+    zibaldone = callTest ./tests/zibaldone.nix;
   }
 )
