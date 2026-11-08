@@ -1,0 +1,38 @@
+---
+name: Update zibaldone
+on:
+  workflow_dispatch:
+permissions:
+  actions: write
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v22
+        with:
+          extra-conf: |
+            access-tokens = github.com=${{ secrets.KRYPTONIX_ACCESS_TOKEN }}
+            experimental-features = nix-command flakes
+      - name: Update zibaldone input
+        run: nix flake update zibaldone
+      - name: Commit, push, and build if changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- flake.lock; then
+            echo "zibaldone unchanged; nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flake.lock
+          git commit -m "Update zibaldone"
+          git push
+          # Pushes made with GITHUB_TOKEN don't trigger push workflows.
+          gh workflow run build-and-push.yml --ref main
