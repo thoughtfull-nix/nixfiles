@@ -42,7 +42,7 @@
           impermanence.disko = {
             boot.size = "512M";
             encrypted.device = "/dev/nvme0n1";
-            swap.size = "4G";
+            swap.size = "32G";
           };
           laptop.enable = true;
           programs = {
