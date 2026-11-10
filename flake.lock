@@ -983,11 +983,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1794218619,
-        "narHash": "sha256-8qPXB/FPwvzXuyCAlEOn5BhrrwtH6JvA8WA6D3OxwfY=",
+        "lastModified": 1794307160,
+        "narHash": "sha256-3JNipJ7W/0nSfh0eLQy1nt0QUxCoE5DCGaPv7pf4wyo=",
         "owner": "thoughtfull-systems",
         "repo": "Zibaldone",
-        "rev": "9dc5d85cf7f670b63099a5d1dc63a10f277bee99",
+        "rev": "76ee85308e6d780b7d9e28c3edc1af2d9b571f85",
         "type": "github"
       },
       "original": {
