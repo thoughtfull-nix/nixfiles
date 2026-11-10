@@ -39,6 +39,10 @@ let
       name = "firefox-login: unit doesn't override PATH";
       ok = !lib.hasInfix "PATH=" unit;
     }
+    {
+      name = "firefox opens PDF files";
+      ok = eval.config.xdg.mime.defaultApplications."application/pdf" or null == "firefox.desktop";
+    }
   ];
   failed = builtins.filter (c: !c.ok) checks;
 in
