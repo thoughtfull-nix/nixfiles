@@ -11,6 +11,13 @@ in
 {
   config = mkIf cfg.enable {
     environment.systemPackages = [ pkgs.zibaldone ];
+    programs.firefox = {
+      nativeMessagingHosts.packages = [ pkgs.zibaldone ];
+      policies.ExtensionSettings."web-clipper@zibaldone.thoughtfull.systems" = {
+        installation_mode = "force_installed";
+        install_url = "file://${pkgs.zib-web-clipper-signed}/zib-web-clipper.xpi";
+      };
+    };
     thoughtfull.impermanence.user.directories = [
       ".local/share/zibaldone"
       {
