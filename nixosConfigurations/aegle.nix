@@ -79,6 +79,7 @@
               };
             };
             sway.kanshi.configFile = ./aegle/kanshi/config;
+            zibaldone.enable = true;
           };
           user = {
             hashedPasswordFile = ./aegle/secrets/hashed-user-passphrase.age;
