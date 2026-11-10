@@ -119,6 +119,7 @@ in
     };
   };
   thoughtfull.impermanence.user.directories = mkIf firefox.enable [ ".config/mozilla/firefox" ];
+  xdg.mime.defaultApplications."application/pdf" = mkIf firefox.enable (mkDefault "firefox.desktop");
   systemd.user.services.firefox-login = {
     description = "Launch firefox on workspace 3 at login";
     after = [
