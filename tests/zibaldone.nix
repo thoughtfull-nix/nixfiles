@@ -1,6 +1,7 @@
 # Lightweight nix eval check (not a nixosTest/VM boot) for zibaldone.nix: the
-# package is installed, its data is persisted and backed up, and its rebuildable
-# search index cache is persisted but kept out of backups.
+# package is installed, its data is persisted and backed up, its rebuildable
+# search index cache is persisted but kept out of backups, and Firefox gets the
+# web clipper extension and its native messaging host.
 { self, nixpkgs, ... }:
 let
   inherit (nixpkgs) lib;
@@ -29,6 +30,13 @@ let
     lib.findFirst (
       d: (d.directory or d) == path
     ) null eval.config.thoughtfull.impermanence.user.directories;
+  clipperId = "web-clipper@zibaldone.thoughtfull.systems";
+  clipper = eval: eval.config.programs.firefox.policies.ExtensionSettings.${clipperId} or null;
+  hasNativeHost =
+    eval:
+    lib.any (
+      p: (p.pname or "") == "zibaldone"
+    ) eval.config.programs.firefox.nativeMessagingHosts.packages;
   dataDir = userDir enabled ".local/share/zibaldone";
   cacheDir = userDir enabled ".cache/zibaldone";
 
@@ -46,8 +54,28 @@ let
       ok = cacheDir != null && !(cacheDir.backup or true);
     }
     {
+      name = "enabled: web clipper is force-installed from the store";
+      ok =
+        clipper enabled == {
+          installation_mode = "force_installed";
+          install_url = "file://${enabled.pkgs.zib-web-clipper-signed}/zib-web-clipper.xpi";
+        };
+    }
+    {
+      name = "enabled: zibaldone native messaging host is registered";
+      ok = hasNativeHost enabled;
+    }
+    {
       name = "disabled: zibaldone is not installed";
       ok = !hasZibaldone disabled;
+    }
+    {
+      name = "disabled: web clipper is not installed";
+      ok = clipper disabled == null;
+    }
+    {
+      name = "disabled: no native messaging host";
+      ok = !hasNativeHost disabled;
     }
     {
       name = "disabled: nothing persisted";
