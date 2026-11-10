@@ -91,16 +91,18 @@ jobs:
           printf '%s\n' "${{ secrets.CACHE_SIGNING_KEY }}" >/tmp/sign.key
           trap 'shred -u /tmp/sign.key' EXIT
           read -ra hosts <<<"${{ matrix.hosts }}"
+          declare -A outs
           for host in "${hosts[@]}"; do
             # Resolve the host's toplevel; the build step already realised it, so
             # this only evaluates and returns the store path.
-            out=$(nix build --no-link --print-out-paths \
+            outs[$host]=$(nix build --no-link --print-out-paths \
               ".#nixosConfigurations.$host.config.system.build.toplevel")
-            nix copy --to \
-              "s3://thoughtfull-nix-cache?region=us-east-1&secret-key=/tmp/sign.key" \
-              "$out"
+          done
+          .github/scripts/push-to-cache.bash \
+            "s3://thoughtfull-nix-cache?region=us-east-1" /tmp/sign.key "${outs[@]}"
+          for host in "${hosts[@]}"; do
             jq -n \
-              --arg p "$out" \
+              --arg p "${outs[$host]}" \
               --arg r "${{ github.sha }}" \
               --arg t "$(date -u +%FT%TZ)" \
               '{storePath:$p, gitRev:$r, builtAt:$t}' \
