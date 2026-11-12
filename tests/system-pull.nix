@@ -174,9 +174,9 @@ let
         && lib.hasInfix ''creds_file="/run/agenix/nix-cache-credentials"'' script;
     }
     {
-      name = "nix.conf gets s3:// substituter and trusted public key";
+      name = "nix.conf gets s3:// substituter (ranked after cache.nixos.org) and trusted public key";
       ok =
-        lib.elem "s3://thoughtfull-nix-cache?region=us-east-1" headless.config.nix.settings.extra-substituters
+        lib.elem "s3://thoughtfull-nix-cache?region=us-east-1&priority=50" headless.config.nix.settings.extra-substituters
         && lib.any (
           k: lib.hasPrefix "nix-cache.thoughtfull.systems-1:" k
         ) headless.config.nix.settings.extra-trusted-public-keys;
