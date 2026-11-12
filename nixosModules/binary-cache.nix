@@ -16,7 +16,8 @@ in
     };
     nix.settings = {
       extra-substituters = [
-        "s3://${cfg.bucket}?region=${cfg.region}"
+        # S3 stores default to priority 0, ahead of cache.nixos.org (40).
+        "s3://${cfg.bucket}?region=${cfg.region}&priority=50"
       ];
       extra-trusted-public-keys = [ cfg.publicKey ];
     };
