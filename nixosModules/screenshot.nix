@@ -13,12 +13,10 @@ in
 {
   config = mkIf graphical.enable {
     environment = {
-      etc = {
-        "sway/config.d/screenshot.conf" = mkIf sway.enable {
-          text = ''
-            bindsym --no-repeat Print exec flameshot gui -c
-          '';
-        };
+      etc = mkIf sway.enable {
+        "sway/config.d/screenshot.conf".text = ''
+          bindsym --no-repeat Print exec flameshot gui -c
+        '';
         "xdg/flameshot/flameshot.ini".text = ''
           [General]
           useGrimAdapter=true

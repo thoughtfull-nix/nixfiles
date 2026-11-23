@@ -1,5 +1,5 @@
 # Lightweight nix eval check (not a nixosTest/VM boot) for screenshot.nix:
-# flameshot should capture with grim on wlroots and not pop up notifications
+# flameshot should capture with grim on sway and not pop up notifications
 # about it on every capture.
 { self, nixpkgs, ... }:
 let
@@ -7,20 +7,24 @@ let
   inherit (self.inputs.nixpkgs.lib) nixosSystem;
   stubs = import ./stubs.nix;
 
-  eval = nixosSystem {
-    system = nixpkgs.stdenv.hostPlatform.system;
-    lib = self.lib;
-    modules = [
-      ../nixosModules/screenshot.nix
-      stubs.graphicalEnable
-      stubs.impermanence
-      {
-        thoughtfull.graphical.enable = true;
-        programs.sway.enable = true;
-      }
-    ];
-  };
-  ini = lib.splitString "\n" (eval.config.environment.etc."xdg/flameshot/flameshot.ini".text or "");
+  evalWith =
+    swayEnable:
+    nixosSystem {
+      system = nixpkgs.stdenv.hostPlatform.system;
+      lib = self.lib;
+      modules = [
+        ../nixosModules/screenshot.nix
+        stubs.graphicalEnable
+        stubs.impermanence
+        {
+          thoughtfull.graphical.enable = true;
+          programs.sway.enable = swayEnable;
+        }
+      ];
+    };
+  etc = (evalWith true).config.environment.etc;
+  etcNoSway = (evalWith false).config.environment.etc;
+  ini = lib.splitString "\n" (etc."xdg/flameshot/flameshot.ini".text or "");
 
   checks = [
     {
@@ -34,6 +38,11 @@ let
     {
       name = "flameshot doesn't warn about grim";
       ok = lib.elem "disabledGrimWarning=true" ini;
+    }
+    {
+      # the grim adapter only works on wlroots compositors
+      name = "flameshot ini is not installed without sway";
+      ok = !(etcNoSway ? "xdg/flameshot/flameshot.ini");
     }
   ];
   failed = builtins.filter (c: !c.ok) checks;
