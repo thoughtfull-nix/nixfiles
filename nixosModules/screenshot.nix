@@ -17,6 +17,11 @@ in
         "sway/config.d/screenshot.conf".text = ''
           bindsym --no-repeat Print exec flameshot gui -c
         '';
+        "xdg/flameshot/flameshot.ini".text = ''
+          [General]
+          useGrimAdapter=true
+          disabledGrimWarning=true
+        '';
       };
       systemPackages = [
         flameshot

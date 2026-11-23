@@ -45,6 +45,7 @@ forEachSystem (
     postgresql = callTest ./tests/postgresql.nix;
     postgresql-backup = callTest ./tests/postgresql-backup.nix;
     restic = callTest ./tests/restic.nix;
+    screenshot = callTest ./tests/screenshot.nix;
     sway = callTest ./tests/sway.nix;
     sway-idle = callTest ./tests/sway-idle.nix;
     system-pull = callTest ./tests/system-pull.nix;
