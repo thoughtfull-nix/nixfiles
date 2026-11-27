@@ -16,7 +16,7 @@
     agenix.url = "github:ryantm/agenix";
     claude-desktop.url = "github:aaddrick/claude-desktop-debian";
     codex-desktop.url = "github:ilysenko/codex-desktop-linux";
-    devenv.url = "github:cachix/devenv/v2.2";
+    devenv.url = "github:cachix/devenv/latest";
     disko.url = "github:nix-community/disko";
     flake-utils.url = "github:numtide/flake-utils";
     impermanence.url = "github:nix-community/impermanence";
