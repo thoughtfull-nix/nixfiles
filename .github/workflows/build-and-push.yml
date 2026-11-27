@@ -68,25 +68,29 @@ jobs:
         run: |
           set -euo pipefail
           read -ra hosts <<<"${{ matrix.hosts }}"
-          installables=()
-          for host in "${hosts[@]}"; do
-            host_config=".#nixosConfigurations.$host"
-            installables+=("$host_config.config.system.build.toplevel")
-            # Cache the compiled Rust dependencies separately from the system closure.
-            cargo_artifacts=$(nix eval --raw "$host_config" --apply '
-              host: if host.config.thoughtfull.programs.zibaldone.enable then
-                host.pkgs.zibaldone.cargoArtifacts.drvPath
-              else ""
-            ')
-            if [[ -n $cargo_artifacts ]]; then
-              installables+=("$cargo_artifacts^out")
-            fi
-          done
-          # One build invocation for all hosts of this architecture: Nix realises
-          # each shared derivation once and parallelises the independent parts.
+          build_systems() {
+            local host host_config cache_zibaldone
+            local -a installables=()
+            for host in "${hosts[@]}"; do
+              host_config=".#nixosConfigurations.$host"
+              installables+=("$host_config.config.system.build.toplevel")
+              if ! cache_zibaldone=$(nix eval --json "$host_config" --apply '
+                host: (host.config.thoughtfull.programs.zibaldone.enable or false)
+                  && (host.pkgs.zibaldone.cargoArtifacts or null) != null
+              '); then
+                printf 'Failed to evaluate Zibaldone build inputs for %s\n' "$host" >&2
+                return 1
+              fi
+              # Cache the compiled Rust dependencies separately from the system closure.
+              if [[ $cache_zibaldone == true ]]; then
+                installables+=("$host_config.pkgs.zibaldone.cargoArtifacts")
+              fi
+            done
+            # Build all hosts of this architecture together to reuse shared derivations.
+            nix build --no-link --print-out-paths "${installables[@]}"
+          }
           for attempt in 1 2 3; do
-            if nix build --no-link --print-out-paths \
-              "${installables[@]}" >"$RUNNER_TEMP/nix-build-paths"; then
+            if build_systems >"$RUNNER_TEMP/nix-build-paths"; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
