@@ -64,19 +64,29 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::481411455398:role/NixCacheWriter
           role-duration-seconds: 10800
-      - name: Build system closures
+      - name: Build system closures and Zibaldone dependencies
         run: |
           set -euo pipefail
           read -ra hosts <<<"${{ matrix.hosts }}"
           installables=()
           for host in "${hosts[@]}"; do
-            installables+=(".#nixosConfigurations.$host.config.system.build.toplevel")
+            host_config=".#nixosConfigurations.$host"
+            installables+=("$host_config.config.system.build.toplevel")
+            # Cache the compiled Rust dependencies separately from the system closure.
+            cargo_artifacts=$(nix eval --raw "$host_config" --apply '
+              host: if host.config.thoughtfull.programs.zibaldone.enable then
+                host.pkgs.zibaldone.cargoArtifacts.drvPath
+              else ""
+            ')
+            if [[ -n $cargo_artifacts ]]; then
+              installables+=("$cargo_artifacts^out")
+            fi
           done
           # One build invocation for all hosts of this architecture: Nix realises
           # each shared derivation once and parallelises the independent parts.
           for attempt in 1 2 3; do
-            if nix build --no-link \
-              "${installables[@]}"; then
+            if nix build --no-link --print-out-paths \
+              "${installables[@]}" >"$RUNNER_TEMP/nix-build-paths"; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
@@ -98,8 +108,9 @@ jobs:
             outs[$host]=$(nix build --no-link --print-out-paths \
               ".#nixosConfigurations.$host.config.system.build.toplevel")
           done
+          mapfile -t build_paths <"$RUNNER_TEMP/nix-build-paths"
           .github/scripts/push-to-cache.bash \
-            "s3://thoughtfull-nix-cache?region=us-east-1" /tmp/sign.key "${outs[@]}"
+            "s3://thoughtfull-nix-cache?region=us-east-1" /tmp/sign.key "${build_paths[@]}"
           for host in "${hosts[@]}"; do
             jq -n \
               --arg p "${outs[$host]}" \
